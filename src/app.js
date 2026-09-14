@@ -1,10 +1,10 @@
+import { installWorkbench } from './lib/workbench.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { buildModel, parametersFor, inspect, dispose } from './lib/modeling.js';
 import catalog from './catalog.js';
-
 const $ = selector => document.querySelector(selector);
 const canvas = $('#canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
@@ -39,10 +39,10 @@ let grid = new THREE.GridHelper(10, 20, '#c6d2c7', '#dce2d8');
 grid.material.transparent = true; grid.material.opacity = 0.48;
 scene.add(grid);
 const wireMaterial = new THREE.MeshBasicMaterial({ color: '#35554d', wireframe: true });
+let workbench;
 let selected, parameters = {}, root, stats, buildError = null;
 let view = 'perspective', version = { sha: 'local', repository: 'mewhhaha/3d' };
 let pending = 0, busy = false;
-
 function report(error) {
   buildError = error;
   $('#error').hidden = false;
@@ -115,9 +115,9 @@ function rebuild({ fit = false } = {}) {
     scene.add(root);
     buildError = null; $('#error').hidden = true;
     $('#status').textContent = '● Ready';
-    showStats(); writeHash();
+    showStats(); writeHash(); workbench?.refresh();
     if (fit) frame();
-    else frame(view); // Keep the chosen view and reframe changed bounds.
+    else frame(view);
     render();
   } catch (error) { report(error); }
 }
@@ -177,7 +177,6 @@ function loadHash() {
 async function exportGLB() {
   if (pending) rebuild();
   if (buildError) throw buildError;
-  // Export only a cloned model hierarchy; never lights, helpers, or display materials.
   const exportScene = new THREE.Scene();
   exportScene.name = selected.title;
   exportScene.add(root.clone(true));
@@ -224,12 +223,11 @@ $('#rotate').onchange = event => { controls.autoRotate = event.target.checked; }
 $('#parameters').onsubmit = event => event.preventDefault();
 canvas.addEventListener('keydown', event => { if (event.key.toLowerCase() === 'f') frame(); });
 window.addEventListener('hashchange', () => { try { loadHash(); } catch (error) { report(error); } });
-
 if (!catalog.length) throw new Error('No recipes found in models/');
 try {
   const response = await fetch(new URL('../build.json', import.meta.url));
   if (response.ok) version = await response.json();
-} catch { /* The workshop also works with local build metadata. */ }
+} catch { /* Local metadata is optional. */ }
 $('#build-label').textContent = version.sha === 'local' ? 'LOCAL WORKSPACE' : `BUILD ${version.sha.slice(0, 7)}`;
 $('#model-count').textContent = String(catalog.length).padStart(2, '0');
 for (const [index, entry] of catalog.entries()) {
@@ -241,15 +239,16 @@ for (const [index, entry] of catalog.entries()) {
   button.append(number, label); button.onclick = () => { try { select(entry.model.id); } catch (error) { report(error); } };
   $('#model-list').append(button);
 }
+workbench=installWorkbench({getRoot:()=>root,scene,camera,controls,render,frame,getModel:()=>selected.id});
 resize(); loadHash();
 window.studio = {
+  ...workbench.api,
   ready: true,
   models: catalog.map(({ model }) => ({ id: model.id, title: model.title, parameters: model.parameters })),
   select, setParameters, frame, render, exportGLB,
   get state() { return { model: selected.id, parameters: { ...parameters }, commit: version.sha }; },
   get stats() { return inspect(root); },
 };
-// CI captures explicit frames instead of continuously saturating a software GPU.
 if (!new URLSearchParams(location.search).has('capture')) {
   renderer.setAnimationLoop(() => { controls.update(); render(); });
 }

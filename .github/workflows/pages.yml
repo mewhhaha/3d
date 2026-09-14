@@ -4,18 +4,15 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
-
 permissions:
   contents: read
-
 concurrency:
   group: pages-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -23,15 +20,18 @@ jobs:
           node-version: '22'
       - name: Install locked dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Geometry and parameter tests
+      - name: Geometry, UV, texture, and parameter tests
         run: npm test
       - name: Build self-contained site
         run: npm run build
       - name: Install headless Chromium
         run: npx playwright-core install --with-deps chromium
       - name: Render, export, validate, and round-trip models
-        timeout-minutes: 5
+        timeout-minutes: 8
         run: npm run bake
+      - name: Review organic surfaces and export fine variants
+        timeout-minutes: 8
+        run: node scripts/review-surfaces.mjs
       - name: Save model assets
         if: always()
         uses: actions/upload-artifact@v4
@@ -53,9 +53,31 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: dist
+  blender:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: model-assets
+          path: imported-assets
+      - name: Install background Blender
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends blender
+      - name: Import fine GLBs, verify UVs and textures, save packed blend files
+        run: blender --background --factory-startup --python-exit-code 1 --python scripts/blender_verify.py -- imported-assets blender-assets
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: blender-assets
+          path: blender-assets/
+          if-no-files-found: ignore
   deploy:
     if: github.event_name != 'pull_request'
-    needs: build
+    needs: [build, blender]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -65,7 +87,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # First-time setup: Settings > Pages > Build and deployment > Source: GitHub Actions.
       - uses: actions/configure-pages@v5
       - name: Deploy to GitHub Pages
         id: deployment
