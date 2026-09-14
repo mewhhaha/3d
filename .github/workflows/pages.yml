@@ -1,0 +1,71 @@
+name: Build models and deploy Pages
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Install pinned dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Geometry and parameter tests
+        run: npm test
+      - name: Build self-contained site
+        run: npm run build
+      - name: Install headless Chromium
+        run: npx playwright-core install --with-deps chromium
+      - name: Render, export, validate, and round-trip models
+        run: npm run bake
+      - name: Save model assets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-assets
+          path: dist/assets/
+          if-no-files-found: ignore
+      - name: Save diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics
+          path: |
+            reports/
+            package-lock.json
+          if-no-files-found: ignore
+      - name: Upload site
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # First-time setup: Settings > Pages > Build and deployment > Source: GitHub Actions.
+      - uses: actions/configure-pages@v5
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
