@@ -1,10 +1,12 @@
 import { installWorkbench } from './lib/workbench.js';
+import { installRigControls } from './lib/rig-controls.js';
+import { exportAssetGLB } from './lib/export-assets.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { buildModel, parametersFor, inspect, dispose } from './lib/modeling.js';
 import catalog from './catalog.js';
+
 const $ = selector => document.querySelector(selector);
 const canvas = $('#canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
@@ -39,10 +41,11 @@ let grid = new THREE.GridHelper(10, 20, '#c6d2c7', '#dce2d8');
 grid.material.transparent = true; grid.material.opacity = 0.48;
 scene.add(grid);
 const wireMaterial = new THREE.MeshBasicMaterial({ color: '#35554d', wireframe: true });
-let workbench;
 let selected, parameters = {}, root, stats, buildError = null;
 let view = 'perspective', version = { sha: 'local', repository: 'mewhhaha/3d' };
 let pending = 0, busy = false;
+let workbench, rigControls;
+
 function report(error) {
   buildError = error;
   $('#error').hidden = false;
@@ -115,7 +118,7 @@ function rebuild({ fit = false } = {}) {
     scene.add(root);
     buildError = null; $('#error').hidden = true;
     $('#status').textContent = '● Ready';
-    showStats(); writeHash(); workbench?.refresh();
+    showStats(); writeHash(); workbench?.refresh(); rigControls?.refresh(root);
     if (fit) frame();
     else frame(view);
     render();
@@ -177,10 +180,7 @@ function loadHash() {
 async function exportGLB() {
   if (pending) rebuild();
   if (buildError) throw buildError;
-  const exportScene = new THREE.Scene();
-  exportScene.name = selected.title;
-  exportScene.add(root.clone(true));
-  return new GLTFExporter().parseAsync(exportScene, { binary: true, onlyVisible: true });
+  return exportAssetGLB(selected, parameters);
 }
 function download(blob, filename) {
   const url = URL.createObjectURL(blob), anchor = document.createElement('a');
@@ -223,6 +223,7 @@ $('#rotate').onchange = event => { controls.autoRotate = event.target.checked; }
 $('#parameters').onsubmit = event => event.preventDefault();
 canvas.addEventListener('keydown', event => { if (event.key.toLowerCase() === 'f') frame(); });
 window.addEventListener('hashchange', () => { try { loadHash(); } catch (error) { report(error); } });
+
 if (!catalog.length) throw new Error('No recipes found in models/');
 try {
   const response = await fetch(new URL('../build.json', import.meta.url));
@@ -239,10 +240,11 @@ for (const [index, entry] of catalog.entries()) {
   button.append(number, label); button.onclick = () => { try { select(entry.model.id); } catch (error) { report(error); } };
   $('#model-list').append(button);
 }
-workbench=installWorkbench({getRoot:()=>root,scene,camera,controls,render,frame,getModel:()=>selected.id});
+workbench = installWorkbench({ getRoot: () => root, scene, camera, controls, render, frame, getModel: () => selected.id });
+rigControls = installRigControls({ scene, render });
 resize(); loadHash();
 window.studio = {
-  ...workbench.api,
+  ...workbench.api, ...rigControls.api,
   ready: true,
   models: catalog.map(({ model }) => ({ id: model.id, title: model.title, parameters: model.parameters })),
   select, setParameters, frame, render, exportGLB,
@@ -250,5 +252,6 @@ window.studio = {
   get stats() { return inspect(root); },
 };
 if (!new URLSearchParams(location.search).has('capture')) {
-  renderer.setAnimationLoop(() => { controls.update(); render(); });
+  let previousTime = performance.now();
+  renderer.setAnimationLoop(time => { rigControls.tick((time - previousTime) / 1000); previousTime = time; controls.update(); render(); });
 }

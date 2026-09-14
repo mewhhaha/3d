@@ -37,7 +37,8 @@ export function mesh(geometry, { material: mat, ...options } = {}) {
 }
 export function group(name, children = [], options = {}) {
   const result = new THREE.Group();
-  result.add(...children.flat(Infinity).filter(Boolean));
+  const list = children.flat(Infinity).filter(Boolean);
+  if (list.length) result.add(...list);
   return transform(result, { ...options, name });
 }
 export function repeat(count, fn) {
@@ -158,11 +159,12 @@ export function inspect(root) {
   return { meshes, vertices, triangles, materials: materials.size, dimensions: size, min: bounds.min.toArray(), max: bounds.max.toArray() };
 }
 export function dispose(root) {
-  const geometries = new Set(), materials = new Set(), textures = new Set();
+  const geometries = new Set(), materials = new Set(), textures = new Set(), skeletons = new Set();
   root.traverse(node => {
     if (node.geometry) geometries.add(node.geometry);
+    if (node.skeleton) skeletons.add(node.skeleton);
     for (const mat of Array.isArray(node.material) ? node.material : node.material ? [node.material] : []) materials.add(mat);
   });
   for (const mat of materials) for (const value of Object.values(mat)) if (value?.isTexture) textures.add(value);
-  geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose());
+  geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose()); skeletons.forEach(s => s.dispose());
 }

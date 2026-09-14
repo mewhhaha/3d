@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -20,18 +20,21 @@ jobs:
           node-version: '22'
       - name: Install locked dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Geometry, UV, texture, and parameter tests
+      - name: Geometry, UV, texture, parameter, and skinning tests
         run: npm test
       - name: Build self-contained site
         run: npm run build
       - name: Install headless Chromium
         run: npx playwright-core install --with-deps chromium
       - name: Render, export, validate, and round-trip models
-        timeout-minutes: 8
+        timeout-minutes: 10
         run: npm run bake
       - name: Review organic surfaces and export fine variants
         timeout-minutes: 8
         run: node scripts/review-surfaces.mjs
+      - name: Verify animated deformation and bind-pose export isolation
+        timeout-minutes: 5
+        run: node scripts/check-rig.mjs
       - name: Save model assets
         if: always()
         uses: actions/upload-artifact@v4
@@ -55,8 +58,8 @@ jobs:
           path: dist
   blender:
     needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
       - uses: actions/download-artifact@v4
@@ -67,8 +70,11 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends blender
+          blender --version
       - name: Import fine GLBs, verify UVs and textures, save packed blend files
         run: blender --background --factory-startup --python-exit-code 1 --python scripts/blender_verify.py -- imported-assets blender-assets
+      - name: Verify native skeleton deformation and save rigged blend
+        run: blender --background --factory-startup --python-exit-code 1 --python scripts/blender_rig.py -- imported-assets blender-assets
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -78,7 +84,7 @@ jobs:
   deploy:
     if: github.event_name != 'pull_request'
     needs: [build, blender]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       pages: write
