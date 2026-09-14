@@ -59,6 +59,7 @@ export function riggedExplorer(parameters = {}) {
     else if (name === 'Cargo pocket') weights = () => [[`${side}_Thigh`, 1]];
     else if (name === 'Waist belt' || name.startsWith('Buckle')) weights = () => [['Hips', 1]];
     if (name === 'Tailored field jacket') meshName = 'ExplorerJacket';
+    if (name === 'Face • sculpted continuous surface') meshName = name;
     const skinned = skin(geometry, part.material, rig, weights, meshName);
     skinned.frustumCulled = false;
     if (name === 'Tailored field jacket') morphTarget(skinned, 'Breath', p => new THREE.Vector3(p.x * .012, 0, p.z * .035));
@@ -78,6 +79,6 @@ export function riggedExplorer(parameters = {}) {
     for (const suffix of ['', 'Tip']) grasp.push(rotationTrack(`${side}_Finger${finger}${suffix}`, [[0, [0, 0, 0]], [1, [-55, 0, 0]], [2, [0, 0, 0]]]));
   }
   result.animations = [clip('Idle', [rotationTrack('Head', [[0, [0, -3, 0]], [2, [0, 3, 0]], [4, [0, -3, 0]]]),
-    new THREE.NumberKeyframeTrack('ExplorerJacket.morphTargetInfluences[0]', [0, 2, 4], [0, 1, 0])]), clip('Walk', walk), clip('Wave', wave), clip('Grasp', grasp)];
+    new THREE.NumberKeyframeTrack('ExplorerJacket.morphTargetInfluences[Breath]', [0, 2, 4], [0, 1, 0])]), clip('Walk', walk), clip('Wave', wave), clip('Grasp', grasp)];
   return result;
 }
