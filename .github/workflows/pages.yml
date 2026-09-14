@@ -21,8 +21,8 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-      - name: Install pinned dependencies
-        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Geometry and parameter tests
         run: npm test
       - name: Build self-contained site
@@ -30,6 +30,7 @@ jobs:
       - name: Install headless Chromium
         run: npx playwright-core install --with-deps chromium
       - name: Render, export, validate, and round-trip models
+        timeout-minutes: 5
         run: npm run bake
       - name: Save model assets
         if: always()

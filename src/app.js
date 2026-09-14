@@ -132,6 +132,7 @@ function parameterInputs() {
     heading.append(text, output); label.append(heading);
     const input = document.createElement(spec.type === 'select' ? 'select' : 'input');
     input.name = name; input.id = `parameter-${name}`; input.setAttribute('aria-label', spec.label || name);
+    label.htmlFor = input.id;
     if (spec.type === 'select') {
       for (const value of spec.options) { const option = document.createElement('option'); option.value = option.textContent = value; input.append(option); }
       input.value = parameters[name];
@@ -248,4 +249,7 @@ window.studio = {
   get state() { return { model: selected.id, parameters: { ...parameters }, commit: version.sha }; },
   get stats() { return inspect(root); },
 };
-renderer.setAnimationLoop(() => { controls.update(); render(); });
+// CI captures explicit frames instead of continuously saturating a software GPU.
+if (!new URLSearchParams(location.search).has('capture')) {
+  renderer.setAnimationLoop(() => { controls.update(); render(); });
+}

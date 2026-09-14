@@ -77,7 +77,7 @@ Start with `orbit-bot.js` for assembling named parts and `ripple-vase.js` for de
 Requires Node.js 22 or newer.
 
 ```sh
-npm install
+npm ci
 npm run dev
 # Open http://127.0.0.1:4173
 ```
@@ -92,7 +92,7 @@ npm run bake                              # Browser checks + GLBs + previews
 npm run preview                           # Serve dist/
 ```
 
-On a Linux machine missing browser libraries, use `npx playwright-core install --with-deps chromium`. An existing browser may be selected with `CHROMIUM_PATH=/path/to/chromium npm run bake`. CI uses Playwright-managed Chromium and software WebGL rendering. Top-level dependency versions are pinned; the build's exact resolved lockfile is included in the diagnostics artifact.
+On a Linux machine missing browser libraries, use `npx playwright-core install --with-deps chromium`. An existing browser may be selected with `CHROMIUM_PATH=/path/to/chromium npm run bake`. CI uses Playwright-managed Chromium and software WebGL rendering. Dependency versions are pinned in `package-lock.json` and CI installs them with `npm ci`. The lockfile is also included in the diagnostics artifact.
 
 ## Outputs and checks
 
