@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { refineTriangles } from './shells.js';
 import { box, cylinder, mesh, group, material } from '../modeling.js';
 const V = a => new THREE.Vector3(...a);
 const positive = (n, label) => { if (!Number.isFinite(n) || n <= 0) throw new Error(`${label} must be positive`); return n; };
@@ -7,7 +8,7 @@ export function cyberMaterials({ shell = '#dbdac4', glow = 1 } = {}) {
   const named = (name, color, options = {}) => { const m = material(color, options); m.name = name; return m; };
   const neon = (name, color) => named(name, color, { emissive: color, emissiveIntensity: 2.2 * glow, roughness: .3, metalness: .15 });
   return {
-    shell: named('Ivory ceramic coating', shell, { roughness: .33, metalness: .23 }),
+    shell: named('Ivory ceramic coating', shell, { roughness: .43, metalness: .12 }),
     dark: named('Graphite structure', '#111f22', { roughness: .35, metalness: .65 }),
     rubber: named('Black joint bellows', '#060c0e', { roughness: .65 }),
     edge: named('Titanium edge', '#42565b', { roughness: .26, metalness: .8 }),
@@ -41,7 +42,8 @@ export function panel({ name = 'Panel', outline, depth = .006, bevel = .003, bul
   positive(depth,'panel depth'); if (![bevel,bulge].every(Number.isFinite)||bevel<0) throw new Error('Invalid panel shape');
   const shape = new THREE.Shape(outline.map(p=>new THREE.Vector2(...p))); shape.closePath();
   for (const { at:[x,y], radius } of holes) { const p = new THREE.Path(); p.absarc(x,y,positive(radius,'hole radius'),0,Math.PI*2,true); shape.holes.push(p); }
-  const geometry = new THREE.ExtrudeGeometry(shape,{depth,bevelEnabled:bevel>0,bevelSize:bevel,bevelThickness:bevel*.7,bevelSegments:3,curveSegments:24,steps:1});
+  let geometry = new THREE.ExtrudeGeometry(shape,{depth,bevelEnabled:bevel>0,bevelSize:bevel,bevelThickness:bevel*.7,bevelSegments:3,curveSegments:24,steps:1});
+  if (bulge) { const original=geometry; geometry=refineTriangles(original,2); original.dispose(); }
   geometry.computeBoundingBox(); const size=geometry.boundingBox.getSize(new THREE.Vector3()),center=geometry.boundingBox.getCenter(new THREE.Vector3());
   const p=geometry.attributes.position;
   for(let i=0;i<p.count;i++) { const x=(p.getX(i)-center.x)/(size.x*.5), y=(p.getY(i)-center.y)/(size.y*.5); p.setZ(i,p.getZ(i)+bulge*Math.max(0,1-x*x)*Math.max(0,1-y*y)); }
@@ -63,7 +65,7 @@ export function radialPort({ name='Radial port', radius=.06, color='cyan', detai
   const disk=(r,h,z,mat,label)=>{const o=cylinder({name:name+' / '+label,radius:r,height:h,segments:s,material:mat});o.rotation.x=Math.PI/2;o.position.z=z;g.add(o);};
   disk(radius,.025,0,mats.dark,'housing'); disk(radius*.89,.014,.018,mats.edge,'machined bezel');
   disk(radius*.72,.008,.028,mats.dark,'recess');
-  for(const [r,w,z,mat] of [[.79,.025,.031,mats.shell],[.66,.033,.035,mats[color]],[.48,.015,.037,mats.white],[.39,.055,.038,mats[color]]]) {
+  for(const [r,w,z,mat] of [[.79,.025,.031,mats.shell],[.66,.033,.035,mats[color]],[.48,.015,.037,mats.shell],[.39,.055,.038,mats[color]]]) {
     const o=ring({name:name+' / luminous annulus',radius:radius*r,width:radius*w,segments:s,material:mat});o.position.z=z;g.add(o);
   }
   disk(radius*.23,.010,.038,mats.orange,'orange core');disk(radius*.11,.009,.046,mats.dark,'central bore');
@@ -71,6 +73,7 @@ export function radialPort({ name='Radial port', radius=.06, color='cyan', detai
     const a=i/bolts*Math.PI*2; const b=cylinder({name:name+' / captive screw',radius:radius*.035,height:.005,segments:8,material:mats.edge});
     b.rotation.x=Math.PI/2;b.position.set(Math.cos(a)*radius*.94,Math.sin(a)*radius*.94,.017);g.add(b);
   }
+  g.scale.z=Math.min(1,radius/.11);
   return g;
 }
 export function cableCurve(points) {
