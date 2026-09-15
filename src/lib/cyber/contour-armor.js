@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { group, mesh } from '../modeling.js';
+import { group, mesh, material } from '../modeling.js';
+import { contourVolume } from '../contour-volume.js';
 import { shapeProfile, surfaceBand, thickenSurface } from '../shape-rails.js';
 import { surfaceLayer, attachToSurface } from '../surface-frame.js';
 import { panel, radialPort, orient, routedCable } from './mechanics.js';
@@ -33,7 +34,11 @@ export function limbArmor({ name, length, radii, type='thigh' },mats){
 export function sculptedBoot({side=1}={},mats){
  const root=group(side>0?'Boot.L':'Boot.R');
  const footprint=[[-.037,-.066],[-.048,-.048],[-.046,.018],[-.061,.103],[-.056,.155],[-.033,.187],[.012,.191],[.047,.177],[.058,.138],[.052,.083],[.040,.005],[.038,-.049]];
- const sole=panel({name:'Contoured orange sole',outline:footprint,depth:.025,bevel:.004,material:mats.orange});sole.rotation.x=Math.PI/2;sole.position.y=-.014;root.add(sole);
+ const sole=contourVolume({name:'Contoured orange sole',outline:footprint,sections:[
+  {height:-.0435,scale:[.92,.97]}, {height:-.038,scale:[1,1]},
+  {height:-.026,scale:[1.01,1]}, {height:-.018,scale:[.91,.975]},
+ ],material:material('#cb431c',{roughness:.5,metalness:.08})});root.add(sole);
+ root.add(contourVolume({name:'Dark flexible midsole',outline:footprint,sections:[{height:-.021,scale:[.88,.96]},{height:-.009,scale:[.88,.96]}],layers:2,material:mats.dark}));
  const width=shapeProfile([[0,.036],[.25,.044],[.55,.057],[.80,.057],[1,.024]]),height=shapeProfile([[0,.075],[.24,.060],[.53,.041],[.82,.025],[1,.017]]);
  const upper=(u,v)=>{const a=(u-.5)*Math.PI;return[-Math.sin(a)*width(v),-.006+Math.cos(a)*height(v),THREE.MathUtils.lerp(-.053,.181,v)];};
  root.add(thickenSurface('Shoe flexible upper',upper,{thickness:.004,segments:[20,32],material:mats.dark}));
@@ -47,8 +52,8 @@ export function sculptedBoot({side=1}={},mats){
  for(const [label,a,b] of [['outer',.06,.39],['inner',.60,.94]])cuff.add(armorLeaf(collar,{name:'Ankle cuff '+label,left:[[0,a],[.55,a+.04],[1,a+.06]],right:[[0,b],[.5,b-.02],[1,b-.03]],thickness:.004,material:mats.shell}));
  root.add(cuff);
  for(const s of[-1,1])root.add(orient(radialPort({name:'Boot heel bearing',radius:.025,color:'amber',detail:1},mats),[s*.044,.026,-.024],[s,0,0]));
- for(const z of [.034,.080,.127])root.add(routedCable({name:'Raised sole grip',points:[[-.052,-.024,z],[-.051,-.034,z+.005],[.047,-.034,z+.005],[.052,-.024,z]],radius:.003,segments:12,ends:false,material:mats.orange}));
- root.userData.construction={method:'footprint + instep loft + toe and side shell bands'};return root;
+ for(const z of [-.033,.034,.080,.127])root.add(routedCable({name:'Raised sole grip',points:[[-.046,-.034,z],[-.047,-.0435,z+.005],[.047,-.0435,z+.005],[.048,-.034,z]],radius:.003,segments:12,ends:false,material:mats.orange}));
+ root.userData.construction={method:'section-lofted sole + instep loft + toe and side shell bands'};return root;
 }
 
 /** Smooth shoulder/chest shield whose substrate and face are offsets of one chart.

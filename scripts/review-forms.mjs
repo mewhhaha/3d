@@ -7,6 +7,7 @@ import { runStudy } from './study.mjs';
 import { measureRecipe } from './measure-reference.mjs';
 import { polygonMask } from './raster-mask.mjs';
 import { measureHair } from './measure-hair.mjs';
+import { measureSurfaces } from './measure-surfaces.mjs';
 const out='renders/form-review';await mkdir(out,{recursive:true});
 const r={schema:1,sourceRevision:process.env.GITHUB_SHA||null,status:'running',visualAcceptance:'not-assessed',completed:[]};
 const save=async()=>{await writeFile(out+'/verification.json.tmp',JSON.stringify(r,null,2));await rename(out+'/verification.json.tmp',out+'/verification.json');};
@@ -24,7 +25,8 @@ try{
  await studio.render({module:'studies/prism-head.js',values:{mode:'baked'},views:['front','side','back','threequarter'],passes:['material','clay'],width:600,height:700,out:out+'/head'});
  await studio.render({module:'studies/prism-head.js',values:{hair:false},views:['front','side'],passes:['clay'],width:600,height:700,out:out+'/head-construction'});
  await studio.render({module:'models/cyber-form-study.js',values:{hairMode:'cage'},focus:'Boot.L planted',views:['threequarter'],width:700,height:600,out:out+'/boot'});
- r.completed.push('full hero, neutral side/back, head with/without hair and boot closeup');await save();
+ await studio.render({module:'studies/prism-boot.js',views:['front','side','threequarter'],passes:['material','clay'],width:600,height:700,out:out+'/boot-component',glb:true});
+ r.completed.push('full hero, neutral side/back, head with/without hair and boot closeups');await save();
  const before=await measureRecipe('models/cyber-pose-study.js'),after=await measureRecipe('models/cyber-form-study.js');
  await writeFile(out+'/alignment.json',JSON.stringify({before,after},null,2));assert.ok(Math.abs(before.rmsPixels-after.rmsPixels)<1e-5);
  r.alignment={rmsPixels:after.rmsPixels,poseUnchanged:true,oldEnvelope:before.regions.hair.envelope.iou,newEnvelope:after.regions.hair.envelope.iou,scope:after.warning};
@@ -34,6 +36,8 @@ try{
   r.visibleHair[id]=await studio.compare({reference:out+'/hair-target-mask.png',candidate:out+'/mask-'+id+'/hero-material.png',referenceMask:out+'/hair-target-mask.png',candidateMask:out+'/mask-'+id+'/hero-material.png'});
  }
  r.completed.push('unchanged landmark test and occlusion-aware component mask comparison');await save();
+ r.surfaceQuality=await measureSurfaces(out+'/surfaces');
+ r.completed.push('shared support boundaries and independent primary-cache error bound');await save();
  r.normalTransfer=await measureHair(out+'/hair');r.hairExports={};
  for(const mode of ['sculpt','cage','baked']){
   const report=await studio.render({module:'studies/prism-hair.js',values:{mode},views:['threequarter'],width:512,height:512,out:out+'/hair/'+mode,glb:true});

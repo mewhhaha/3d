@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - src/lib/shape-*.js
+      - src/lib/surface-boundary.js
+      - src/lib/surface-cache.js
+      - src/lib/contour-volume.js
       - src/lib/region-mask.js
       - src/lib/compact-geometry.js
       - src/lib/cyber/**
@@ -15,8 +18,12 @@ on:
       - references/prism-hair-outline.json
       - scripts/review-forms.mjs
       - scripts/measure-hair.mjs
+      - scripts/measure-surfaces.mjs
       - scripts/raster-mask.mjs
       - tests/form-design.test.js
+      - tests/surface-boundary.test.js
+      - tests/surface-cache.test.js
+      - tests/contour-volume.test.js
       - tests/shape-rails.test.js
       - tests/region-mask.test.js
       - tests/compact-geometry.test.js
@@ -40,7 +47,7 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run prepare:tangents
       - name: Curve, layering, immutable sculpt, pose and region-mask tests
-        run: node --test tests/shape-rails.test.js tests/form-design.test.js tests/region-mask.test.js tests/compact-geometry.test.js
+        run: node --test tests/shape-rails.test.js tests/form-design.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/surface-boundary.test.js tests/surface-cache.test.js tests/contour-volume.test.js
       - run: npx playwright-core install --with-deps chromium
       - name: Local-equivalent renders, exports, visible masks and normal transfer
         run: node scripts/review-forms.mjs
