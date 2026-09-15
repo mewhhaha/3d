@@ -21,7 +21,9 @@
     "check": "npm test && npm run build && npm run bake",
     "render": "node scripts/render.mjs",
     "doctor": "node scripts/render.mjs --doctor",
-    "test:render": "node scripts/check-local-render.mjs"
+    "test:render": "node scripts/check-local-render.mjs",
+    "study": "node scripts/study.mjs",
+    "measure:sculpt": "node scripts/measure-sculpt.mjs"
   },
   "dependencies": {
     "three": "0.186.0"

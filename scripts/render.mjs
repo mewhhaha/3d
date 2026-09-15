@@ -1,7 +1,7 @@
 import { chromium } from 'playwright-core';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { access, readFile, writeFile, mkdir, realpath, readdir } from 'node:fs/promises';
+import { access, readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { Worker } from 'node:worker_threads';
@@ -52,7 +52,7 @@ async function buildRecipe(spec,timeout) {
   try{return await new Promise((resolve,reject)=>{
     const timer=setTimeout(()=>reject(new Error(`Recipe build exceeded ${timeout} ms`)),timeout);
     worker.once('error',e=>{clearTimeout(timer);reject(e);});
-    worker.once('exit',code=>{clearTimeout(timer);if(code!==0)reject(new Error(`Recipe worker exited ${code}`));});
+    worker.once('exit',code=>{clearTimeout(timer);reject(new Error(`Recipe worker exited ${code} before returning a model`));});
     worker.once('message',m=>{clearTimeout(timer);m.error?reject(new Error(m.error)):resolve(m);});
   });}finally{await worker.terminate();}
 }
@@ -94,7 +94,17 @@ export async function createRenderSession({root=project,executablePath,timeout=6
     await stage();
     const capabilities={...await page.evaluate(()=>window.stage.capabilities),browser:browser.version(),executablePath,virtualDisplay:!!display,startupMs:performance.now()-start};
     return {capabilities,close,
-      async render({module,values={},views=['threequarter'],passes=['material'],out='renders/study',glb=false,...camera}={}) {
+      async compare(files){
+        const data={};for(const key of ['reference','candidate','referenceMask','candidateMask'])data[key]=(await readFile(path.resolve(root,files[key]))).toString('base64');
+        return bounded(page.evaluate(options=>window.stage.compare(options),data));
+      },
+      async sheet({tiles,out,columns=3,cellSize=360,title}){
+        const payload=await Promise.all(tiles.map(async t=>({label:t.label,png:(await readFile(path.resolve(root,t.file))).toString('base64')})));
+        const png=await bounded(page.evaluate(options=>window.stage.sheet(options),{tiles:payload,columns,cellSize,title}));
+        const destination=path.resolve(root,out);await mkdir(path.dirname(destination),{recursive:true});
+        await writeFile(destination,Buffer.from(png,'base64'));return destination;
+      },
+      async render({module,values={},views=['threequarter'],passes=['material'],out='renders/study',glb=false,cameras={},...camera}={}) {
         const start=performance.now();
         if(typeof module!=='string'||! /^(models|studies)\/[\w/-]+\.(m?js)$/.test(module)||module.includes('..'))throw new Error('Recipe must be a repository-relative models/*.js or studies/*.js path');
         if(!Array.isArray(views)||!views.length||!Array.isArray(passes)||!passes.length)throw new Error('Choose at least one view and pass');
@@ -115,7 +125,7 @@ export async function createRenderSession({root=project,executablePath,timeout=6
         const output=path.resolve(root,out);await mkdir(output,{recursive:true});
         const report={schema:1,sourceRevision:process.env.GITHUB_SHA||null,module,recipeSHA256,sourceFingerprint:await sourceFingerprint(root),capabilities,...info,imported,images:[]};
         for(const view of views)for(const pass of passes){
-          const {png,...image}=await bounded(page.evaluate(spec=>window.stage.capture(spec),{...camera,view,pass}));
+          const {png,...image}=await bounded(page.evaluate(spec=>window.stage.capture(spec),{...camera,view,pass,cameraState:cameras[Array.isArray(view)?JSON.stringify(view):view]}));
           const label=Array.isArray(view)?`angle-${views.indexOf(view)}`:view;
           if(!/^[\w-]+$/.test(label)||!/^[\w-]+$/.test(pass))throw new Error('Invalid image label');
           const filename=`${label}-${pass}.png`;const bytes=Buffer.from(png,'base64');

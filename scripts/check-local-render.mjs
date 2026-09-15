@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { readFile, mkdir, writeFile, rm } from 'node:fs/promises';
 import { createRenderSession } from './render.mjs';
 import validator from 'gltf-validator';
 const out='renders/local-check';await mkdir(out,{recursive:true});
@@ -20,6 +20,21 @@ try {
   await assert.rejects(studio.render({...common,clip:'missing'}),/Unknown clip/);
   // A failed recipe must not poison the next independent build.
   const recovered=await studio.render({...common,views:['front'],out:out+'/recovered'});assert.equal(recovered.stats.triangles,11840);
-  const report={capabilities:studio.capabilities,restMs:rest.totalMs,posedMs:posed.totalMs,tests:'20 views/passes; framing; perspective; rig transfer; GLB validation; pose/export isolation; invalid-input rejection; recovery',validation:gltf.issues};
+  const cameras=Object.fromEntries(rest.images.map(i=>[i.view,i.cameraState]));
+  const locked=await studio.render({...common,views:['front'],passes:['material','silhouette'],cameras,out:out+'/locked'});
+  assert.deepEqual(locked.images[0].cameraState,cameras.front,'Reference camera and lighting stay fixed');
+  const pixels=await studio.compare({reference:out+'/rest/front-material.png',candidate:out+'/locked/front-material.png',referenceMask:out+'/rest/front-silhouette.png',candidateMask:out+'/locked/front-silhouette.png'});
+  assert.equal(pixels.silhouetteIoU,1);assert.equal(pixels.meanAbsoluteRgbError,0);
+  await assert.rejects(studio.render({...common,views:['front'],cameras,width:500}),/original image dimensions/);
+  const temporary='studies/_freshness';await mkdir(temporary,{recursive:true});
+  try {
+    await writeFile(temporary+'/shape.js','export const height=1;');
+    await writeFile(temporary+'/recipe.js',`import {defineModel,box} from '../../src/lib/modeling.js';import {height} from './shape.js';export default defineModel({id:'freshness',title:'Fresh import fixture',parameters:{},build:()=>box({size:[1,height,1]})});`);
+    const first=await studio.render({module:temporary+'/recipe.js',views:['front'],width:128,height:128,out:out+'/fresh-a'});
+    await writeFile(temporary+'/shape.js','export const height=2;');
+    const second=await studio.render({module:temporary+'/recipe.js',views:['front'],width:128,height:128,out:out+'/fresh-b'});
+    assert.equal(first.stats.dimensions[1],1);assert.equal(second.stats.dimensions[1],2,'Imported helper edits are not stale');
+  }finally{await rm(temporary,{recursive:true,force:true});}
+  const report={capabilities:studio.capabilities,restMs:rest.totalMs,posedMs:posed.totalMs,tests:'20 views/passes; framing; perspective; rig transfer; GLB validation; pose/export isolation; invalid-input rejection; recovery; locked cameras/lights; exact pixel comparison; edited dependency freshness',validation:gltf.issues};
   await writeFile(out+'/verification.json',JSON.stringify(report,null,2));console.log('LOCAL_RENDER_OK',JSON.stringify(report));
 }finally{await studio.close();}

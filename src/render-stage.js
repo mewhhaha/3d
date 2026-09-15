@@ -50,9 +50,17 @@ function pointsOf(object) {
   return points;
 }
 
-function cameraFor(points, { view = 'threequarter', width = 800, height = 800, occupancy = .82, projection = 'orthographic' } = {}) {
+function cameraFor(points, { view = 'threequarter', width = 800, height = 800, occupancy = .82, projection = 'orthographic', cameraState } = {}) {
   if (!(occupancy > .1 && occupancy < .98)) throw new Error('occupancy must be between .1 and .98');
   if (!['orthographic','perspective'].includes(projection)) throw new Error('Unknown projection');
+  if (cameraState) {
+    if (cameraState.width!==width || cameraState.height!==height) throw new Error('Locked camera requires the original image dimensions');
+    const camera=new THREE.ObjectLoader().parse(cameraState.camera);
+    if(!camera.isCamera)throw new Error('Invalid locked camera');
+    camera.updateMatrixWorld(true);
+    const bounds=new THREE.Box3(vec(cameraState.lightingBounds.min),vec(cameraState.lightingBounds.max));
+    return {camera,bounds,framing:framingOf(points,camera)};
+  }
   const dir = Array.isArray(view) ? view : directions[view];
   if (!dir || dir.length !== 3 || !dir.every(Number.isFinite) || vec(dir).lengthSq() === 0) throw new Error(`Invalid view ${view}`);
   const bounds = new THREE.Box3().setFromPoints(points), center = bounds.getCenter(new THREE.Vector3());
@@ -77,8 +85,12 @@ function cameraFor(points, { view = 'threequarter', width = 800, height = 800, o
     camera.position.copy(center).add(offset).addScaledVector(direction,distance+radius*.01);
   }
   camera.near = radius*.001; camera.far = radius*100; camera.updateProjectionMatrix(); camera.updateMatrixWorld(true);
-  const ndc = new THREE.Box3().setFromPoints(points.map(p => p.clone().project(camera)));
-  return { camera, bounds, framing: { ndcMin:ndc.min.toArray(), ndcMax:ndc.max.toArray(), occupancy:Math.max(ndc.max.x-ndc.min.x,ndc.max.y-ndc.min.y)/2 } };
+  return { camera, bounds, framing: framingOf(points,camera) };
+}
+function framingOf(points,camera){
+  const ndc=new THREE.Box3().setFromPoints(points.map(p=>p.clone().project(camera)));
+  const clipped=ndc.min.x < -1 || ndc.min.y < -1 || ndc.max.x > 1 || ndc.max.y > 1 || ndc.min.z < -1 || ndc.max.z > 1;
+  return {ndcMin:ndc.min.toArray(),ndcMax:ndc.max.toArray(),occupancy:Math.max(ndc.max.x-ndc.min.x,ndc.max.y-ndc.min.y)/2,clipped};
 }
 
 async function load({ json }) {
@@ -119,7 +131,7 @@ async function capture(options = {}) {
     renderer.render(scene,camera); renderer.getContext().finish();
     const png=renderer.domElement.toDataURL('image/png').split(',')[1];
     const imageMs=performance.now()-start;
-    return { png, imageMs, framing, pass, view:options.view||'threequarter', pose:{clip:poseName,time:poseTime}, focus:focus||null, drawCalls:renderer.info.render.calls, triangles:renderer.info.render.triangles };
+    return { png, imageMs, framing, cameraState:{width,height,camera:camera.toJSON(),lightingBounds:{min:bounds.min.toArray(),max:bounds.max.toArray()}}, pass, view:options.view||'threequarter', pose:{clip:poseName,time:poseTime}, focus:focus||null, drawCalls:renderer.info.render.calls, triangles:renderer.info.render.triangles };
   } finally {
     materials.forEach(([o,original,temporary]) => {o.material=original; temporary.dispose();});
     scene.background=originalBackground;
@@ -127,8 +139,42 @@ async function capture(options = {}) {
   }
 }
 
+/** Pixel-space checks under locked camera/light; not a likeness or geometry-distance metric. */
+async function compare({reference,candidate,referenceMask,candidateMask}) {
+  const decode=async png=>{const image=new Image();image.src='data:image/png;base64,'+png;await image.decode();return image;};
+  const images=await Promise.all([reference,candidate,referenceMask,candidateMask].map(decode));
+  const width=images[0].width,height=images[0].height;
+  if(images.some(image=>image.width!==width||image.height!==height))throw new Error('Comparison image dimensions differ');
+  const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+  const context=canvas.getContext('2d',{willReadFrequently:true});
+  const data=images.map(image=>{context.clearRect(0,0,width,height);context.drawImage(image,0,0);return context.getImageData(0,0,width,height).data;});
+  let union=0,intersection=0,error=0,squared=0;
+  for(let i=0;i<data[0].length;i+=4){
+    const a=data[2][i]+data[2][i+1]+data[2][i+2]<384,b=data[3][i]+data[3][i+1]+data[3][i+2]<384;
+    if(a&&b)intersection++;
+    if(a||b){union++;for(let k=0;k<3;k++){const difference=(data[0][i+k]-data[1][i+k])/255;error+=Math.abs(difference);squared+=difference*difference;}}
+  }
+  if(!union)throw new Error('Comparison has no silhouette foreground');
+  return {width,height,foregroundPixels:union,silhouetteIoU:intersection/union,meanAbsoluteRgbError:error/(3*union),rgbRMSE:Math.sqrt(squared/(3*union)),scope:'Union of thresholded silhouette foreground, level-zero rendered sRGB pixels'};
+}
+
+async function sheet({tiles,columns=3,cellSize=360,title='Local modeling study'}) {
+  if(!Array.isArray(tiles)||!tiles.length||tiles.length>32||!Number.isInteger(columns)||columns<1||columns>8||!Number.isInteger(cellSize)||cellSize<64||cellSize>800)throw new Error('Invalid contact sheet');
+  const canvas=document.createElement('canvas'),labelHeight=48,header=64;
+  canvas.width=columns*cellSize;canvas.height=header+Math.ceil(tiles.length/columns)*(cellSize+labelHeight);
+  const context=canvas.getContext('2d');context.fillStyle='#f3f1ed';context.fillRect(0,0,canvas.width,canvas.height);
+  context.fillStyle='#222';context.font='22px sans-serif';context.fillText(String(title),18,40,canvas.width-36);
+  for(let i=0;i<tiles.length;i++){
+    const image=new Image();image.src='data:image/png;base64,'+tiles[i].png;await image.decode();
+    const x=(i%columns)*cellSize,y=header+Math.floor(i/columns)*(cellSize+labelHeight);
+    const scale=Math.min(cellSize/image.width,cellSize/image.height);
+    context.drawImage(image,x+(cellSize-image.width*scale)/2,y+(cellSize-image.height*scale)/2,image.width*scale,image.height*scale);
+    context.fillStyle='#222';context.font='16px sans-serif';context.fillText(String(tiles[i].label),x+12,y+cellSize+29,cellSize-24);
+  }
+  return canvas.toDataURL('image/png').split(',')[1];
+}
 const gl=renderer.getContext(), debug=gl.getExtension('WEBGL_debug_renderer_info');
-window.stage = { load, capture, ready: true,
+window.stage = { load, capture, sheet, compare, ready: true,
   capabilities: { three:THREE.REVISION, webgl2:true, renderer:debug?gl.getParameter(debug.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER), maxTextureSize:gl.getParameter(gl.MAX_TEXTURE_SIZE) },
   async exportGLB() {
     const clean=await new THREE.ObjectLoader().parseAsync(JSON.parse(sourceJSON));

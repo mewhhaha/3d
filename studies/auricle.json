@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "auricle",
+  "title": "Local sculpt study — fixed camera and lighting",
+  "module": "models/sculpt-ear.js",
+  "lockCamera": true,
+  "width": 640,
+  "height": 640,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "silhouette"],
+  "cases": [
+    {"id": "high", "label": "High geometry", "values": {"representation": "sculpt"}, "maxTriangles": 50000},
+    {"id": "low", "label": "Low geometry", "values": {"representation": "cage"}, "maxTriangles": 3100},
+    {"id": "baked", "label": "Low + normal atlas", "values": {"representation": "baked"}, "maxTriangles": 3100},
+    {"id": "blockout", "label": "Seed / before primary sculpt", "values": {"representation": "cage", "definition": 0}, "maxTriangles": 3100}
+  ]
+}

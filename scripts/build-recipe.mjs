@@ -14,7 +14,7 @@ try {
     // Serialize evaluated attributes, not parametric constructors (e.g. RoundedBoxGeometry).
     // Reconstructing constructor parameters would lose authored displacement and custom topology.
     const geometries=new Map();
-    object.traverse(o=>{if(o.isMesh){const original=o.geometry;if(!geometries.has(original))geometries.set(original,new THREE.BufferGeometry().copy(original));o.geometry=geometries.get(original);}});
+    object.traverse(o=>{if(o.isInstancedMesh||o.isBatchedMesh)throw new Error('Local stage requires explicit mesh instances');if(o.isMesh){const original=o.geometry;if(!geometries.has(original))geometries.set(original,new THREE.BufferGeometry().copy(original));o.geometry=geometries.get(original);}});
     geometries.forEach((_,g)=>g.dispose());
     parentPort.postMessage({ json: JSON.stringify(object.toJSON()), info: {
       id:definition.id, parameters:object.userData.parameters, stats:inspect(object), rig:assetInfo(object), buildMs:performance.now()-start,
