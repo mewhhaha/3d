@@ -71,7 +71,7 @@ export function measureBake(low, high, texture, { samples = 2048 } = {}) {
       p95Degrees: sorted[Math.min(samples - 1, Math.ceil(.95 * samples) - 1)], maxDegrees: sorted.at(-1) };
   };
   const base = summary(baseErrors), baked = summary(bakedErrors);
-  return { samples, surfaceArea: totalArea, textureSize: [texture.image.width, texture.image.height], base, baked,
+  return { samples, boundaryExtension:{...sourceNormal.stats}, surfaceArea: totalArea, textureSize: [texture.image.width, texture.image.height], base, baked,
     meanImprovement: base.meanDegrees ? 1 - baked.meanDegrees / base.meanDegrees : null,
     method: 'Deterministic area-weighted rest-surface samples; bilinear level-zero normal lookup versus corresponding high mesh normals',
     limitations: 'Not a silhouette, mipmapping, pose, material or photographic-likeness metric' };

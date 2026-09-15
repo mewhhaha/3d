@@ -3,6 +3,7 @@ import { surface, surfaceMesh, profile, layers, mound, crease, grain, smooth, ba
 import { roundOpening, roundedTipSampling } from './port.js';
 import { fairJoin, jointRegion, unionRegions, normalSampler } from './fair.js';
 import { dispose } from '../modeling.js';
+import { computeTangents } from '../tangents.js';
 import { skeleton, skin, rotationTrack, clip } from '../rigging.js';
 const TAU = 2 * Math.PI;
 const v3 = (a) => new THREE.Vector3(...a);
@@ -164,15 +165,19 @@ export function buildHand(component = hand(), { mode='baked', textureSize=256, c
   const fairRegion = unionRegions(jointRegion({center:[0,palmLength,0],radius:[.10,.022,.04]}),jointRegion({center:start.toArray(),radius:[.028,.028,.03]}));
   fairJoin(entries.filter(e=>!e.part.name.endsWith('_Nail')).map(e=>e.part),{
     region:p=>smooth(p[1]/.02)*fairRegion(p),
-    iterations:mode==='sculpt'?128:12,
+    iterations:mode==='sculpt'?320:20, method:'relax',
   });
+  const junction=entries.find(e=>e.part.name==='KnuckleWeb').part;
+  computeTangents(junction.geometry);
+  junction.geometry.userData.uvBoundaryPadding=.004;
+  junction.userData.surface={representation:mode==='baked'?'cage':mode,chart:'KnuckleWeb',source:'Faired branching junction'};
   if(mode==='baked'){
     const high=buildHand(component,{mode:'sculpt',textureSize,color,side:'right'});
     try{for(const {part}of entries){
       if(!part.userData.surface||part.name.endsWith('_Nail'))continue;
       const sample=normalSampler(high.getObjectByName(part.name).geometry);
       part.material.normalMap=bakeNormals({normal:(u,v)=>sample(u,v),wrapU:true},part.geometry,{size:textureSize});
-      part.material.normalMap.name=part.name+'_Normal';part.material.normalMap.userData.bake.method='UV-correspondence / actual faired high mesh normals';
+      part.material.normalMap.name=part.name+'_Normal';part.material.normalMap.userData.bake.boundaryExtension={...sample.stats};part.material.normalMap.userData.bake.method='UV-correspondence / actual faired high mesh normals';
       part.userData.surface.representation='baked';part.userData.surface.bake=part.material.normalMap.userData.bake;
     }}finally{dispose(high);}
   }

@@ -9,7 +9,7 @@ for(const mode of ['cage','sculpt'])for(const arm of [false,true])test(`${mode} 
 });
 test('high detail is optional and the low normal bake records measured errors',()=>{
  const root=buildHand(hand(),{textureSize:64});let maps=0;
- root.traverse(m=>{if(!m.material?.normalMap)return;maps++;const r=m.material.normalMap.userData.bake;assert.ok(r.meanQuantizedErrorDegrees<.3);assert.ok(r.maxQuantizedErrorDegrees<.5);});assert.equal(maps,6);dispose(root);
+ root.traverse(m=>{if(!m.material?.normalMap)return;maps++;const r=m.material.normalMap.userData.bake;assert.ok(r.meanQuantizedErrorDegrees<.3);assert.ok(r.maxQuantizedErrorDegrees<.5);});assert.equal(maps,7);dispose(root);
 });
 test('finger joints deform actual skin and return to bind pose',()=>{
  const root=buildHand(hand(),{mode:'cage'}),finger=root.getObjectByName('Index'),bone=root.getObjectByName('Index_PIP');

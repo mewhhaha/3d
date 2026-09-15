@@ -8,7 +8,8 @@ export function jointRegion({ center, radius }) {
 }
 export const unionRegions=(...regions)=>p=>Math.max(0,...regions.map(r=>r(p)));
 /** Weld the geometric graph while retaining separate UV/material corners. Not retopology. */
-export function fairJoin(meshes,{region=()=>1,iterations=12,tolerance=1e-7}={}){
+export function fairJoin(meshes,{region=()=>1,iterations=12,tolerance=1e-7,method='fair'}={}){
+  if(!['fair','relax'].includes(method))throw new Error('Unknown joint smoothing method');
   if(!Number.isInteger(iterations)||iterations<0||iterations>512)throw new Error('Invalid fairing iterations');
   const ids=new Map(),nodes=[],corners=[];
   for(const mesh of meshes){
@@ -29,7 +30,7 @@ export function fairJoin(meshes,{region=()=>1,iterations=12,tolerance=1e-7}={}){
     const p=positions[i],w=list.map(j=>{const q=positions[j];return 1/Math.max(Math.hypot(q[0]-p[0],q[1]-p[1],q[2]-p[2]),1e-6);});
     const total=w.reduce((a,b)=>a+b,0);return w.map(a=>a/total);
   });
-  for(let it=0;it<iterations;it++)for(const lambda of [.5,-.53]){
+  for(let it=0;it<iterations;it++)for(const lambda of (method==='fair'?[.5,-.53]:[.5])){
     for(const i of active){
       const p=positions[i],list=neighbors[i],w=weights[i];let x=0,y=0,z=0;
       for(let k=0;k<list.length;k++){const q=positions[list[k]];x+=q[0]*w[k];y+=q[1]*w[k];z+=q[2]*w[k];}
@@ -53,25 +54,48 @@ export function fairJoin(meshes,{region=()=>1,iterations=12,tolerance=1e-7}={}){
     if(g.attributes.tangent)computeTangents(g);
     g.attributes.position.needsUpdate=g.attributes.normal.needsUpdate=true;g.computeBoundingBox();g.computeBoundingSphere();
   }
-  return {geometricVertices:nodes.length,iterations};
+  return {geometricVertices:nodes.length,iterations,method};
 }
-/** Spatial UV bins make high-to-low mesh-normal lookup independent of tessellation. */
-export function normalSampler(geometry,{bins=64}={}){
+/** UV lookup with optional, bounded edge extension for slightly different LOD hole outlines. */
+export function normalSampler(geometry,{bins=64,edgePadding=geometry.userData.uvBoundaryPadding||0}={}){
+  if(!Number.isInteger(bins)||bins<1||bins>256||!Number.isFinite(edgePadding)||edgePadding<0||edgePadding>.05)throw new Error('Invalid UV sampler settings');
   const uv=geometry.attributes.uv,n=geometry.attributes.normal,lookup=new Map();
+  const cell=t=>Math.min(bins-1,Math.max(0,Math.floor(t*bins)));
   for(let i=0;i<uv.count;i+=3){
     const u=[0,1,2].map(k=>uv.getX(i+k)),v=[0,1,2].map(k=>uv.getY(i+k));
-    for(let y=Math.max(0,Math.floor(Math.min(...v)*bins));y<=Math.min(bins-1,Math.floor(Math.max(...v)*bins));y++)for(let x=Math.max(0,Math.floor(Math.min(...u)*bins));x<=Math.min(bins-1,Math.floor(Math.max(...u)*bins));x++){
+    for(let y=cell(Math.min(...v));y<=cell(Math.max(...v));y++)for(let x=cell(Math.min(...u));x<=cell(Math.max(...u));x++){
       const key=y*bins+x;if(!lookup.has(key))lookup.set(key,[]);lookup.get(key).push(i);
     }
   }
-  return(u,v)=>{
-    const candidates=lookup.get(Math.min(bins-1,Math.max(0,Math.floor(v*bins)))*bins+Math.min(bins-1,Math.max(0,Math.floor(u*bins))))||[];
+  const stats={samples:0,edgeSamples:0,maxEdgeDistance:0};
+  const normal=(i,w)=>new THREE.Vector3().fromBufferAttribute(n,i).multiplyScalar(w[0])
+    .addScaledVector(new THREE.Vector3().fromBufferAttribute(n,i+1),w[1])
+    .addScaledVector(new THREE.Vector3().fromBufferAttribute(n,i+2),w[2]).normalize();
+  const sample=(u,v)=>{
+    if(!Number.isFinite(u)||!Number.isFinite(v))throw new Error('Invalid UV sample');
+    stats.samples++;
+    const candidates=lookup.get(cell(v)*bins+cell(u))||[];
     for(const i of candidates){
       const ax=uv.getX(i),ay=uv.getY(i),bx=uv.getX(i+1),by=uv.getY(i+1),cx=uv.getX(i+2),cy=uv.getY(i+2),area=(by-cy)*(ax-cx)+(cx-bx)*(ay-cy);
       if(Math.abs(area)<1e-14)continue;const a=((by-cy)*(u-cx)+(cx-bx)*(v-cy))/area,b=((cy-ay)*(u-cx)+(ax-cx)*(v-cy))/area;
       if(a<-.00001||b<-.00001||a+b>1.00001)continue;
-      return new THREE.Vector3().fromBufferAttribute(n,i).multiplyScalar(a).addScaledVector(new THREE.Vector3().fromBufferAttribute(n,i+1),b).addScaledVector(new THREE.Vector3().fromBufferAttribute(n,i+2),1-a-b).normalize();
+      return normal(i,[a,b,1-a-b]);
+    }
+    // Only extend a real high-mesh edge by a declared UV tolerance. Large holes still fail.
+    if(edgePadding){
+      const nearby=new Set();
+      for(let y=cell(v-edgePadding);y<=cell(v+edgePadding);y++)for(let x=cell(u-edgePadding);x<=cell(u+edgePadding);x++)
+        for(const i of lookup.get(y*bins+x)||[])nearby.add(i);
+      let best=edgePadding**2,hit=null;
+      for(const i of nearby)for(let k=0;k<3;k++){
+        const j=(k+1)%3,ax=uv.getX(i+k),ay=uv.getY(i+k),dx=uv.getX(i+j)-ax,dy=uv.getY(i+j)-ay,d=dx*dx+dy*dy;
+        if(d<1e-16)continue;const t=Math.max(0,Math.min(1,((u-ax)*dx+(v-ay)*dy)/d));
+        const distance=(u-ax-dx*t)**2+(v-ay-dy*t)**2;
+        if(distance<=best){best=distance;const w=[0,0,0];w[k]=1-t;w[j]=t;hit={i,w};}
+      }
+      if(hit){stats.edgeSamples++;stats.maxEdgeDistance=Math.max(stats.maxEdgeDistance,Math.sqrt(best));return normal(hit.i,hit.w);}
     }
     throw new Error(`High surface has no corresponding UV triangle at ${u},${v}`);
   };
+  sample.stats=stats;return sample;
 }

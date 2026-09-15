@@ -86,6 +86,7 @@ export function buildArm(component=arm(),{mode='baked',textureSize=256,color='#b
       const sample=normalSampler(high.getObjectByName(part.name).geometry);
       part.material.normalMap=bakeNormals({normal:(u,v)=>sample(u,v),wrapU:true},part.geometry,{size:textureSize});
       part.material.normalMap.name=part.name+'_Normal';
+      part.material.normalMap.userData.bake.boundaryExtension={...sample.stats};
       part.material.normalMap.userData.bake.method='UV-correspondence / actual high mesh after port-frame stitching';
       part.userData.surface.representation='baked';part.userData.surface.bake=part.material.normalMap.userData.bake;
     });}finally{dispose(high);}
