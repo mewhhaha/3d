@@ -38,7 +38,9 @@ jobs:
           cp -r .anatomy-source/makehuman/data vendor-src/makehuman/
           cp .anatomy-source/LICENSE*.md vendor-src/makehuman/
           printf '%s\n' 'a8bc2d54ff0ac92e78ff71431b1023eda42bf482' > vendor-src/makehuman/REVISION
-          tar -czf /tmp/authoring-kit.tar.gz .github AGENTS.md README.md docs index.html style.css package.json package-lock.json models scripts src tests node_modules vendor-src
+          python3 scripts/prepare-anatomy.py
+          printf '%s\n' "$GITHUB_SHA" > SOURCE_REVISION
+          tar -czf /tmp/authoring-kit.tar.gz .github .gitignore AGENTS.md README.md THIRD_PARTY.md docs index.html style.css package.json package-lock.json models scripts src tests node_modules vendor-src SOURCE_REVISION
       - uses: actions/upload-artifact@v4
         with:
           name: authoring-kit
