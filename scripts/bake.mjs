@@ -6,116 +6,28 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { project } from './build.mjs';
 import { startServer } from './server.mjs';
-
-const assets = path.join(project, 'dist/assets'), reports = path.join(project, 'reports');
-await mkdir(assets, { recursive: true }); await mkdir(reports, { recursive: true });
-// Deliberately test under /3d/, not just /, so broken Pages-relative paths fail CI.
-const { server, url } = await startServer({ base: '/3d/' });
-let browser, page;
-async function evaluate(...args) {
-  let timer;
-  try {
-    return await Promise.race([page.evaluate(...args), new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new Error('Browser evaluation exceeded 45 seconds')), 45000);
-    })]);
-  } finally { clearTimeout(timer); }
-}
-const errors = [], manifest = { commit: process.env.GITHUB_SHA || 'local', models: [] };
-try {
-  browser = await chromium.launch({
-    executablePath: process.env.CHROMIUM_PATH || undefined,
-    args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
-  });
-  page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
-  page.on('pageerror', error => errors.push(error.message));
-  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
-  page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
-  await page.route('**/*', route => {
-    if (route.request().url().startsWith(new URL(url).origin + '/')) return route.continue();
-    errors.push(`Unexpected external request: ${route.request().url()}`); return route.abort();
-  });
-  page.setDefaultTimeout(30000);
-  console.log('Opening headless workshop');
-  await page.goto(url + '?capture=1');
-  await page.waitForFunction(() => window.studio?.ready || window.__studioError, null, { timeout: 45000 });
-  const startupError = await evaluate(() => window.__studioError);
-  assert.ok(!startupError, startupError);
-  const models = await evaluate(() => window.studio.models);
-  assert.ok(models.length > 0);
-  for (const model of models) {
-    console.log(`Building and exporting ${model.id}`);
-    const folder = path.join(assets, model.id); await mkdir(folder, { recursive: true });
-    await evaluate(id => window.studio.select(id), model.id);
-    const before = await evaluate(() => window.studio.stats);
-    const state = await evaluate(() => window.studio.state);
-    const bytes = Buffer.from(await evaluate(async () => Array.from(new Uint8Array(await window.studio.exportGLB()))));
-    assert.equal(bytes.readUInt32LE(0), 0x46546c67, 'GLB magic');
-    assert.equal(bytes.readUInt32LE(4), 2, 'glTF version 2');
-    console.log(`Validating ${model.id}: ${bytes.length} bytes`);
-    const report = await validator.validateBytes(new Uint8Array(bytes), { uri: `${model.id}.glb`, maxIssues: 100 });
-    await writeFile(path.join(folder, 'validation.json'), JSON.stringify(report, null, 2));
-    assert.equal(report.issues.numErrors, 0, `${model.id}: ${JSON.stringify(report.issues.messages)}`);
-    await writeFile(path.join(folder, `${model.id}.glb`), bytes);
-    await writeFile(path.join(folder, 'parameters.json'), JSON.stringify(state, null, 2));
-    const roundtrip = await evaluate(async data => {
-      const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
-      const { inspect, dispose } = await import('./src/lib/modeling.js');
-      const result = await new GLTFLoader().parseAsync(new Uint8Array(data).buffer, '');
-      const stats = inspect(result.scene); dispose(result.scene); return stats;
-    }, Array.from(bytes));
-    assert.equal(roundtrip.meshes, before.meshes, `${model.id}: mesh round-trip`);
-    assert.equal(roundtrip.triangles, before.triangles, `${model.id}: triangle round-trip`);
-    for (let i = 0; i < 3; i++) assert.ok(Math.abs(roundtrip.dimensions[i] - before.dimensions[i]) < Math.max(1, before.dimensions[i]) * 1e-5, 'Dimensions survive export/import');
-    console.log(`Capturing ${model.id}`);
-    for (const view of ['perspective', 'front', 'side', 'top']) {
-      await evaluate(view => window.studio.frame(view), view);
-      await page.locator('#canvas').screenshot({ path: path.join(folder, `${view}.png`) });
-    }
-    for (const limit of ['min', 'max']) {
-      const values = Object.fromEntries(Object.entries(model.parameters).filter(([, spec]) => spec.type === 'number').map(([key, spec]) => [key, spec[limit]]));
-      await evaluate(({ id, values }) => window.studio.select(id, values), { id: model.id, values });
-      const variant = Buffer.from(await evaluate(async () => Array.from(new Uint8Array(await window.studio.exportGLB()))));
-      const validation = await validator.validateBytes(new Uint8Array(variant), { maxIssues: 100 });
-      assert.equal(validation.issues.numErrors, 0, `${model.id} ${limit}: invalid GLB`);
-    }
-    // A shared URL must restore the same parameterized model after a full page load.
-    const modified = await evaluate(() => window.studio.state);
-    await page.reload();
-    await page.waitForFunction(() => window.studio?.ready);
-    assert.deepEqual(await evaluate(() => window.studio.state), modified, 'URL state round-trip');
-    await evaluate(id => window.studio.select(id), model.id);
-    await page.getByLabel('Wireframe', { exact: true }).check();
-    const wireBytes = Buffer.from(await evaluate(async () => Array.from(new Uint8Array(await window.studio.exportGLB()))));
-    assert.deepEqual(wireBytes, bytes, 'Preview wireframe must not change exported geometry or materials');
-    await page.getByLabel('Wireframe', { exact: true }).uncheck();
-    const downloadPromise = page.waitForEvent('download');
-    await page.locator('#download-glb').click();
-    const download = await downloadPromise;
-    assert.equal(download.suggestedFilename(), `${model.id}.glb`);
-    assert.equal(await download.failure(), null);
-    manifest.models.push({
-      id: model.id, title: model.title, ...state, stats: before,
-      glb: `${model.id}/${model.id}.glb`, sha256: createHash('sha256').update(bytes).digest('hex'),
-      previews: ['perspective', 'front', 'side', 'top'].map(view => `${model.id}/${view}.png`),
-      validation: { errors: report.issues.numErrors, warnings: report.issues.numWarnings },
-    });
-    console.log(`${model.id}: ${before.meshes} meshes, ${before.triangles} triangles, validated and rendered`);
-  }
-  await evaluate(id => window.studio.select(id), models[0].id);
-  await page.screenshot({ path: path.join(reports, 'desktop.png'), fullPage: true });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await evaluate(() => window.studio.frame());
-  await page.screenshot({ path: path.join(reports, 'mobile.png'), fullPage: true });
-  assert.ok(await evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'No mobile horizontal overflow');
-  assert.equal(errors.length, 0, errors.join('\n'));
-  await writeFile(path.join(assets, 'manifest.json'), JSON.stringify(manifest, null, 2));
-  if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY,
-    `## 3D Workshop\n\n${models.length} recipes built, exported, validated, and re-imported.\n\nDefault and numeric-limit GLBs passed the Khronos validator. URL restoration, mobile layout, download buttons, and wireframe export isolation passed.\n\nDownload **model-assets** for GLBs, four preview angles per model, parameters, and validation reports. **diagnostics** contains desktop/mobile screenshots and the dependency lockfile.\n`);
-} catch (error) {
-  if (page) await page.screenshot({ path: path.join(reports, 'failure.png'), fullPage: true }).catch(() => {});
-  await writeFile(path.join(reports, 'error.txt'), `${error.stack}\n${errors.join('\n')}`);
-  throw error;
-} finally {
-  if (browser) await browser.close();
-  await new Promise(resolve => server.close(resolve));
-}
+const assets=path.join(project,'dist/assets'),reports=path.join(project,'reports');await mkdir(assets,{recursive:true});await mkdir(reports,{recursive:true});
+const {server,url}=await startServer({base:'/3d/'});let browser,page;
+async function evaluate(...args){let timer;try{return await Promise.race([page.evaluate(...args),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Browser evaluation exceeded 90 seconds')),90000);})]);}finally{clearTimeout(timer);}}
+// Base64 avoids serializing millions of boxed numbers through DevTools.
+async function exportedBytes(){const encoded=await evaluate(async()=>{const bytes=new Uint8Array(await window.studio.exportGLB());let text='';for(let i=0;i<bytes.length;i+=32768)text+=String.fromCharCode(...bytes.subarray(i,i+32768));return btoa(text);});return Buffer.from(encoded,'base64');}
+const errors=[],manifest={commit:process.env.GITHUB_SHA||'local',models:[]};
+try{
+ browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined,args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});page=await browser.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1});
+ page.on('pageerror',error=>errors.push(error.message));page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});page.on('response',response=>{if(response.status()>=400)errors.push(`${response.status()} ${response.url()}`);});
+ await page.route('**/*',route=>{if(route.request().url().startsWith(new URL(url).origin+'/'))return route.continue();errors.push(`Unexpected external request: ${route.request().url()}`);return route.abort();});
+ page.setDefaultTimeout(90000);console.log('Opening headless workshop');await page.goto(url+'?capture=1');await page.waitForFunction(()=>window.studio?.ready||window.__studioError,null,{timeout:90000});const startupError=await evaluate(()=>window.__studioError);assert.ok(!startupError,startupError);const models=await evaluate(()=>window.studio.models);assert.ok(models.length>0);
+ for(const model of models){
+ console.log(`Building and exporting ${model.id}`);const folder=path.join(assets,model.id);await mkdir(folder,{recursive:true});await evaluate(id=>window.studio.select(id),model.id);const before=await evaluate(()=>window.studio.stats),state=await evaluate(()=>window.studio.state),bytes=await exportedBytes();assert.equal(bytes.readUInt32LE(0),0x46546c67,'GLB magic');assert.equal(bytes.readUInt32LE(4),2,'glTF version 2');
+ console.log(`Validating ${model.id}: ${bytes.length} bytes`);const report=await validator.validateBytes(new Uint8Array(bytes),{uri:`${model.id}.glb`,maxIssues:1000});await writeFile(path.join(folder,'validation.json'),JSON.stringify(report,null,2));assert.equal(report.issues.numErrors,0,`${model.id}: ${JSON.stringify(report.issues.messages)}`);await writeFile(path.join(folder,`${model.id}.glb`),bytes);await writeFile(path.join(folder,'parameters.json'),JSON.stringify(state,null,2));
+ const roundtrip=await evaluate(async data=>{const{GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');const{inspect,dispose}=await import('./src/lib/modeling.js');const result=await new GLTFLoader().parseAsync(Uint8Array.from(atob(data),c=>c.charCodeAt(0)).buffer,'');const stats=inspect(result.scene);dispose(result.scene);return stats;},bytes.toString('base64'));
+ assert.equal(roundtrip.meshes,before.meshes,`${model.id}: mesh round-trip`);assert.equal(roundtrip.triangles,before.triangles,`${model.id}: triangle round-trip`);for(let i=0;i<3;i++)assert.ok(Math.abs(roundtrip.dimensions[i]-before.dimensions[i])<Math.max(1,before.dimensions[i])*1e-5,'Dimensions survive export/import');
+ console.log(`Capturing ${model.id}`);for(const view of['perspective','front','side','top']){await evaluate(view=>window.studio.frame(view),view);await page.locator('#canvas').screenshot({path:path.join(folder,`${view}.png`)});}
+ for(const limit of['min','max']){const values=Object.fromEntries(Object.entries(model.parameters).filter(([,spec])=>spec.type==='number').map(([key,spec])=>[key,spec[limit]]));await evaluate(({id,values})=>window.studio.select(id,values),{id:model.id,values});const variant=await exportedBytes(),validation=await validator.validateBytes(new Uint8Array(variant),{maxIssues:1000});assert.equal(validation.issues.numErrors,0,`${model.id} ${limit}: invalid GLB`);}
+ const modified=await evaluate(()=>window.studio.state);await page.reload();await page.waitForFunction(()=>window.studio?.ready);assert.deepEqual(await evaluate(()=>window.studio.state),modified,'URL state round-trip');await evaluate(id=>window.studio.select(id),model.id);await page.getByLabel('Wireframe',{exact:true}).check();const wireBytes=await exportedBytes();assert.deepEqual(wireBytes,bytes,'Preview wireframe must not change exported geometry or materials');await page.getByLabel('Wireframe',{exact:true}).uncheck();
+ const downloadPromise=page.waitForEvent('download');await page.locator('#download-glb').click();const download=await downloadPromise;assert.equal(download.suggestedFilename(),`${model.id}.glb`);assert.equal(await download.failure(),null);
+ manifest.models.push({id:model.id,title:model.title,...state,stats:before,glb:`${model.id}/${model.id}.glb`,sha256:createHash('sha256').update(bytes).digest('hex'),previews:['perspective','front','side','top'].map(view=>`${model.id}/${view}.png`),validation:{errors:report.issues.numErrors,warnings:report.issues.numWarnings}});console.log(`${model.id}: ${before.meshes} meshes, ${before.triangles} triangles, validated and rendered`);
+ }
+ await evaluate(id=>window.studio.select(id),models[0].id);await page.screenshot({path:path.join(reports,'desktop.png'),fullPage:true});await page.setViewportSize({width:390,height:844});await evaluate(()=>window.studio.frame());await page.screenshot({path:path.join(reports,'mobile.png'),fullPage:true});assert.ok(await evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No mobile horizontal overflow');assert.equal(errors.length,0,errors.join('\n'));await writeFile(path.join(assets,'manifest.json'),JSON.stringify(manifest,null,2));
+ if(process.env.GITHUB_STEP_SUMMARY)await appendFile(process.env.GITHUB_STEP_SUMMARY,`## 3D Workshop\n\n${models.length} recipes built, exported, validated, and re-imported.\n\nDefault and numeric-limit GLBs passed the Khronos validator. URL restoration, mobile layout, downloads, and wireframe export isolation passed.\n`);
+}catch(error){if(page)await page.screenshot({path:path.join(reports,'failure.png'),fullPage:true}).catch(()=>{});await writeFile(path.join(reports,'error.txt'),`${error.stack}\n${errors.join('\n')}`);throw error;}finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}

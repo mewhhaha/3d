@@ -38,6 +38,22 @@ jobs:
             dist/assets/reference-explorer/
             reports/reference-*
           if-no-files-found: ignore
+      - name: Install Blender for the reference studio scene
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends blender
+      - name: Verify reference in Blender and save a packed lit scene
+        timeout-minutes: 8
+        run: |
+          blender --background --factory-startup --python-exit-code 1 --python scripts/blender_reference.py -- dist/assets native-reference
+          cp native-reference/reference-explorer/* dist/assets/reference-explorer/
+      - name: Save native reference scene
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-reference
+          path: native-reference/
+          if-no-files-found: ignore
       - name: Render, export, validate, and round-trip models
         timeout-minutes: 15
         run: npm run bake
