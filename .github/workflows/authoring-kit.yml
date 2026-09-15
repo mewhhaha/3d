@@ -1,0 +1,46 @@
+name: Prepare offline authoring kit
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/authoring-kit.yml]
+permissions:
+  contents: read
+jobs:
+  kit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Fetch pinned anatomical assets, not application code
+        uses: actions/checkout@v6
+        with:
+          repository: makehumancommunity/makehuman
+          ref: a8bc2d54ff0ac92e78ff71431b1023eda42bf482
+          path: .anatomy-source
+          persist-credentials: false
+          sparse-checkout: |
+            makehuman/data/3dobjs
+            makehuman/data/targets
+            makehuman/data/rigs
+            makehuman/data/eyes
+            makehuman/data/eyebrows
+            makehuman/data/skins
+      - name: Package an offline workspace without Git credentials
+        run: |
+          mkdir -p vendor-src/makehuman
+          cp -r .anatomy-source/makehuman/data vendor-src/makehuman/
+          cp .anatomy-source/LICENSE*.md vendor-src/makehuman/
+          printf '%s\n' 'a8bc2d54ff0ac92e78ff71431b1023eda42bf482' > vendor-src/makehuman/REVISION
+          tar -czf /tmp/authoring-kit.tar.gz .github AGENTS.md README.md docs index.html style.css package.json package-lock.json models scripts src tests node_modules vendor-src
+      - uses: actions/upload-artifact@v4
+        with:
+          name: authoring-kit
+          path: /tmp/authoring-kit.tar.gz
+          retention-days: 7
