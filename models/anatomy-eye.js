@@ -1,0 +1,3 @@
+import {defineModel}from'../src/lib/modeling.js';
+import{eye,eyeball,eyelids,iris,buildEye}from'../src/lib/forms/eye.js';
+export default defineModel({id:'anatomy-eye',title:'Anatomy lab / eye and eyelids',description:'An isolated orbital surface composed with sclera, iris and a wet lid margin. Low mesh plus baked crease detail or high geometry; not a full face or facial rig.',parameters:{representation:{type:'select',options:['baked','sculpt','cage'],default:'baked'},openness:{type:'number',min:.4,max:1.2,step:.1,default:1},color:{type:'color',default:'#67553b',label:'Iris'}},build:p=>buildEye(eye(eyeball(),eyelids({openness:p.openness}),iris({color:p.color})),{mode:p.representation})});

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { surface, surfaceMesh, profile, layers, mound, crease, grain, smooth, bakeNormals } from './surface.js';
+import { roundOpening, roundedTipSampling } from './port.js';
 import { fairJoin, jointRegion, unionRegions, normalSampler } from './fair.js';
 import { dispose } from '../modeling.js';
 import { skeleton, skin, rotationTrack, clip } from '../rigging.js';
@@ -71,12 +72,12 @@ export function buildHand(component = hand(), { mode='baked', textureSize=256, c
   const wristX=.024*width,wristZ=.011;
   const rx=profile([[0,wristX],[.32,.039*width],[.72,.040*width],[1,.041*width]]);
   const rz=profile([[0,wristZ],[.32,.016],[.72,.013],[1,.014]]);
-  const palmForm=(u,v)=>{
+  const palmForm=roundOpening((u,v)=>{
     const a=u*TAU,s=Math.sin(a),c=Math.cos(a);
     const x=rx(v)*s, z=rz(v)*c;
     const pad=.0035*opts.palm.arch*Math.exp(-(((u-.55)/.14)**2+((v-.42)/.28)**2));
-    return [x,v*palmLength,z-pad*Math.sin(Math.PI*v)**2];
-  };
+    return [x,v*(palmLength-.012*smooth((v-.66)/.34)),z-pad*Math.sin(Math.PI*v)**2];
+  },{at:[.75,.5],radius:[.125,.2]});
   const palmRelief=layers(
     ...[-.1,0,.1].map((dx)=>mound({at:[dx,.63],radius:[.025,.25],height:.0007,wrapU:true})),
     crease({from:[.28,.78],to:[.7,.68],width:.018,depth:.00038*skinFields.creases}),
@@ -103,15 +104,15 @@ export function buildHand(component = hand(), { mode='baked', textureSize=256, c
         mound({at:[0,t],radius:[.16,.035],height:.00035,wrapU:true}),
       ]),grain({amplitude:.000018*skinFields.pores,frequency:28,seed:length*100}),
     );
-    const chart=surface(form,{wrapU:true,detail:(u,v)=>detail(u,v)*smooth(v/.1)*smooth((1-v)/.06)});
+    const chart=surface((u,v)=>form(u,roundedTipSampling(v)),{wrapU:true,detail:(u,v)=>{v=roundedTipSampling(v);return detail(u,v)*smooth(v/.1)*smooth((1-v)/.06);}});
     digitCharts.push(chart);
     for(const [suffix,t,parent] of [['MCP',0,'Wrist'],['PIP',.43,`${name}_MCP`],['DIP',.72,`${name}_PIP`]])spec.push({name:`${name}_${suffix}`,parent,position:center(t).toArray()});
-    const weight=(p,i,g)=>influence(['Wrist',`${name}_MCP`,`${name}_PIP`,`${name}_DIP`],g.attributes.uv.getY(i),[.06,.43,.72],.10);
+    const weight=(p,i,g)=>influence(['Wrist',`${name}_MCP`,`${name}_PIP`,`${name}_DIP`],roundedTipSampling(g.attributes.uv.getY(i)),[.06,.43,.72],.10);
     add(surfaceMesh(name,chart,options([20,28])),weight);
     const ring=Array.from({length:20*resolution},(_,i)=>chart.point(i/(20*resolution),1));
     add(endCap(`${name}_Tip`,ring,center(1),mat),()=>[[`${name}_DIP`,1]]);
     const nail=surface((u,v)=>{
-      const vv=.79+.16*v, half=.105*(.75+.25*Math.sin(Math.PI*v));
+      const vv=.72+.18*v, half=.105*(.75+.25*Math.sin(Math.PI*v));
       const uu=((u-.5)*2*half+1)%1;
       return chart.point(uu,vv).addScaledVector(chart.normal(uu,vv),.00028);
     });

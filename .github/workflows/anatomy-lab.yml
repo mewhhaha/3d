@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['src/lib/forms/**', 'models/anatomy-*.js', 'src/anatomy-lab*', 'tests/*forms*', 'scripts/review-anatomy.mjs', '.github/workflows/anatomy-lab.yml']
+    paths: ['src/lib/forms/**', 'models/anatomy-*.js', 'src/anatomy-lab*', 'tests/*forms*', 'scripts/review-anatomy.mjs', 'scripts/blender_anatomy.py', '.github/workflows/anatomy-lab.yml']
 permissions:
   contents: read
 concurrency:
@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test tests/forms.test.js tests/hand-forms.test.js
+      - run: node --test tests/*forms.test.js
       - run: npm run build
       - run: npx playwright-core install --with-deps chromium
       - name: Render geometry and baked normals under identical lights
@@ -34,3 +34,14 @@ jobs:
             dist/assets/anatomy-hand/
             reports/anatomy-*
           if-no-files-found: error
+      - name: Native Blender import, deformation and packed scenes
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends blender python3-numpy
+          OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=2 blender --background --factory-startup --python-exit-code 1 --python scripts/blender_anatomy.py -- dist/assets/anatomy-hand native-anatomy
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: anatomy-blender
+          path: native-anatomy/
+          if-no-files-found: ignore

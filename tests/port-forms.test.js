@@ -1,0 +1,3 @@
+import test from'node:test';import assert from'node:assert/strict';import{roundOpening,roundedTipSampling}from'../src/lib/forms/port.js';
+test('rounded ports share exact boundaries and preserve distant chart points',()=>{const f=roundOpening((u,v)=>[u,v],{at:[.5,.5],radius:[.1,.1]});assert.deepEqual(f(0,0),[0,0]);const corner=f(.6,.6);assert.ok(Math.abs(Math.hypot(corner[0]-.5,corner[1]-.5)-.1)<1e-10);assert.throws(()=>roundOpening(null,{}));});
+test('tip sampling preserves endpoints and concentrates vertices at the pole',()=>{assert.equal(roundedTipSampling(0),0);assert.equal(roundedTipSampling(1),1);let last=-1;for(let i=0;i<=100;i++){const x=roundedTipSampling(i/100);assert.ok(x>last);last=x;}assert.ok(roundedTipSampling(1)-roundedTipSampling(.99)<.001);});

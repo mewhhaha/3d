@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import recipe from '../models/anatomy-hand.js';
+import handRecipe from '../models/anatomy-hand.js';
+import eyeRecipe from '../models/anatomy-eye.js';
 import { buildModel, inspect, dispose } from './lib/modeling.js';
 import { assetInfo } from './lib/rigging.js';
 import { exportAssetGLB } from './lib/export-assets.js';
@@ -9,7 +10,8 @@ const $=s=>document.querySelector(s),view=$('#viewport');
 const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.toneMapping=THREE.ACESFilmicToneMapping;
 view.prepend(renderer.domElement);const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(32,1,.0001,100);
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=false;
-const lighting=createStudioLighting(scene,renderer);let root,mixer,helper,clipAction,parameters={component:'hand',representation:'baked',spread:.3},animation='';
+const lighting=createStudioLighting(scene,renderer);let root,mixer,helper,clipAction,parameters={component:'hand',representation:'baked',spread:.3,openness:1,color:'#67553b'},animation='';
+const recipe=()=>parameters.component==='eye'?eyeRecipe:handRecipe;
 function render(){root?.updateMatrixWorld(true);renderer.render(scene,camera);}
 function resize(){const w=view.clientWidth,h=view.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();render();}
 const directions={front:[0,0,1],back:[0,0,-1],side:[1,0,.1],threequarter:[.75,.35,2]};
@@ -27,20 +29,21 @@ function pose(name='',time=1.1){
   render();
 }
 function set(values={}){
-  parameters={...parameters,...values};const next=buildModel(recipe,parameters);
+  parameters={...parameters,...values};const next=buildModel(recipe(),parameters);
   if(helper){scene.remove(helper);helper.dispose();helper=null;}if(root){scene.remove(root);dispose(root);}root=next;scene.add(root);mixer=new THREE.AnimationMixer(root);
   const s=inspect(root),r=assetInfo(root);$('#stats').textContent=`${s.triangles.toLocaleString()} triangles\n${r.bones} joints · ${r.uvMeshes} UV meshes\n${r.textures} textures\n${parameters.representation.toUpperCase()}`;
   $('#component').value=parameters.component;$('#representation').value=parameters.representation;$('#spread').value=parameters.spread;$('#status').textContent='Ready';
+  const isEye=parameters.component==='eye';$('#spread').closest('label').hidden=isEye;for(const id of ['openness','color']){$('#'+id).closest('label').hidden=!isEye;$('#'+id).value=parameters[id];}for(const id of ['pose','rig','play'])$('#'+id).disabled=isEye;
   frame();pose($('#pose').value);skeletonVisible($('#rig').checked);return{s,r};
 }
-for(const id of ['component','representation','spread'])$('#'+id).addEventListener('change',()=>{
-  $('#status').textContent='Building…';requestAnimationFrame(()=>{try{set({[id]:id==='spread'?Number($('#'+id).value):$('#'+id).value});}catch(e){$('#status').textContent=e.message;console.error(e);}});
+for(const id of ['component','representation','spread','openness','color'])$('#'+id).addEventListener('change',()=>{
+  $('#status').textContent='Building…';requestAnimationFrame(()=>{try{set({[id]:['spread','openness'].includes(id)?Number($('#'+id).value):$('#'+id).value});}catch(e){$('#status').textContent=e.message;console.error(e);}});
 });
 $('#pose').onchange=()=>pose($('#pose').value);$('#play').onchange=()=>{if(clipAction)clipAction.paused=!$('#play').checked;};$('#rig').onchange=()=>skeletonVisible($('#rig').checked);
 for(const b of document.querySelectorAll('[data-view]'))b.onclick=()=>frame(b.dataset.view);
-$('#export').onclick=async()=>{const b=$('#export');b.disabled=true;try{const bytes=await exportAssetGLB(recipe,parameters),url=URL.createObjectURL(new Blob([bytes],{type:'model/gltf-binary'})),a=document.createElement('a');a.href=url;a.download=`${parameters.component}-${parameters.representation}.glb`;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}catch(e){$('#status').textContent=e.message;}finally{b.disabled=false;}};
+$('#export').onclick=async()=>{const b=$('#export');b.disabled=true;try{const bytes=await exportAssetGLB(recipe(),parameters),url=URL.createObjectURL(new Blob([bytes],{type:'model/gltf-binary'})),a=document.createElement('a');a.href=url;a.download=`${parameters.component}-${parameters.representation}.glb`;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}catch(e){$('#status').textContent=e.message;}finally{b.disabled=false;}};
 controls.addEventListener('change',render);new ResizeObserver(resize).observe(view);resize();set();
-window.lab={set,frame,pose,skeletonVisible,render,stats:()=>inspect(root),rigInfo:()=>assetInfo(root),exportGLB:()=>exportAssetGLB(recipe,parameters),
+window.lab={set,frame,pose,skeletonVisible,render,stats:()=>inspect(root),rigInfo:()=>assetInfo(root),exportGLB:()=>exportAssetGLB(recipe(),parameters),
  normalMaps(){const maps=[];root.traverse(o=>{const t=o.material?.normalMap;if(t?.isDataTexture)maps.push({name:o.name,width:t.image.width,height:t.image.height,rgba:Array.from(t.image.data),report:t.userData.bake});});return maps;},
  get state(){return{...parameters}},ready:true};
 let previous=performance.now();if(!new URLSearchParams(location.search).has('capture'))renderer.setAnimationLoop(now=>{mixer?.update(Math.min(.1,(now-previous)/1000));previous=now;render();});
