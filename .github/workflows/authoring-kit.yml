@@ -3,9 +3,15 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [.github/workflows/authoring-kit.yml]
+    paths:
+      - .github/workflows/authoring-kit.yml
+      - src/lib/forms/**
+      - docs/first-principles.md
 permissions:
   contents: read
+concurrency:
+  group: authoring-kit-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   kit:
     runs-on: ubuntu-latest
