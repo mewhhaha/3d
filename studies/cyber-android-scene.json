@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "id": "cyber-android-scene",
+  "title": "Reference-guided android: authored scene and geometry diagnostics",
+  "module": "models/cyber-android-scene.js",
+  "width": 576,
+  "height": 1032,
+  "views": ["hero"],
+  "passes": ["material", "clay", "silhouette"],
+  "lockCamera": true,
+  "cases": [
+    {"id": "hero", "label": "Detailed geometry", "maxTriangles": 750000},
+    {"id": "draft", "label": "Reduced geometric detail, not a normal bake", "values": {"detail": "draft"}, "maxTriangles": 650000},
+    {"id": "survey", "label": "Survey head motion", "clip": "Survey", "time": 2, "maxTriangles": 750000}
+  ]
+}

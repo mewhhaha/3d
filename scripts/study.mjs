@@ -23,7 +23,7 @@ export function validateStudy(spec) {
     if (item.clip !== undefined && typeof item.clip !== 'string') throw new Error('Clip must be a name');
     if (item.time !== undefined && (!Number.isFinite(item.time) || item.time < 0)) throw new Error('Pose time must be nonnegative');
   }
-  for (const [key,allowed] of [['views',['front','back','side','left','top','threequarter']], ['passes',['material','clay','normal','wire','silhouette']]]) {
+  for (const [key,allowed] of [['views',['front','back','side','left','top','threequarter','hero']], ['passes',['material','clay','normal','wire','silhouette']]]) {
     if (spec[key] && (!Array.isArray(spec[key]) || !spec[key].length || spec[key].some(s => !allowed.includes(s)))) throw new Error(`Invalid study ${key}`);
   }
   for (const key of ['width','height']) if (spec[key] !== undefined && (!Number.isInteger(spec[key]) || spec[key]<64 || spec[key]>4096)) throw new Error('Image size must be 64..4096');
@@ -62,9 +62,10 @@ export async function runStudy(spec, { root = project, out = `renders/${spec.id}
         // First case is the declared reference camera AND lighting placement, not per-case auto-framing.
         if (!Object.keys(cameras).length) report.images.forEach(image => { cameras[image.view] = image.cameraState; });
         const bytes = await readFile(path.join(folder,report.glb));
-        const validation = await validator.validateBytes(new Uint8Array(bytes),{maxIssues:1000});
+        const validation = await validator.validateBytes(new Uint8Array(bytes),{maxIssues:10000});
         await atomicJSON(path.join(folder,'validation.json'),validation);
         const failures=[];
+        if(validation.issues.truncated)failures.push('Validation report was truncated');
         if(validation.issues.numErrors)failures.push(`${validation.issues.numErrors} GLB validation errors`);
         if(item.maxTriangles && report.stats.triangles > item.maxTriangles)failures.push('Triangle budget exceeded');
         if(report.images.some(image=>image.framing.clipped))failures.push('Reference camera clips this case');

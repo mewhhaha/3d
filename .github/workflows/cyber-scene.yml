@@ -1,0 +1,54 @@
+name: Cyber android scene checks
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - src/lib/cyber/**
+      - src/lib/scene-look.js
+      - src/render-stage.js
+      - src/app.js
+      - scripts/render.mjs
+      - scripts/study.mjs
+      - scripts/review-cyber.mjs
+      - scripts/check-cyber-pages.mjs
+      - models/cyber-android*.js
+      - studies/cyber-android-scene.json
+      - tests/cyber*.test.js
+      - .github/workflows/cyber-scene.yml
+permissions:
+  contents: read
+concurrency:
+  group: cyber-scene-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  scene:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      OPENBLAS_NUM_THREADS: 1
+      OMP_NUM_THREADS: 2
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run prepare:tangents
+      - name: Shell geometry, surface frames, scene structure and rigid animation
+        run: node --test tests/cyber*.test.js
+      - run: npx playwright-core install --with-deps chromium
+      - name: Render real geometry, validate exports and preserve clean scene state
+        run: node scripts/review-cyber.mjs
+      - name: Build the actual Pages site
+        run: npm run build
+      - name: Check scene selection, optics, mobile layout and downloads in the Pages viewer
+        run: node scripts/check-cyber-pages.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cyber-scene-review
+          path: renders/cyber-review/
+          if-no-files-found: error
