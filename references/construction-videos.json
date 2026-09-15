@@ -1,9 +1,26 @@
 {
   "schemaVersion": 1,
   "purpose": "User-provided body and face construction references for the Prism modeling workflow",
+  "guide": "docs/construction-references.md",
   "sources": [
-    {"url": "https://www.youtube.com/watch?v=H4QyodNR3YU", "reviewStatus": "pending-content-access", "title": null},
-    {"url": "https://www.youtube.com/watch?v=Lgg39sZF0kI", "reviewStatus": "pending-content-access", "title": null}
+    {
+      "url": "https://www.youtube.com/watch?v=H4QyodNR3YU",
+      "reviewStatus": "metadata-verified-content-unreviewed",
+      "title": "How to Sculpt the Body in Blender",
+      "creator": "lolpoly",
+      "accessResult": "YouTube requested sign-in to confirm not a bot; no video frames or captions retrieved",
+      "metadataSource": "YouTube public oEmbed",
+      "verificationRun": 35017716749
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=Lgg39sZF0kI",
+      "reviewStatus": "metadata-verified-content-unreviewed",
+      "title": "A Simple Way to Sculpt Better Faces in Blender 5",
+      "creator": "Grant Abbitt (Gabbitt)",
+      "accessResult": "YouTube requested sign-in to confirm not a bot; no video frames or captions retrieved",
+      "metadataSource": "YouTube public oEmbed",
+      "verificationRun": 35017716749
+    }
   ],
   "rules": [
     "A URL, title or thumbnail does not establish that the tutorial was watched.",
