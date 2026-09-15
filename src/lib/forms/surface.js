@@ -74,8 +74,8 @@ export function surface(base, { detail = () => 0, wrapU = false, mask = () => tr
   const normalOf = (fn, u, v) => {
     const h = 1e-5, lo = wrapU ? u - h : Math.max(0, u - h), hi = wrapU ? u + h : Math.min(1, u + h);
     const du = fn(hi, v).sub(fn(lo, v)), dv = fn(u, Math.min(1, v + h)).sub(fn(u, Math.max(0, v - h)));
-    const n = du.cross(dv);
-    if (n.lengthSq() < 1e-24) throw new Error(`Singular chart at ${u},${v}: use a cap rather than collapsed pole faces`);
+    const n = du.normalize().cross(dv.normalize());
+    if (n.lengthSq() < 1e-16) throw new Error(`Singular chart at ${u},${v}: use a cap rather than collapsed pole faces`);
     return n.normalize();
   };
   const high = (u, v) => {
