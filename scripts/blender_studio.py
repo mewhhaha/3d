@@ -1,18 +1,26 @@
-"""Scene-owned studio; frame evaluated vertices, not stale rest-pose bounds."""
+"""Scene-owned studio; frame rendered asset vertices, never rig display templates."""
 import bpy
 from mathutils import Vector
+
+def visible_asset_meshes(objects):
+    shapes={bone.custom_shape for obj in bpy.context.scene.objects if obj.type=='ARMATURE' for bone in obj.pose.bones if bone.custom_shape}
+    return [obj for obj in objects if obj.type=='MESH' and obj not in shapes and not obj.hide_render and obj.visible_get()]
 
 def create_studio(objects, occupancy=.84):
     scene=bpy.context.scene
     scene.render.resolution_x,scene.render.resolution_y=720,900
     scene.render.resolution_percentage=100
     bpy.context.view_layer.update()
+    visible=visible_asset_meshes(objects)
+    ignored=[obj.name for obj in objects if obj not in visible]
     points=[]
-    for obj in objects:
+    for obj in visible:
         evaluated=obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
         mesh=evaluated.to_mesh()
-        points.extend(evaluated.matrix_world@v.co for v in mesh.vertices)
-        evaluated.to_mesh_clear()
+        try:
+            points.extend(evaluated.matrix_world@v.co for v in mesh.vertices)
+        finally:
+            evaluated.to_mesh_clear()
     assert points and .2<=occupancy<=.95
     low=Vector(tuple(min(p[i] for p in points) for i in range(3)))
     high=Vector(tuple(max(p[i] for p in points) for i in range(3)))
@@ -58,4 +66,4 @@ def create_studio(objects, occupancy=.84):
     fill=max(b-a for a,b in bounds)
     assert .70<=fill<=.94, bounds
     assert all(-.01<=v<=1.01 for pair in bounds for v in pair), bounds
-    return dict(camera_fill=fill,camera_bounds=bounds,floor=floor.name,evaluated_bounds=[list(low),list(high)])
+    return dict(camera_fill=fill,camera_bounds=bounds,floor=floor.name,evaluated_bounds=[list(low),list(high)],rendered_meshes=len(visible),excluded_display_objects=ignored)
