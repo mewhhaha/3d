@@ -7,7 +7,7 @@ export function installRigControls({ scene, render }) {
     <label>Clip<select id="rig-clip" aria-label="Animation clip"></select></label>
     <div class="two-buttons"><button id="rig-play" type="button">Play</button><select id="rig-speed" aria-label="Animation speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></div>
     <label>Time<input id="rig-time" aria-label="Animation time" type="range" min="0" max="1" step="0.01" value="0" style="width:100%"></label>
-    <p>GLB includes the clips. Native files are in the workflow's <strong>blender-assets</strong> artifact; the current preview pose does not alter exports.</p>`;
+    <p>GLB includes the clips. Native Blender artifacts are available only for recipes with a Blender build stage. The current preview pose does not alter exports.</p>`;
   document.querySelector('.export-actions').before(panel);
   const $ = id => panel.querySelector(id);
   let root, helper, mixer, clips = [], action, playing = false;

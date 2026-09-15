@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - src/lib/cyber/**
+      - src/lib/surface-frame.js
+      - src/lib/rig-controls.js
       - src/lib/scene-look.js
       - src/render-stage.js
       - src/app.js
