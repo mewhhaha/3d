@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import handRecipe from '../models/anatomy-hand.js';
+import armRecipe from '../models/anatomy-arm.js';
 import eyeRecipe from '../models/anatomy-eye.js';
 import { buildModel, inspect, dispose } from './lib/modeling.js';
 import { assetInfo } from './lib/rigging.js';
@@ -10,8 +11,8 @@ const $=s=>document.querySelector(s),view=$('#viewport');
 const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.toneMapping=THREE.ACESFilmicToneMapping;
 view.prepend(renderer.domElement);const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(32,1,.0001,100);
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=false;
-const lighting=createStudioLighting(scene,renderer);let root,mixer,helper,clipAction,parameters={component:'hand',representation:'baked',spread:.3,openness:1,color:'#67553b'},animation='';
-const recipe=()=>parameters.component==='eye'?eyeRecipe:handRecipe;
+const lighting=createStudioLighting(scene,renderer);let root,mixer,helper,clipAction,parameters={component:'hand',representation:'baked',spread:.3,tone:.5,openness:1,color:'#67553b'},animation='';
+const recipe=()=>parameters.component==='arm'?armRecipe:parameters.component==='eye'?eyeRecipe:handRecipe;
 function render(){root?.updateMatrixWorld(true);renderer.render(scene,camera);}
 function resize(){const w=view.clientWidth,h=view.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();render();}
 const directions={front:[0,0,1],back:[0,0,-1],side:[1,0,.1],threequarter:[.75,.35,2]};
@@ -34,10 +35,12 @@ function set(values={}){
   const s=inspect(root),r=assetInfo(root);$('#stats').textContent=`${s.triangles.toLocaleString()} triangles\n${r.bones} joints · ${r.uvMeshes} UV meshes\n${r.textures} textures\n${parameters.representation.toUpperCase()}`;
   $('#component').value=parameters.component;$('#representation').value=parameters.representation;$('#spread').value=parameters.spread;$('#status').textContent='Ready';
   const isEye=parameters.component==='eye';$('#spread').closest('label').hidden=isEye;for(const id of ['openness','color']){$('#'+id).closest('label').hidden=!isEye;$('#'+id).value=parameters[id];}for(const id of ['pose','rig','play'])$('#'+id).disabled=isEye;
+  $('#tone').closest('label').hidden=parameters.component!=='arm';$('#tone').value=parameters.tone;
+  const poses=assetInfo(root).animations.map(c=>c.name),oldPose=$('#pose').value;$('#pose').replaceChildren(new Option('Rest',''),...poses.map(n=>new Option(n,n)));$('#pose').value=poses.includes(oldPose)?oldPose:'';
   frame();pose($('#pose').value);skeletonVisible($('#rig').checked);return{s,r};
 }
-for(const id of ['component','representation','spread','openness','color'])$('#'+id).addEventListener('change',()=>{
-  $('#status').textContent='Building…';requestAnimationFrame(()=>{try{set({[id]:['spread','openness'].includes(id)?Number($('#'+id).value):$('#'+id).value});}catch(e){$('#status').textContent=e.message;console.error(e);}});
+for(const id of ['component','representation','spread','tone','openness','color'])$('#'+id).addEventListener('change',()=>{
+  $('#status').textContent='Building…';requestAnimationFrame(()=>{try{set({[id]:['spread','tone','openness'].includes(id)?Number($('#'+id).value):$('#'+id).value});}catch(e){$('#status').textContent=e.message;console.error(e);}});
 });
 $('#pose').onchange=()=>pose($('#pose').value);$('#play').onchange=()=>{if(clipAction)clipAction.paused=!$('#play').checked;};$('#rig').onchange=()=>skeletonVisible($('#rig').checked);
 for(const b of document.querySelectorAll('[data-view]'))b.onclick=()=>frame(b.dataset.view);

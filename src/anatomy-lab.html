@@ -3,9 +3,10 @@
 <script type="importmap">{"imports":{"three":"../vendor/three/three.module.js","three/addons/":"../vendor/three/addons/"}}</script></head>
 <body><header><h1>Anatomy / component lab</h1><small>PROCEDURAL FORM → DETAIL → LOW-POLY BAKE</small><a href="../">Workshop</a></header><div class="layout"><section id="viewport"><div class="caption">Actual geometry · neutral studio light · drag to orbit</div></section><aside>
 <div id="status">Loading components…</div>
-<label>Study<select id="component"><option value="hand">Hand</option><option value="forearm">Hand + forearm</option><option value="eye">Eye + eyelids</option></select></label>
+<label>Study<select id="component"><option value="hand">Hand</option><option value="forearm">Hand + forearm</option><option value="arm">Arm + hand</option><option value="eye">Eye + eyelids</option></select></label>
 <label>Representation<select id="representation"><option value="baked">Low mesh + baked normal</option><option value="sculpt">High sculpt geometry</option><option value="cage">Low mesh without normal</option></select></label>
 <label>Finger spread<input id="spread" aria-label="Finger spread" type="range" min="0" max="1" step=".1" value=".3"></label>
+<label hidden>Muscle definition<input id="tone" aria-label="Muscle definition" type="range" min="0" max="1" step=".1" value=".5"></label>
 <label hidden>Eye opening<input id="openness" aria-label="Eye opening" type="range" min=".4" max="1.2" step=".1" value="1"></label><label hidden>Iris color<input type="color" id="color" value="#67553b"></label>
 <label>Pose<select id="pose"><option value="">Rest</option><option value="Grasp">Grasp</option><option value="WristFlex">Wrist flex</option></select></label>
 <label><input type="checkbox" id="play"> Play animation</label><label><input type="checkbox" id="rig"> Show deformation skeleton</label>

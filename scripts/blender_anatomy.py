@@ -10,13 +10,14 @@ from blender_studio import create_studio, visible_asset_meshes
 
 source, destination = map(Path, sys.argv[sys.argv.index('--') + 1:])
 reports = []
-for component in ('hand', 'forearm'):
+for component in ('hand', 'forearm', 'arm'):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=str(source / f'{component}-baked.glb'))
     armatures = [o for o in bpy.context.scene.objects if o.type == 'ARMATURE']
     assert len(armatures) == 1, 'Expected one imported deformation rig'
     rig = armatures[0]
-    assert len(rig.data.bones) == 17
+    expected_bones = 19 if component == 'arm' else 17
+    assert len(rig.data.bones) == expected_bones
     meshes = visible_asset_meshes(list(bpy.context.scene.objects))
     assert meshes and all(o.data.uv_layers for o in meshes)
     assert all(any(m.type == 'ARMATURE' for m in o.modifiers) for o in meshes)
@@ -64,6 +65,19 @@ for component in ('hand', 'forearm'):
     restored = evaluated_positions(finger)
     restore_error = max((a - b).length for a, b in zip(before, restored))
     assert restore_error < 1e-6, restore_error
+    elbow_displacement = None
+    if component == 'arm':
+        arm_skin = next(o for o in meshes if o.name == 'ArmSkin')
+        initial = evaluated_positions(arm_skin)
+        elbow = rig.pose.bones['Elbow']
+        elbow.rotation_quaternion = Quaternion((1, 0, 0), 1.0)
+        bpy.context.view_layer.update()
+        posed = evaluated_positions(arm_skin)
+        elbow_displacement = max((a-b).length for a,b in zip(initial,posed))
+        assert elbow_displacement > .1, elbow_displacement
+        elbow.rotation_quaternion = Quaternion((1.0, 0.0, 0.0, 0.0))
+        bpy.context.view_layer.update()
+        assert max((a-b).length for a,b in zip(initial,evaluated_positions(arm_skin))) < 1e-6
     studio = create_studio(meshes)
     scene = bpy.context.scene
     scene.render.engine = 'CYCLES'
@@ -85,7 +99,7 @@ for component in ('hand', 'forearm'):
     assert all(i.packed_file for i in bpy.data.images if i.source == 'FILE')
     bpy.ops.render.render(write_still=True)
     report = dict(commit=os.environ.get('GITHUB_SHA', 'local'), component=component,
-                  blender=bpy.app.version_string, bones=17, meshes=len(meshes), normal_nodes=len(normal_nodes),
+                  blender=bpy.app.version_string, bones=expected_bones, elbow_deformation_m=elbow_displacement, meshes=len(meshes), normal_nodes=len(normal_nodes),
                   packed_images=len(images), actions=names, deformation_distance_m=displacement,
                   restored_error_m=restore_error, native_saved=True, native_reopened=True,
                   rendered=True, studio=studio)
