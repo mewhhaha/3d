@@ -12,7 +12,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -26,8 +26,20 @@ jobs:
         run: npm run build
       - name: Install headless Chromium
         run: npx playwright-core install --with-deps chromium
+      - name: Review reference reconstruction and lighting
+        timeout-minutes: 5
+        run: node scripts/review-reference.mjs
+      - name: Save early reference review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-review
+          path: |
+            dist/assets/reference-explorer/
+            reports/reference-*
+          if-no-files-found: ignore
       - name: Render, export, validate, and round-trip models
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: npm run bake
       - name: Review organic surfaces and export fine variants
         timeout-minutes: 8

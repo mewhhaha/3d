@@ -2,3 +2,7 @@ node_modules/
 dist/
 reports/
 .DS_Store
+vendor-src/
+src/generated/
+.anatomy-source/
+blender-assets/

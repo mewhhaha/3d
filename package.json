@@ -1,20 +1,15 @@
 {
-  "name": "3d-workshop",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
+  "name": "3d-workshop", "version": "0.1.0", "private": true, "type": "module",
   "engines": { "node": ">=22" },
   "scripts": {
-    "dev": "node scripts/dev.mjs",
-    "build": "node scripts/build.mjs",
+    "prepare:anatomy": "python3 scripts/prepare-anatomy.py",
+    "predev": "npm run prepare:anatomy", "dev": "node scripts/dev.mjs",
+    "prebuild": "npm run prepare:anatomy", "build": "node scripts/build.mjs",
     "preview": "node scripts/server.mjs",
-    "test": "node --test",
-    "bake": "node scripts/bake.mjs",
+    "pretest": "npm run prepare:anatomy", "test": "node --test tests/*.test.js",
+    "bake": "node scripts/bake.mjs", "review:reference": "node scripts/review-reference.mjs",
     "check": "npm test && npm run build && npm run bake"
   },
   "dependencies": { "three": "0.186.0" },
-  "devDependencies": {
-    "gltf-validator": "2.0.0-dev.3.10",
-    "playwright-core": "1.58.2"
-  }
+  "devDependencies": { "gltf-validator": "2.0.0-dev.3.10", "playwright-core": "1.58.2" }
 }
