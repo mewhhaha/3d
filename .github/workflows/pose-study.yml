@@ -1,0 +1,52 @@
+name: Reference pose and composition study
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - src/lib/cyber/**
+      - src/lib/reference-*.js
+      - src/lib/assembly-sockets.js
+      - src/lib/scene-look.js
+      - src/render-stage.js
+      - scripts/render*.mjs
+      - scripts/study.mjs
+      - scripts/review-pose.mjs
+      - scripts/measure-reference.mjs
+      - scripts/reference-overlay.mjs
+      - models/cyber-pose-study.js
+      - references/**
+      - studies/cyber-pose.json
+      - tests/reference-*.test.js
+      - tests/cyber-pose.test.js
+      - tests/render-batch.test.js
+      - .github/workflows/pose-study.yml
+permissions:
+  contents: read
+concurrency:
+  group: reference-pose-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  study:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run prepare:tangents
+      - name: Projection, fixed-length bones, sockets, overlays and isolated rendering
+        run: node --test tests/reference-*.test.js tests/cyber-pose.test.js tests/render-batch.test.js
+      - run: npx playwright-core install --with-deps chromium
+      - name: Reference stages, alternative views, export isolation and measured alignment
+        run: npm run review:pose
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reference-pose-review
+          path: renders/pose-review/
+          if-no-files-found: error

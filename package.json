@@ -23,7 +23,9 @@
     "doctor": "node scripts/render.mjs --doctor",
     "test:render": "node scripts/check-local-render.mjs",
     "study": "node scripts/study.mjs",
-    "measure:sculpt": "node scripts/measure-sculpt.mjs"
+    "measure:sculpt": "node scripts/measure-sculpt.mjs",
+    "review:pose": "node scripts/review-pose.mjs",
+    "measure:reference": "node scripts/measure-reference.mjs"
   },
   "dependencies": {
     "three": "0.186.0"

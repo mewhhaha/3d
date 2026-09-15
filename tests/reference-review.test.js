@@ -1,0 +1,9 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import fs from 'node:fs';import * as THREE from 'three';
+import {measureReference} from '../scripts/measure-reference.mjs';
+import {checkReferencePNG,referenceOverlay} from '../scripts/reference-overlay.mjs';
+import {referenceCamera} from '../src/lib/reference-shot.js';
+const fixture=()=>{const b=Buffer.alloc(24);Buffer.from([137,80,78,71,13,10,26,10]).copy(b);b.writeUInt32BE(768,16);b.writeUInt32BE(1376,20);return b;};
+test('overlay refuses wrong size or mismatched reference identity; labels are escaped',()=>{const image={width:768,height:1376},bytes=fixture();assert.equal(checkReferencePNG(bytes,image).width,768);assert.throws(()=>checkReferencePNG(bytes,{...image,sha256:'bad'}),/hash differs/);assert.throws(()=>checkReferencePNG(bytes,{width:700,height:1376}),/dimensions differ/);const svg=referenceOverlay(bytes,bytes,{rows:[{name:'<script>',target:[1,2],actual:[2,3],errorPixels:1}],regions:{}},image);assert.ok(!svg.includes('<script>'));assert.ok(svg.includes('&lt;script&gt;'));});
+test('missing scope is an error, not a silently substituted global node',()=>{const root=new THREE.Group(),node=new THREE.Group();node.name='Port';root.add(node);assert.throws(()=>measureReference(root,referenceCamera(),{image:{width:768,height:1376},landmarks:{p:{scope:['absent'],node:'Port',pixel:[1,2]}},regions:{}}),/Missing scope/);});
+test('annotations distinguish approximate observations from reconstructed depth',()=>{const r=JSON.parse(fs.readFileSync('references/prism.json'));assert.equal(Object.keys(r.landmarks).length,9);assert.match(r.provenance,/hypotheses/);for(const p of Object.values(r.landmarks)){assert.equal(p.pixel.length,2);assert.ok(p.uncertaintyPixels>0);}assert.ok(r.regions.hair.outline.length>=10);});

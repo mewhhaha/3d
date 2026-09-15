@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "cyber-pose",
+  "title": "One 3D pose guide: gesture, masses, existing assembly",
+  "module": "models/cyber-pose-study.js",
+  "width": 576,
+  "height": 1032,
+  "views": ["hero"],
+  "passes": ["material", "clay", "silhouette"],
+  "lockCamera": true,
+  "cases": [
+    {"id":"gesture", "label":"1 / attachment guide, not an anatomical skeleton", "values":{"stage":"gesture"}, "maxTriangles":150000},
+    {"id":"masses", "label":"2 / proportions and depth hypotheses", "values":{"stage":"masses"}, "maxTriangles":180000},
+    {"id":"assembly", "label":"3 / existing components, not accepted shapes", "values":{"stage":"assembly"}, "maxTriangles":600000},
+    {"id":"survey", "label":"Rigid head test; no full-body animation", "values":{"stage":"assembly"}, "clip":"Survey", "time":2, "maxTriangles":600000}
+  ]
+}

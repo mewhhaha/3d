@@ -50,8 +50,28 @@ export function landmarkGuide(camera, annotations, overrides={}) {
 export function landmarkError(camera, actual, targets, image) {
   const entries=Object.entries(targets).filter(([,v])=>v.score!==false);if(!entries.length)throw new Error('No scored landmarks');
   let sum=0,weight=0;const rows=entries.map(([name,t])=>{
-    if(!actual[name])throw new Error(`Missing measured landmark ${name}`);const p=projectPoint(camera,actual[name],image), error=Math.hypot(p.pixel[0]-t.pixel[0],p.pixel[1]-t.pixel[1]);
+    if(!actual[name])throw new Error(`Missing measured landmark ${name}`);finite(t.pixel,2,'target pixel');const p=projectPoint(camera,actual[name],image), error=Math.hypot(p.pixel[0]-t.pixel[0],p.pixel[1]-t.pixel[1]);
     const w=t.weight??1;if(!Number.isFinite(w)||w<=0)throw new Error('Invalid landmark weight');sum+=w*error**2;weight+=w;
     return {name,target:t.pixel,actual:p.pixel,errorPixels:error,weight:w,visible:p.visible};
   });return {rmsPixels:Math.sqrt(sum/weight),maxPixels:Math.max(...rows.map(r=>r.errorPixels)),rows,scope:'Manually annotated screen landmarks; not likeness, topology, or 3D accuracy'};
+}
+/** Convex envelopes deliberately ignore holes and occlusion; use as a coarse mass diagnostic only. */
+export function convexHull(points){
+ const p=points.map(v=>[...finite(v,2,'hull point')]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+ const unique=p.filter((v,i)=>!i||v[0]!==p[i-1][0]||v[1]!==p[i-1][1]);if(unique.length<3)throw new Error('Hull needs three distinct points');
+ const cross=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+ const half=list=>{const h=[];for(const v of list){while(h.length>1&&cross(h.at(-2),h.at(-1),v)<=0)h.pop();h.push(v);}return h.slice(0,-1);};
+ const hull=[...half(unique),...half([...unique].reverse())];if(hull.length<3)throw new Error('Degenerate projected hull');return hull;
+}
+export function polygonArea(p){return Math.abs(p.reduce((s,a,i)=>{const b=p[(i+1)%p.length];return s+a[0]*b[1]-a[1]*b[0];},0))/2;}
+export function convexOverlap(a,b){
+ const aa=convexHull(a),bb=convexHull(b);let output=aa;
+ const side=(a,b,p)=>(b[0]-a[0])*(p[1]-a[1])-(b[1]-a[1])*(p[0]-a[0]);
+ for(let j=0;j<bb.length;j++){
+  const a=bb[j],b=bb[(j+1)%bb.length],input=output;output=[];if(!input.length)break;
+  for(let i=0;i<input.length;i++){const p=input[i],q=input[(i+1)%input.length],sp=side(a,b,p),sq=side(a,b,q),ip=sp>=-1e-9,iq=sq>=-1e-9;
+   if(ip)output.push(p);if(ip!==iq){const t=sp/(sp-sq);output.push([p[0]+t*(q[0]-p[0]),p[1]+t*(q[1]-p[1])]);}}
+ }
+ const intersection=polygonArea(output),union=polygonArea(aa)+polygonArea(bb)-intersection;
+ return {iou:intersection/union,intersection,union,scope:'Projected convex mass envelopes; ignores concavities, holes, visibility and depth correctness'};
 }

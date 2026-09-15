@@ -17,7 +17,7 @@ export function neonPlatform({radius=.64}={},mats=cyberMaterials()){
 }
 const rng=seed=>()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296;};
 /** Actual layered buildings/windows, not a projected reference photograph. */
-export function neonCity({seed=42,density=1}={},mats=cyberMaterials()){
+export function neonCity({seed=42,density=1,ceiling=Infinity,signs=true}={},mats=cyberMaterials()){
  const rand=rng(seed),g=group('CityBackdrop');g.userData.environment=true;
  const building=material('#071b23',{roughness:.8,metalness:.15});building.name='Distant city structure';
  const glass=material('#082b33',{roughness:.3,metalness:.4});glass.name='City facade';
@@ -28,9 +28,10 @@ export function neonCity({seed=42,density=1}={},mats=cyberMaterials()){
   const rows=20+Math.floor(rand()*20),cols=2+Math.floor(width*6);
   for(let j=0;j<rows;j++)for(let k=0;k<cols;k++){
    if(rand()<.40)continue;const mat=windows[Math.floor(rand()*windows.length)];
+   if(-.8+j*(height-.2)/rows>ceiling)continue;
    g.add(box({name:'City window',size:[width/cols*.36,.017+rand()*.034,.005],position:[x+(k-(cols-1)/2)*width/cols,-.8+j*(height-.2)/rows,z+.178],material:mat}));
   }
-  if(i%4===0){g.add(box({name:'Vertical neon sign',size:[.018,height*.45,.009],position:[x+width*.42,y,z+.19],material:i%2?mats.pink:mats.cyan}));}
+  if(signs&&i%4===0){g.add(box({name:'Vertical neon sign',size:[.018,height*.45,.009],position:[x+width*.42,y,z+.19],material:i%2?mats.pink:mats.cyan}));}
  }
  g.updateMatrixWorld(true);const batches=new Map();g.traverse(o=>{if(o.isMesh){const a=batches.get(o.material)||[];a.push(o.geometry.clone().applyMatrix4(o.matrixWorld));batches.set(o.material,a);o.geometry.dispose();}});g.clear();
  for(const [mat,geometries] of batches){g.add(mesh(mergeGeometries(geometries),{name:'City batch / '+mat.name,material:mat}));geometries.forEach(geometry=>geometry.dispose());}

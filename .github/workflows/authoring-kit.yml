@@ -13,6 +13,11 @@ on:
       - scripts/render.mjs
       - scripts/study.mjs
       - studies/**
+      - references/**
+      - scripts/reference-*.mjs
+      - scripts/review-pose.mjs
+      - scripts/measure-reference.mjs
+      - scripts/render-batch.mjs
       - package.json
       - package-lock.json
 permissions:
@@ -55,7 +60,7 @@ jobs:
           python3 scripts/prepare-anatomy.py
           node scripts/prepare-tangents.mjs
           printf '%s\n' "$GITHUB_SHA" > SOURCE_REVISION
-          tar -czf /tmp/authoring-kit.tar.gz .github .gitignore AGENTS.md README.md THIRD_PARTY.md docs index.html style.css package.json package-lock.json models scripts src studies tests node_modules vendor-src SOURCE_REVISION
+          tar -czf /tmp/authoring-kit.tar.gz .github .gitignore AGENTS.md README.md THIRD_PARTY.md docs index.html style.css package.json package-lock.json models scripts src studies references tests node_modules vendor-src SOURCE_REVISION
       - uses: actions/upload-artifact@v4
         with:
           name: authoring-kit
