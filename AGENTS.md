@@ -22,7 +22,7 @@ Use `src/lib/forms/sculpt.js` for compact masks, strokes and shared-cage brushes
 
 ## Anatomical source and fitting
 
-The new character uses pinned CC0 MakeHuman graphical assets: connected topology, UVs, morph targets, landmarks and weight paint. These are not assistant-authored anatomical meshes or scans. Do not remove provenance from THIRD_PARTY.md. Application code is separately licensed and is not incorporated.
+The legacy `reference-explorer` uses pinned CC0 MakeHuman graphical assets: connected topology, UVs, morph targets, landmarks and weight paint. These are not assistant-authored anatomical meshes or scans. Do not remove provenance from THIRD_PARTY.md. Application code is separately licensed and is not incorporated.
 
 scripts/prepare-anatomy.py verifies checksums, caches source in ignored vendor-src and generates ignored src/generated/human-data.js. npm pretest/prebuild/predev run preparation. CI downloads from an immutable commit; the browser uses only self-hosted files.
 
@@ -30,12 +30,16 @@ fitSurface transfers UVs and weights, offsets surfaces, composes folds and remov
 
 ## Rendering and export
 
-UI modes and preview poses must not mutate exports. Export rebuilds a clean bind pose and includes clips. Preview lighting, grid, floor and camera stay outside GLB. Native reference .blend scenes deliberately include their own studio camera and three area lights.
+UI modes and preview poses must not mutate exports. Export rebuilds a clean bind pose and includes clips. Preview lighting, grid, floor and camera stay outside object GLBs. Authored scene recipes are different: the cyber scene intentionally exports its camera and scene lights; optical postprocessing is retained only as metadata. Native reference .blend scenes deliberately include their own studio camera and three area lights.
 
 Keep generated references labeled as concept art; never substitute them for workflow renders. PBR maps are procedural/tiled, not automatically extracted from references. Validate embedded images, UVs, tangents, skin weights and morphs. Cloth/hair collision, contact-correct walks and production facial rigs are not implemented.
 
 The site is static, self-hosts pinned dependencies and needs no credentials in browser code. Keep /3d/ subpath and mobile compatibility. Generated GLBs, native files and reviews belong in artifacts/Pages, not source history.
 
-scripts/blender_reference.py imports the new GLB, checks deformation, textures, actions and morphs, saves and reopens a packed lit scene and renders CPU Cycles. Cite the actual report before claiming native success. GLB/BLEND preserve evaluated meshes, not JS recipes or modifier stacks.
+scripts/blender_reference.py imports the legacy reference-explorer GLB, checks deformation, textures, actions and morphs, saves and reopens a packed lit scene and renders CPU Cycles. Cite the actual report before claiming native success. GLB/BLEND preserve evaluated meshes, not JS recipes or modifier stacks.
 
 Report model ID, tested revision, deployment state and honest caveats. Pages may remain unconfigured even when all checks pass: Settings > Pages > Source: GitHub Actions.
+
+## Current primary reference: cyber android
+
+Read `docs/cyber-android.md` and `models/cyber-android-scene.js`. The user supplied the cyber-android artwork with mint/orange bob, pale mechanical armor, radial backpack, luminous loop and neon platform. Build and render actual repository geometry; do not substitute an image-generation result for a model render. Use local material and neutral-clay/side/portrait captures before checkpoints. The initial scene is a procedural blockout/material study, not accepted likeness. Its rigid Survey head motion, high draw-call count and draft geometry must not be described as the earlier hand's skinned, normal-baked pipeline. Render/export and Pages UI are independently tested by `Cyber android scene checks`; report deployment separately.
