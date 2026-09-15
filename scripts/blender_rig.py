@@ -100,6 +100,10 @@ def render_preview(folder, meshes):
     scene.render.engine = 'CYCLES'
     scene.cycles.device = 'CPU'
     scene.cycles.samples = 16
+    # Ubuntu's Blender build does not include OpenImageDenoiser. Rendering itself works.
+    scene.cycles.use_denoising = False
+    scene.render.threads_mode = 'FIXED'
+    scene.render.threads = 2
     scene.render.resolution_x = scene.render.resolution_y = 640
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = 'PNG'
