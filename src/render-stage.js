@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { hydrateScene, findSceneLook, createLookRenderer } from './lib/scene-look.js';
 import { inspect, dispose } from './lib/modeling.js';
 import { assetInfo } from './lib/rigging.js';
 import { exportOwnedObjectGLB } from './lib/export-assets.js';
@@ -11,6 +12,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.append(renderer.domElement);
 const scene = new THREE.Scene();
 const lighting = createStudioLighting(scene, renderer);
+const lookRenderer = createLookRenderer(renderer,scene);
 let root, sourceJSON, mixer, poseName = '', poseTime = 0;
 const clips = () => {
   const result = new Map();
@@ -98,7 +100,7 @@ async function load({ json }) {
   if (root) { mixer.stopAllAction(); mixer.uncacheRoot(root); scene.remove(root); dispose(root); }
   sourceJSON=json;
   root=await new THREE.ObjectLoader().parseAsync(JSON.parse(json));
-  scene.add(root); mixer=new THREE.AnimationMixer(root); pose();
+  hydrateScene(root); scene.add(root); mixer=new THREE.AnimationMixer(root); pose();
   const names=[];root.traverse(o=>{if(o.name)names.push(o.name);});
   return {stats:inspect(root),rig:assetInfo(root),names:[...new Set(names)],uploadMs:performance.now()-start};
 }
@@ -109,15 +111,32 @@ async function capture(options = {}) {
   if (![width,height].every(n => Number.isInteger(n) && n>=64 && n<=4096)) throw new Error('Image dimensions must be 64..4096');
   if (!['material','clay','normal','wire','silhouette'].includes(pass)) throw new Error(`Unknown pass ${pass}`);
   pose(clip,time);
-  const target = focus ? root.getObjectByName(focus) : root;
+  const look=findSceneLook(root), subject=focus||look?.subject;
+  const target = subject ? root.getObjectByName(subject) : root;
   if (!target) throw new Error(`Unknown focus object ${focus}`);
   renderer.setSize(width,height,false);
-  const {camera,bounds,framing} = cameraFor(pointsOf(target), options);
+  const points=pointsOf(target);let state=options.cameraState;
+  if(options.view==='hero'&&!state){
+    if(!look)throw new Error('Hero view requires an authored scene');
+    const hero=root.getObjectByName(look.camera);if(!hero?.isPerspectiveCamera)throw new Error('Missing authored camera');
+    const clone=hero.clone();clone.position.copy(hero.getWorldPosition(new THREE.Vector3()));clone.quaternion.copy(hero.getWorldQuaternion(new THREE.Quaternion()));clone.aspect=width/height;clone.updateProjectionMatrix();
+    const box=new THREE.Box3().setFromPoints(points);state={width,height,camera:clone.toJSON(),lightingBounds:{min:box.min.toArray(),max:box.max.toArray()}};
+  }
+  const {camera,bounds,framing} = cameraFor(points, {...options,cameraState:state});
   lighting.setPreset(preset); lighting.setExposure(exposure); lighting.fit(bounds);
-  const originalBackground=scene.background, materials=[];
+  scene.getObjectByName('PreviewLighting').visible=!look;
+  if(look){scene.background=new THREE.Color(look.background);scene.fog=new THREE.Fog(look.background,look.fog.near,look.fog.far);}else scene.fog=null;
+  const originalBackground=scene.background, originalFog=scene.fog, materials=[], visibility=[];
   let helper;
   try {
     if (pass !== 'material') {
+      scene.fog=null;
+      if (look) {
+        root.traverse(o=>{if(o.userData.environment){visibility.push([o,o.visible]);o.visible=false;}});
+        scene.background=new THREE.Color(0x262b31);
+        scene.getObjectByName('PreviewLighting').visible=true;
+        const authored=root.getObjectByName('AuthoredSceneLights');if(authored){visibility.push([authored,authored.visible]);authored.visible=false;}
+      }
       root.traverse(o => {
         if (!o.isMesh) return;
         const mat = pass==='normal' ? new THREE.MeshNormalMaterial() : pass==='silhouette' ? new THREE.MeshBasicMaterial({color:0x000000}) : new THREE.MeshStandardMaterial({color:0xb5aaa0,roughness:.85,wireframe:pass==='wire'});
@@ -128,13 +147,14 @@ async function capture(options = {}) {
     }
     if(skeleton) { helper=new THREE.SkeletonHelper(root); helper.material.depthTest=false; scene.add(helper); }
     await renderer.compileAsync(scene,camera);
-    renderer.render(scene,camera); renderer.getContext().finish();
+    lookRenderer.render(camera,pass==='material'?look:null); renderer.getContext().finish();
     const png=renderer.domElement.toDataURL('image/png').split(',')[1];
     const imageMs=performance.now()-start;
-    return { png, imageMs, framing, cameraState:{width,height,camera:camera.toJSON(),lightingBounds:{min:bounds.min.toArray(),max:bounds.max.toArray()}}, pass, view:options.view||'threequarter', pose:{clip:poseName,time:poseTime}, focus:focus||null, drawCalls:renderer.info.render.calls, triangles:renderer.info.render.triangles };
+    return { png, imageMs, framing, cameraState:{width,height,camera:camera.toJSON(),lightingBounds:{min:bounds.min.toArray(),max:bounds.max.toArray()}}, pass, view:options.view||'threequarter', pose:{clip:poseName,time:poseTime}, focus:focus||null, authoredScene:!!look, bloom:pass==='material'?(look?.bloom||null):null, framingScope:subject||'complete asset', drawCalls:renderer.info.render.calls, triangles:renderer.info.render.triangles };
   } finally {
     materials.forEach(([o,original,temporary]) => {o.material=original; temporary.dispose();});
-    scene.background=originalBackground;
+    scene.background=originalBackground;scene.fog=originalFog;
+    visibility.forEach(([object,visible])=>{object.visible=visible;});
     if(helper){scene.remove(helper);helper.dispose();}
   }
 }
@@ -177,7 +197,7 @@ const gl=renderer.getContext(), debug=gl.getExtension('WEBGL_debug_renderer_info
 window.stage = { load, capture, sheet, compare, ready: true,
   capabilities: { three:THREE.REVISION, webgl2:true, renderer:debug?gl.getParameter(debug.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER), maxTextureSize:gl.getParameter(gl.MAX_TEXTURE_SIZE) },
   async exportGLB() {
-    const clean=await new THREE.ObjectLoader().parseAsync(JSON.parse(sourceJSON));
+    const clean=hydrateScene(await new THREE.ObjectLoader().parseAsync(JSON.parse(sourceJSON)));
     const bytes=new Uint8Array(await exportOwnedObjectGLB(clean)); let text='';
     for(let i=0;i<bytes.length;i+=32768)text+=String.fromCharCode(...bytes.subarray(i,i+32768));
     return btoa(text);

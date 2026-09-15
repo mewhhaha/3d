@@ -25,6 +25,19 @@ const modules = {
   modeling:'src/lib/modeling.js', rigging:'src/lib/rigging.js',
   lighting:'src/lib/studio-lighting.js', exporter:'src/lib/export-assets.js',
   canonical:'src/lib/canonical-glb.js', tangents:'src/lib/tangent-frame.js',
+  look:'src/lib/scene-look.js',
+  'three/addons/postprocessing/BokehPass.js':'node_modules/three/examples/jsm/postprocessing/BokehPass.js',
+  'three/addons/shaders/BokehShader.js':'node_modules/three/examples/jsm/shaders/BokehShader.js',
+  'three/addons/postprocessing/EffectComposer.js':'node_modules/three/examples/jsm/postprocessing/EffectComposer.js',
+  'three/addons/postprocessing/RenderPass.js':'node_modules/three/examples/jsm/postprocessing/RenderPass.js',
+  'three/addons/postprocessing/UnrealBloomPass.js':'node_modules/three/examples/jsm/postprocessing/UnrealBloomPass.js',
+  'three/addons/postprocessing/OutputPass.js':'node_modules/three/examples/jsm/postprocessing/OutputPass.js',
+  'three/addons/postprocessing/Pass.js':'node_modules/three/examples/jsm/postprocessing/Pass.js',
+  'three/addons/postprocessing/ShaderPass.js':'node_modules/three/examples/jsm/postprocessing/ShaderPass.js',
+  'three/addons/postprocessing/MaskPass.js':'node_modules/three/examples/jsm/postprocessing/MaskPass.js',
+  'three/addons/shaders/CopyShader.js':'node_modules/three/examples/jsm/shaders/CopyShader.js',
+  'three/addons/shaders/LuminosityHighPassShader.js':'node_modules/three/examples/jsm/shaders/LuminosityHighPassShader.js',
+  'three/addons/shaders/OutputShader.js':'node_modules/three/examples/jsm/shaders/OutputShader.js',
 };
 export async function memoryRuntime(root=project) {
   const byPath=new Map(Object.entries(modules).map(([name,p])=>[p,name])),imports={};
