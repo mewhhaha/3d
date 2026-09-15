@@ -71,12 +71,14 @@ export function buildHand(component = hand(), { mode='baked', textureSize=256, c
   const skinFields=opts.skin;
   const wristX=.024*width,wristZ=.011;
   const rx=profile([[0,wristX],[.32,.039*width],[.72,.040*width],[1,.041*width]]);
-  const rz=profile([[0,wristZ],[.32,.016],[.72,.013],[1,.014]]);
+  const rz=profile([[0,wristZ],[.32,.016],[.72,.013],[1,.0108]]);
   const palmForm=roundOpening((u,v)=>{
     const a=u*TAU,s=Math.sin(a),c=Math.cos(a);
-    const x=rx(v)*s, z=rz(v)*c;
+    const crown=smooth((v-.60)/.36), squareness=.85*crown;
+    const x=rx(v)*s*Math.sqrt(1+squareness*c*c), z=rz(v)*c*Math.sqrt(1+squareness*s*s);
     const pad=.0035*opts.palm.arch*Math.exp(-(((u-.55)/.14)**2+((v-.42)/.28)**2));
-    return [x,v*palmLength,z-pad*Math.sin(Math.PI*v)**2];
+    const knuckleArc=-.0075*(x/(.041*width))**2-.0025*x/(.041*width);
+    return [x,v*palmLength+crown*(knuckleArc-.005*c*c),z-pad*Math.sin(Math.PI*v)**2];
   },{at:[.75,.5],radius:[.125,.2]});
   const palmRelief=layers(
     ...[-.1,0,.1].map((dx)=>mound({at:[dx,.63],radius:[.025,.25],height:.0007,wrapU:true})),
@@ -91,10 +93,10 @@ export function buildHand(component = hand(), { mode='baked', textureSize=256, c
     return palmRelief(u,v)*smooth(v/.1)*smooth((1-v)/.1)*smooth(d/.03);
   }});
   add(surfaceMesh('Palm',palmChart,options([48,20])),()=>[['Wrist',1]]);
-  const digitSpecs=[['Index',-.0275,.079,.0076,-.015],['Middle',-.009,.090,.0084,-.002],['Ring',.010,.083,.0078,.01],['Little',.027,.064,.0063,.024]];
+  const digitSpecs=[['Index',-.0275,.079,.0076,-.015,-.002],['Middle',-.009,.090,.0084,-.002,0],['Ring',.010,.083,.0078,.01,-.003],['Little',.027,.064,.0063,.024,-.010]];
   const digitCharts=[];
-  for(const [name,x,length,radius,lean] of digitSpecs){
-    const center=(v)=>v3([x*width+lean*opts.fingers.spread*smooth(v),palmLength+length*v,-.005*v*v-.011*opts.fingers.curl*v*v]);
+  for(const [name,x,length,radius,lean,rootHeight] of digitSpecs){
+    const center=(v)=>v3([x*width+lean*opts.fingers.spread*smooth(v),palmLength+rootHeight+length*v,-.005*v*v-.011*opts.fingers.curl*v*v]);
     const shape=profile([[0,1],[.12,1.03],[.32,.94],[.44,.98],[.59,.88],[.72,.91],[.84,.85],[.88,.82],[1,.03]]);
     const form=(u,v)=>{const a=u*TAU,r=radius*(v>.88?.82*Math.sqrt(Math.max(.001,1-((v-.88)/.12)**2)):shape(v));return center(v).add(v3([r*width*Math.sin(a),0,r*1.12*Math.cos(a)]));};
     const detail=layers(

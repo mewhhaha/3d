@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import { hand, forearm, buildHand } from './hand.js';
 import { jointChain, link, contour, radialMass, sectionLoft } from './structure.js';
-import { surface, surfaceMesh, layers, crease, grain, smooth } from './surface.js';
+import { surface, surfaceMesh, layers, crease, grain, smooth, bakeNormals } from './surface.js';
+import { normalSampler } from './fair.js';
+import { stitchFrames } from './stitch.js';
+import { dispose } from '../modeling.js';
 import { skeleton, skin, clip, rotationTrack } from '../rigging.js';
 const range = (n, a, b, label) => {
   if (!Number.isFinite(n) || n < a || n > b) throw new RangeError(`${label}: expected ${a}..${b}`);
@@ -43,7 +46,8 @@ export function buildArm(component=arm(),{mode='baked',textureSize=256,color='#b
   const length=upper.length+lower.length;
   const chain=jointChain({root:'Shoulder',origin:[0,-length,0]},link('Elbow',{length:upper.length}),link('ForearmTwist',{length:lower.length*.52}),link('Wrist',{length:lower.length*.48}));
   const t=chain.station('Elbow'), lowerT=v=>t+(1-t)*v;
-  const end=buildHand(lower.end,{mode,textureSize,color}),port=end.userData.ports.wrist;
+  const geometryMode=mode==='baked'?'cage':mode;
+  const end=buildHand(lower.end,{mode:geometryMode,textureSize,color}),port=end.userData.ports.wrist;
   const oldRig=end.getObjectByName('Palm').skeleton;
   const handSpec=oldRig.bones.filter(b=>!['Forearm','Wrist'].includes(b.name)).map(b=>({name:b.name,parent:b.parent.name,position:end.userData.landmarks[b.name]}));
   const rig=skeleton([...chain.spec,...handSpec]),root=new THREE.Group();root.name='ArmStudy';root.add(rig.root);
@@ -64,7 +68,7 @@ export function buildArm(component=arm(),{mode='baked',textureSize=256,color='#b
   );
   const chart=surface(form,{wrapU:true,detail:(u,v)=>relief(u,v)*smooth(v/.06)*smooth((1-v)/.025)});
   const mat=new THREE.MeshStandardMaterial({color,roughness:.64});mat.name='ArmSkinMaterial';
-  const body=surfaceMesh('ArmSkin',chart,{mode,segments:[48,72],textureSize,material:mat});
+  const body=surfaceMesh('ArmSkin',chart,{mode:geometryMode,segments:[48,72],textureSize,material:mat});
   const bodySkin=skin(body.geometry,body.material,rig,p=>weightsAt(p.y,chain.at('Elbow').y,chain.at('ForearmTwist').y),'ArmSkin');bodySkin.userData=body.userData;root.add(bodySkin);
   const cap=cutCap(chart,48*(mode==='sculpt'?4:1),mat);root.add(skin(cap.geometry,cap.material,rig,()=>[['Shoulder',1]],cap.name));mat.dispose();
   end.traverse(part=>{
@@ -74,6 +78,18 @@ export function buildArm(component=arm(),{mode='baked',textureSize=256,color='#b
     const result=skin(part.geometry,part.material,rig,(_,i)=>[0,1,2,3].map(k=>[oldRig.bones[ix.array[i*4+k]].name,w.array[i*4+k]]).filter(([,v])=>v>0),part.name);
     result.userData=part.userData;root.add(result);
   });
+  root.userData.wristStitch=stitchFrames([bodySkin,root.getObjectByName('Palm')],{where:p=>Math.abs(p.y)<1e-7});
+  if(mode==='baked'){
+    const high=buildArm(component,{mode:'sculpt',textureSize,color});
+    try{root.traverse(part=>{
+      if(!part.isMesh||!part.userData.surface||part.name.endsWith('_Nail'))return;
+      const sample=normalSampler(high.getObjectByName(part.name).geometry);
+      part.material.normalMap=bakeNormals({normal:(u,v)=>sample(u,v),wrapU:true},part.geometry,{size:textureSize});
+      part.material.normalMap.name=part.name+'_Normal';
+      part.material.normalMap.userData.bake.method='UV-correspondence / actual high mesh after port-frame stitching';
+      part.userData.surface.representation='baked';part.userData.surface.bake=part.material.normalMap.userData.bake;
+    });}finally{dispose(high);}
+  }
   root.animations=[...end.animations,
     clip('ElbowFlex',[rotationTrack('Elbow',[[0,[0,0,0]],[1.2,[-90,0,0]],[2.4,[0,0,0]]])]),
     clip('ForearmTurn',[rotationTrack('ForearmTwist',[[0,[0,0,0]],[1,[0,60,0]],[2,[0,-40,0]],[3,[0,0,0]]])]),
