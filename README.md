@@ -4,6 +4,16 @@ A small, code-first modeling workshop for human + assistant iteration. Describe 
 
 **Gallery:** https://mewhhaha.github.io/3d/ · **Builds:** https://github.com/mewhhaha/3d/actions
 
+## Fast local authoring (no Blender required)
+
+```sh
+npm run doctor
+npm run render -- models/sculpt-ear.js --views front,side,threequarter --out renders/ear --glb
+npm run study -- studies/auricle.json
+```
+
+The local tool builds recipes in fresh Node workers and renders them through in-memory Chromium/Three.js, with software WebGL available. It needs no local HTTP server or cloud rendering round trip. Studies save locked-camera comparisons, GLBs, diagnostics and incremental result manifests. See [local studio and sculpt API](docs/local-studio.md) for one-time setup, masks/brushes, high-to-low normal baking and limitations. Render and inspect locally before committing; Actions remains the independent verification and Pages publishing path.
+
 ## First-time Pages setup
 
 In this repository, open **Settings → Pages → Build and deployment → Source → GitHub Actions**. The GitHub connector can write the workflow but does not expose this repository setting. Then re-run the deployment job, use **Actions → Build models and deploy Pages → Run workflow**, or push a new commit.
@@ -137,7 +147,7 @@ scripts/build.mjs           # Discover recipes and assemble static site
 scripts/bake.mjs            # Headless rendering, exports, validation, browser tests
 scripts/server.mjs          # Local static server, also used by CI
 scripts/dev.mjs             # Watch and rebuild
-tests/models.test.js        # Node tests
+ tests/models.test.js        # Node tests
 .github/workflows/pages.yml # Push-to-main pipeline
 AGENTS.md                   # Instructions for future assistant sessions
 ```

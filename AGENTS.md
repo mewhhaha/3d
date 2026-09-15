@@ -2,6 +2,12 @@
 
 This is a code-first 3D workshop. The user describes objects; assistants author JavaScript recipes; Actions builds and renders them; Pages presents them; GLB and packed Blender scenes are the handoff.
 
+## Local-first iteration
+
+Read `docs/local-studio.md`. Run `npm run doctor`, then render only the changed recipe with `npm run render -- models/<id>.js`. Local rendering uses an in-memory Node-to-Three stage; it does not need Blender, a website server, or a push to see the next edit. Use `npm run study -- studies/auricle.json` as the pattern for finite cases, locked cameras/lights, export validation and partial checkpoints. Inspect images yourself; a passing study deliberately does not claim visual acceptance. Builders and imported helpers reload for every render.
+
+Use `src/lib/forms/sculpt.js` for compact masks, strokes and shared-cage brushes, and `cage-asset.js` for corresponding high/low representations. Sculpt primary form before adding bake-only detail. Do not confuse the independent cage studies with the legacy MakeHuman-based character, or silently replace accepted components. Commit each tested improvement to main without force pushes. Keep source fingerprints, code revision and deployment status distinct.
+
 ## Ordinary requests
 
 - Read README.md, src/lib/modeling.js, and a relevant recipe before editing. Organic forms use docs/organic-modeling.md. Characters now use docs/composable-characters.md and models/reference-explorer.js. Read docs/rigging.md for the general skeleton API.
