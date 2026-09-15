@@ -9,10 +9,13 @@ permissions:
 concurrency:
   group: pages-${{ github.ref }}
   cancel-in-progress: true
+env:
+  OPENBLAS_NUM_THREADS: '1'
+  OMP_NUM_THREADS: '2'
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -38,10 +41,11 @@ jobs:
             dist/assets/reference-explorer/
             reports/reference-*
           if-no-files-found: ignore
-      - name: Install Blender for the reference studio scene
+      - name: Install Blender and its glTF Python dependency
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends blender
+          sudo apt-get install -y --no-install-recommends blender python3-numpy
+          blender --background --factory-startup --python-expr "import numpy; print('NumPy', numpy.__version__)"
       - name: Verify reference in Blender and save a packed lit scene
         timeout-minutes: 8
         run: |
@@ -94,10 +98,10 @@ jobs:
         with:
           name: model-assets
           path: imported-assets
-      - name: Install background Blender
+      - name: Install background Blender and NumPy
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends blender
+          sudo apt-get install -y --no-install-recommends blender python3-numpy
           blender --version
       - name: Import fine GLBs, verify UVs and textures, save packed blend files
         run: blender --background --factory-startup --python-exit-code 1 --python scripts/blender_verify.py -- imported-assets blender-assets

@@ -12,6 +12,8 @@ export function composeCharacter({name='Character',height=1.72,quality='studio'}
  ctx.material=(kind,color)=>{const key=`${kind}:${color}`;if(!ctx.materials.has(key)){
  const relief={skin:.00016,cloth:.00015,leather:.00025,hair:.00012}[kind]||.0003;
  const mat=pbrMaterial(kind,{color,size:ctx.textureSize,name:key,relief,...(kind==='hair'?{roughness:.74}:{})});
+ // Garment flaps and straps are thin surfaces: both faces must survive GLB export.
+ if(kind==='cloth'||kind==='leather')mat.side=THREE.DoubleSide;
  const repeats={skin:10,cloth:6,leather:3,hair:1}[kind]||1;for(const t of new Set(Object.values(mat).filter(v=>v?.isTexture)))t.repeat.setScalar(repeats);ctx.materials.set(key,mat);
  }return ctx.materials.get(key);};
  ctx.anchor=name=>{if(!ctx.anchors?.[name])throw new Error(`Unknown anatomical anchor: ${name}`);return new THREE.Vector3(...ctx.anchors[name]);};

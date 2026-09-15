@@ -16,19 +16,18 @@ export function portrait({eyes='#655131'}={}){return stage('portrait',ctx=>{
 });}
 export function tiedBun({color='#2f251e',looseness=.65}={}){return stage('tied-bun',ctx=>{
  if(!Number.isFinite(looseness)||looseness<0||looseness>1)throw new Error('Hair looseness must be 0..1');
- const dark=ctx.material('hair',color),light=material('#514131',{roughness:.72}),mid=material('#392b22',{roughness:.72}),cz=.035;
- const hairline=a=>1.574+.082*Math.max(0,Math.cos(a))+.014*Math.abs(Math.sin(a));
- fitSurface(ctx,{name:'HairFoundation',select:p=>p[1]>hairline(Math.atan2(p[0],p[2]-cz)),ease:.003,kind:'hair',color});
- // A continuous cranium envelope removes the stepped nearest-ring artifacts.
- const shell=(a,y,inflate=.003)=>{const cy=1.645,ry=.088,zc=.049,falloff=Math.sqrt(Math.max(.002,1-((y-cy)/ry)**2));return[(.079*falloff+inflate)*Math.sin(a),y,zc+(.101*falloff+inflate)*Math.cos(a)];};
- const groups=[[],[],[]],count=ctx.quality==='fine'?360:ctx.quality==='studio'?200:100;
+ const dark=material(color,{roughness:.75}),mid=material('#392b22',{roughness:.75}),light=material('#4b392a',{roughness:.75}),cz=.049;
+ const hairline=a=>1.575+.078*Math.max(0,Math.cos(a))+.012*Math.abs(Math.sin(a));
+ const cap=fitSurface(ctx,{name:'HairFoundation',select:p=>p[1]>hairline(Math.atan2(p[0],p[2]-cz)),ease:.0035,kind:'hair',color});cap.material=dark;
+ const shell=(a,y,inflate=.003)=>{const falloff=Math.sqrt(Math.max(.003,1-((y-1.639)/.083)**2));return[(.077*falloff+inflate)*Math.sin(a),y,cz+(.099*falloff+inflate)*Math.cos(a)];};
+ const groups=[[],[],[]],count=ctx.quality==='fine'?540:ctx.quality==='studio'?360:160;
  for(let i=0;i<count;i++){
- const a=i/count*Math.PI*2,sy=hairline(a)+(noise(i)-.5)*.009,turn=a<Math.PI?1:-1;
- const controls=[shell(a,sy,.003),shell(a+turn*.20,Math.max(sy+.012,1.676),.005),shell(a+turn*.7,1.714,.005),[.013+.029*Math.sin(a),1.732,-.006],[.013+.027*Math.sin(a),1.705,-.047]],curve=new THREE.CatmullRomCurve3(controls.map(p=>new THREE.Vector3(...p))),points=curve.getPoints(24).map(p=>p.toArray());
- const thickness=i%5===0?.0011:.00035+noise(i+8)*.00045;groups[i%3].push(sweep({points,radii:[thickness*.18,thickness,thickness*.85,.00008],segments:24,sides:5,material:dark}));
+ const a=-Math.PI+(i+.5)/count*Math.PI*2,side=a<0?-1:1,sy=hairline(a)+(noise(i)-.5)*.004;
+ const points=Array.from({length:29},(_,k)=>{const t=k/28,e=t*t*(3-2*t),angle=a+(side*(Math.PI-.12)-a)*e,y=sy+(1.694-sy)*t+.040*Math.sin(Math.PI*t),p=shell(angle,Math.min(1.721,y),.003+(i%7)*.0002);if(t>.80){const blend=(t-.8)/.2;p[0]=(1-blend)*p[0]+blend*(.009+.021*Math.sin(a));p[2]=(1-blend)*p[2]+blend*(-.049);}return p;});
+ const width=i%7===0?.0012:.0004+noise(i+8)*.0004;groups[i%3].push(sweep({points,radii:[width*.15,width,width,.00005],segments:36,sides:5,material:dark}));
  }
- const bun=[.013,1.709,-.049];ctx.add(ellipsoid({name:'HairBunVolume',radii:[.036,.037,.035],position:bun,segments:48,material:dark}),'Head');
- for(let i=0;i<90;i++){const a=i/90*Math.PI*2,r=.033+(noise(i+31)-.5)*.005,points=Array.from({length:24},(_,j)=>{const t=j/23*Math.PI*2.4;return[bun[0]+r*Math.sin(t)*Math.cos(a),bun[1]+r*Math.cos(t),bun[2]+r*Math.sin(t)*Math.sin(a)];});groups[i%3].push(sweep({points,radii:.0007+noise(i)*.0006,segments:30,sides:5,material:dark}));}
- for(const side of[-1,1])for(let i=0;i<8;i++){const start=shell(side*(.38+i*.055),1.665,.004),endY=1.60-noise(i+side+9)*.025*looseness,path=[start,[side*(.042+i*.0012),1.65,.122],[side*(.063+i*.001),1.624,.117],[side*(.074+i*.0013),endY,.080]];groups[i%3].push(sweep({points:path,radii:[.0007,.0011,.0007,.00008],segments:30,sides:5,material:dark}));}
+ const bun=[.009,1.704,-.053];ctx.add(ellipsoid({name:'HairBunVolume',radii:[.038,.037,.038],position:bun,segments:48,material:dark}),'Head');
+ for(let i=0;i<110;i++){const a=i/110*Math.PI*2,r=.033+(noise(i+31)-.5)*.006,points=Array.from({length:24},(_,j)=>{const t=j/23*Math.PI*2.4;return[bun[0]+r*Math.sin(t)*Math.cos(a),bun[1]+r*Math.cos(t),bun[2]+r*Math.sin(t)*Math.sin(a)];});groups[i%3].push(sweep({points,radii:.0006+noise(i)*.0006,segments:30,sides:5,material:dark}));}
+ for(const side of [-1,1])for(let i=0;i<7;i++){const start=shell(side*(.38+i*.055),1.659,.004),endY=1.60-noise(i+side+9)*.025*looseness;groups[i%3].push(sweep({points:[start,[side*(.042+i*.0012),1.65,.126],[side*(.066+i*.001),1.624,.119],[side*(.074+i*.0013),endY,.080]],radii:[.0005,.0008,.0006,.00006],segments:30,sides:5,material:dark}));}
  for(let i=0;i<3;i++)ctx.add(merged(`HairStrands${i}`,groups[i],[dark,mid,light][i]),'Head');
 });}

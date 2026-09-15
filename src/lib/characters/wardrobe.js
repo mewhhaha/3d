@@ -13,11 +13,11 @@ function fittedPocket(ctx,{name,x,y,width=.072,height=.09,side=1,bind='Chest',ma
 }
 export function fieldShirt({color='#555747',fit='relaxed',wear=.5}={}){return stage('field-shirt',ctx=>{
  if(!['relaxed','tailored'].includes(fit)||!Number.isFinite(wear)||wear<0||wear>1)throw new Error('Invalid shirt style');
- const mask=(p,f)=>p[1]>.968&&p[1]<1.474&&(!armFace(ctx,f)||p[1]>ctx.anchor('l-elbow').y-.035),folds=p=>.0015*Math.sin(p[1]*88+Math.atan2(p[0],p[2])*5)*G(p[1],1.14,.18)+compressionFolds({at:ctx.anchor('l-elbow').y+.05,width:.08,depth:.0025})(p);
+ const mask=(p,f)=>p[1]>.968&&p[1]<1.447&&(!armFace(ctx,f)||p[1]>ctx.anchor('l-elbow').y-.035),folds=p=>.0015*Math.sin(p[1]*88+Math.atan2(p[0],p[2])*5)*G(p[1],1.14,.18)+compressionFolds({at:ctx.anchor('l-elbow').y+.05,width:.08,depth:.0025})(p);
  const shirt=fitSurface(ctx,{name:'FieldShirt',select:mask,ease:fit==='relaxed'?.023:.010,folds,color,breath:true}),mat=shirt.material,button=material('#716651',{metalness:.35,roughness:.6});
  for(const s of[-1,1]){
  fittedPocket(ctx,{name:`ShirtPocket${s>0?'L':'R'}`,x:s*.087,y:1.278,mat});
- const shape=patch({name:'Collar',uSegments:12,vSegments:18,material:mat,sample(u,v){const x=s*(.03+u*.055+v*.007),y=1.480-v*(.050+.058*u);return[x,y,ctx.frontAt(x,y)+.025+.012*Math.sin(Math.PI*u)];}});solid(ctx,`Collar${s}`,shape);
+ const shape=patch({name:'Collar',uSegments:12,vSegments:18,material:mat,sample(u,v){const x=s*(.03+u*.055+v*.007),y=1.447-v*(.043+.048*u);return[x,y,ctx.frontAt(x,y)+.025+.012*Math.sin(Math.PI*u)];}});solid(ctx,`Collar${s}`,shape);
  const shoulder=ctx.anchor(s>0?'l-shoulder':'r-shoulder'),elbow=ctx.anchor(s>0?'l-elbow':'r-elbow'),cuffCenter=elbow.clone().lerp(ctx.anchor(s>0?'l-hand':'r-hand'),.05),axis=elbow.clone().sub(shoulder).normalize(),q=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),axis),parts=[];
  for(let k=0;k<3;k++){const ring=torus({radius:.046+k*.0008,tube:.0055,segments:40,material:mat});ring.rotation.x=Math.PI/2;ring.updateMatrix();ring.geometry.applyMatrix4(ring.matrix);ring.rotation.set(0,0,0);ring.quaternion.copy(q);ring.position.copy(cuffCenter).addScaledVector(axis,(k-1)*.007);parts.push(ring);}solid(ctx,`RolledCuff${s}`,group('Rolled cloth cuff',parts),s>0?'L_Forearm':'R_Forearm');
  }
@@ -33,9 +33,10 @@ export function hikingBoots({color='#4d3d2e'}={}){return stage('hiking-boots',ct
  for(const[s,S]of[[1,'L'],[-1,'R']]){
  const ankle=ctx.anchor(s>0?'l-ankle':'r-ankle'),mask=(p,f)=>p[1]<.235&&p[0]*s>0&&!armFace(ctx,f);ctx.cover.push(mask);
  const boot=fitSurface(ctx,{name:`BootUpper${S}`,select:(p,f)=>mask(p,f)&&p[1]>.080,ease:.012,folds:p=>.0025*Math.sin(p[1]*120)*G(p[1],.15,.07),color,kind:'leather'}),pos=boot.geometry.attributes.position;for(let i=0;i<pos.count;i++)pos.setY(i,Math.max(.025,pos.getY(i)));boot.geometry.computeVertexNormals();
- const shoePoints=ctx.body.points.filter(p=>p[1]<.10&&p[0]*s>0),minZ=Math.min(...shoePoints.map(p=>p[2]))-.012,maxZ=Math.max(...shoePoints.map(p=>p[2]))+.013,cx=shoePoints.reduce((n,p)=>n+p[0],0)/shoePoints.length,w=.064;
+ const used=new Set(ctx.body.faces.flatMap(f=>f.ids)),shoePoints=[...used].map(i=>ctx.body.points[i]).filter(p=>p[1]<.10&&p[0]*s>0),minZ=Math.min(...shoePoints.map(p=>p[2]))-.012,maxZ=Math.max(...shoePoints.map(p=>p[2]))+.013,cx=shoePoints.reduce((n,p)=>n+p[0],0)/shoePoints.length,w=.064;
  const outline=[[-.76,0],[-1,.21],[-1,.78],[-.83,.94],[-.4,1],[.4,1],[.83,.94],[1,.78],[.93,.25],[.65,0]].map(([x,z])=>[cx+x*w,minZ+z*(maxZ-minZ)]),sole=extrude({points:outline,depth:.022,bevel:.004,material:rubber});sole.geometry.rotateX(Math.PI/2);sole.position.y=.026;
- const parts=[sole,ellipsoid({name:'Smooth shoe last',radii:[w*.99,.055,(maxZ-minZ)*.51],position:[cx,.071,(minZ+maxZ)/2],segments:48,material:mat})];
+ const profile=[[0,.72,.025],[.1,.88,.07],[.3,.95,.10],[.5,1,.075],[.72,1,.056],[.90,.85,.045],[1,.03,.001]],interpolate=(t,column)=>{let i=0;while(i<profile.length-2&&t>profile[i+1][0])i++;const a=profile[i],b=profile[i+1],q=(t-a[0])/(b[0]-a[0]);return a[column]+(b[column]-a[column])*q;};
+ const last=patch({name:'Shaped shoe last',uSegments:32,vSegments:48,material:mat,sample(u,v){const a=Math.PI*u;return[cx-w*interpolate(v,1)*Math.cos(a),.026+interpolate(v,2)*Math.sin(a)**.65,minZ+v*(maxZ-minZ)];}}),parts=[sole,last];
  for(let k=0;k<9;k++)for(const side of[-1,1])parts.push(box({size:[.035,.010,.017],radius:.002,position:[cx+side*.042,.008,minZ+.022+k/8*(maxZ-minZ-.045)],rotation:[0,side*18,0],material:rubber}));
  for(let k=0;k<7;k++){const y=.12+k*.017,z=ctx.frontAt(ankle.x,y)+.014,spread=.024;parts.push(seam([[ankle.x-spread,y,z],[ankle.x+spread,y+.011,z+.002]],thread,'Lace',.0016));for(const side of[-1,1])parts.push(torus({radius:.0035,tube:.001,segments:12,position:[ankle.x+side*.027,y,z],material:metal}));}
  solid(ctx,`BootDetails${S}`,group(`Hiking boot ${S}`,parts),`${S}_Foot`);
@@ -43,7 +44,7 @@ export function hikingBoots({color='#4d3d2e'}={}){return stage('hiking-boots',ct
 });}
 export function fingerlessGloves({color='#332f27'}={}){return stage('fingerless-gloves',ctx=>{for(const s of['l','r']){const hand=ctx.anchor(`${s}-hand`),S=s.toUpperCase(),select=(p,f)=>f.ids.some(i=>ctx.body.weights[i].some(([b,w])=>b===`${S}_Hand`&&w>.35))&&p[1]>hand.y-.09;fitSurface(ctx,{name:`FingerlessGlove${S}`,select,ease:.0025,color,kind:'leather'});}});}
 export function scarf({color='#76624a'}={}){return stage('woven-scarf',ctx=>{
- const mat=ctx.material('cloth',color),neck=ctx.anchor('neck'),parts=[];for(let band=0;band<4;band++){const path=Array.from({length:49},(_,i)=>{const a=i/48*Math.PI*2;return[.063*Math.sin(a),neck.y+.024-band*.009+.012*Math.cos(a)+.005*Math.sin(3*a+band),.054*Math.cos(a)+.012];});parts.push(sweep({points:path,radii:.014,segments:72,sides:12,closed:true,material:mat}));}
+ const mat=ctx.material('cloth',color),neck=ctx.anchor('neck'),parts=[];for(let band=0;band<4;band++){const path=Array.from({length:49},(_,i)=>{const a=i/48*Math.PI*2;return[.075*Math.sin(a),neck.y+.009-band*.009+.008*Math.cos(a)+.004*Math.sin(3*a+band),.067*Math.cos(a)+.014];});parts.push(sweep({points:path,radii:.014,segments:72,sides:12,closed:true,material:mat}));}
  parts.push(patch({uSegments:24,vSegments:40,material:mat,sample(u,v){const x=(u-.5)*(.085-.012*v)-.025*v,y=neck.y-.010-v*.14;return[x,y,ctx.frontAt(x,y)+.03+.007*Math.sin(u*15+v*4)];}}));solid(ctx,'WovenScarf',group('Woven scarf',parts));
 });}
 export function utilityBelt({color='#4e3d2b',pouches=2}={}){return stage('utility-belt',ctx=>{
