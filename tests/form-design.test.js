@@ -45,11 +45,16 @@ test('physical limb support faces outward and its bounded armor has actual thick
  assert.ok(leaf.geometry.index.count>100);assert.equal(leaf.userData.construction.thickness,.004);dispose(leaf);
  assert.throws(()=>limbVolume({length:-1,radii:[[0,.1,.1],[1,.1,.1]]}));
 });
-test('boot has a closed toe bumper, independent collar and two real offset shield layers',()=>{
+test('boot has a closed toe bumper and shields expose resolution-independent silhouette profiles',()=>{
  const m=cyberMaterials(),boot=sculptedBoot({},m),shield=contouredShield({},m);
+ const shifted=contouredShield({width:.1,widthProfile:[[0,.5],[.5,1],[1,.5]],centerProfile:[[0,.2],[1,.2]]},m);
  assert.ok(boot.getObjectByName('Toe bumper'));assert.ok(boot.getObjectByName('Segmented ankle cuff'));
  assert.equal(shield.children.length,2);assert.equal(shield.userData.construction.normalClearance,.0015);
- dispose(boot);dispose(shield);
+ assert.equal(shifted.userData.construction.method,'profiled single-support layered shield');
+ const baseX=shield.children[0].geometry.attributes.position.getX(0),shiftX=shifted.children[0].geometry.attributes.position.getX(0);
+ assert.ok(shiftX>baseX+.01);
+ assert.throws(()=>contouredShield({widthProfile:[[0,.5],[.9,1]]},m));
+ dispose(boot);dispose(shield);dispose(shifted);
 });
 test('scene retains one authored camera and five lights at every construction stage',()=>{
  for(const stage of ['gesture','masses','assembly']){

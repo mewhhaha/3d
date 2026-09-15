@@ -58,16 +58,19 @@ export function sculptedBoot({side=1}={},mats){
 
 /** Smooth shoulder/chest shield whose substrate and face are offsets of one chart.
  * Layer clearance is explicit; reducing a duplicate in XY would cause intersections. */
-export function contouredShield({name='Contoured shield',width=.14,height=.13,bulge=.025,notch=.0}={},mats){
+export function contouredShield({name='Contoured shield',width=.14,height=.13,bulge=.025,notch=.0,
+ widthProfile=[[0,.54],[.14,.90],[.43,1],[.78,.82],[1,.57]],centerProfile=[[0,0],[1,0]]}={},mats){
  if(![width,height,bulge,notch].every(Number.isFinite)||width<=0||height<=0||bulge<0)throw new Error('Invalid shield dimensions');
- const shape=shapeProfile([[0,.54],[.14,.90],[.43,1],[.78,.82],[1,.57]]);
+ // Width and center are authored as normalized longitudinal profiles so silhouette edits
+ // stay independent of tessellation. centerProfile is a fraction of the full width.
+ const shape=shapeProfile(widthProfile),center=shapeProfile(centerProfile);
  const support=(u,v)=>{
-   const x=(u-.5)*width*shape(v), y=(v-.5)*height;
+   const x=width*(center(v)+(u-.5)*shape(v)), y=(v-.5)*height;
    return [x,y,bulge*(1-(2*u-1)**2)*Math.sin(Math.PI*v) - notch*Math.exp(-(((u-.5)/.18)**2))*Math.exp(-((v/.18)**2))];
  };
  const root=group(name);
  root.add(thickenSurface(name+' / substrate',support,{thickness:.004,segments:[24,28],material:mats.dark}));
  const ceramic=surfaceLayer(surfaceBand(support,{left:()=>.027,right:()=>.973,start:.025,end:.975}),{offset:.004});
  root.add(thickenSurface(name+' / ceramic',ceramic,{thickness:.0025,segments:[24,28],material:mats.shell}));
- root.userData.construction={method:'single-support layered shield',normalClearance:.0015};return root;
+ root.userData.construction={method:'profiled single-support layered shield',normalClearance:.0015,widthProfile,centerProfile};return root;
 }

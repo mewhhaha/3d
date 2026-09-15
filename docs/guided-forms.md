@@ -32,6 +32,20 @@ const shell = thickenSurface('Shell', band, {
 
 The pictured armor is still simplified: the new tools do not determine an attractive contour automatically, solve intersections or generate joint-ready body topology.
 
+### Profile a shell silhouette without editing vertices
+
+`contouredShield()` now accepts longitudinal `widthProfile` and `centerProfile` curves. The first controls half-span through height; the second shifts the chart centerline as a fraction of the full authored width. Both drive the shared dark substrate and ceramic face, so changing a chest or shoulder outline does not duplicate coordinates between layers or depend on mesh resolution.
+
+```js
+const chestLeaf = contouredShield({
+  width: 0.106, height: 0.118, bulge: 0.014,
+  widthProfile: [[0, .28], [.40, .92], [.66, .78], [1, .24]],
+  centerProfile: [[0, .10], [.45, .05], [1, .15]],
+}, materials);
+```
+
+This is still a regular single-chart surface: it can taper and bias a plate, but it does not make arbitrary concave cutouts, booleans, collision-aware overlaps or automatically segmented armor. The torso pass uses these profiles to expose more of the black thoracic core while keeping the reference pose, named landmarks and camera unchanged.
+
 ## One support across material boundaries
 
 The recovered hair had separate side and fringe patches. Their boundaries could drift, and merely making the visible outer silhouette larger left holes or creases elsewhere. The new upper hair uses one periodic support partitioned into two domains. The lower side section continues from that support using a boundary and inward derivative constraint.

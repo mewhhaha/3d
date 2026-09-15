@@ -17,12 +17,29 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', ...options }
   });
   const shields=[];root.traverse(o=>{if(['Scalloped shoulder shell','Pectoral ceramic','Clavicle plating'].includes(o.name))shields.push(o);});
   for(const old of shields){
-   const shoulder=old.name==='Scalloped shoulder shell',clavicle=old.name==='Clavicle plating';
-   const next=contouredShield({name:old.name,width:shoulder?.145:clavicle?.135:.135,height:shoulder?.154:clavicle?.050:.131,bulge:shoulder?.038:clavicle?.009:.030},materials);
+   const shoulder=old.name==='Scalloped shoulder shell',clavicle=old.name==='Clavicle plating',side=Math.sign(old.position.x)||1;
+   // The reference exposes a narrow black thoracic core. Keep broad mechanical shoulders,
+   // but make chest ceramics flatter, leaf-like and biased away from the sternum instead
+   // of forming two round breast-like domes. Profiles define silhouette, not tessellation.
+   const spec=shoulder?{
+    width:.140,height:.150,bulge:.028,
+    widthProfile:[[0,.45],[.16,.78],[.43,1],[.72,.84],[1,.40]],
+   }:clavicle?{
+    width:.124,height:.046,bulge:.006,
+    widthProfile:[[0,.42],[.20,.76],[.55,1],[.82,.82],[1,.52]],
+   }:{
+    width:.106,height:.118,bulge:.014,
+    widthProfile:[[0,.28],[.16,.63],[.40,.92],[.66,.78],[.86,.50],[1,.24]],
+    centerProfile:[[0,side*.10],[.45,side*.05],[1,side*.15]],
+   };
+   const next=contouredShield({name:old.name,...spec},materials);
    next.position.copy(old.position);next.quaternion.copy(old.quaternion);next.scale.copy(old.scale);
    if(clavicle)next.position.x+=(old.rotation.z?1:-1)*.070;
    old.parent.add(next);old.removeFromParent();old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});
   }
+  // Reveal the intended mechanical waist/chest structure behind the smaller ceramic leaves.
+  // These are unscored internal masses; the reference guide and named feature origins stay fixed.
+  for(const name of ['Thoracic understructure','Abdominal chassis']){const o=root.getObjectByName(name);if(o){o.scale.x*=name.startsWith('Thoracic')?.82:.90;o.scale.z*=.92;}}
 
   const old=root.getObjectByName('Prismatic bob'),parent=old.parent;old.removeFromParent();
   old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});
