@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { box, group, buildModel, dispose } from '../src/lib/modeling.js';
-import { pointFields, reshapeAssembly } from '../src/lib/shape-deform.js';
+import { pointFields, weightedTransform, reshapeAssembly } from '../src/lib/shape-deform.js';
 import { guidedBob, bobGuides } from '../src/lib/cyber/hair-design.js';
 import { limbVolume, armorLeaf, sculptedBoot, contouredShield } from '../src/lib/cyber/contour-armor.js';
 import { cyberMaterials } from '../src/lib/cyber/mechanics.js';
@@ -14,6 +14,12 @@ test('point fields compose in order, copy inputs and reject invalid results',()=
  const p=[1,2,3],f=pointFields(q=>{q[0]+=1;return q;},q=>q.map(v=>v*2));
  assert.deepEqual(f(p),[4,4,6]);assert.deepEqual(p,[1,2,3]);
  assert.throws(()=>pointFields(()=>[1,2,NaN])(p));assert.throws(()=>pointFields(2));
+});
+test('weighted transforms blend primary-form edits without mutating inputs',()=>{
+ const p=[2,3,4],half=weightedTransform(()=>.5,{scale:[.5,1,1.5],offset:[1,-2,0]});
+ assert.deepEqual(half(p),[2,2,5]);assert.deepEqual(p,[2,3,4]);
+ assert.deepEqual(weightedTransform(()=>0,{scale:[0,0,0],offset:[9,9,9]})(p),p);
+ assert.throws(()=>weightedTransform(()=>1.1)(p));assert.throws(()=>weightedTransform(null));
 });
 test('static assembly sculpt honors nested transforms without changing its source',()=>{
  const input=group('Root',[group('Offset',[box({size:[1,1,1],position:[1,0,0]})],{position:[0,2,0],rotation:[0,20,0]})]);
