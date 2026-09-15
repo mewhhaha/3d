@@ -1,3 +1,4 @@
+import { canonicalGLB } from './canonical-glb.js';
 import { normalizeTangentFrames } from './tangent-frame.js';
 import { THREE, buildModel, dispose } from './modeling.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
@@ -34,6 +35,6 @@ export async function exportAssetGLB(definition, values) {
   try {
     root.traverse(node => { if (node.isMesh) normalizeTangentFrames(node.geometry); });
     originals = prepareImages(root);
-    return await new GLTFExporter().parseAsync(scene, { binary: true, onlyVisible: true, trs: true, animations: [...clips] });
+    return canonicalGLB(await new GLTFExporter().parseAsync(scene, { binary: true, onlyVisible: true, trs: true, animations: [...clips] }));
   } finally { originals.forEach(t => t.dispose()); dispose(root); }
 }
