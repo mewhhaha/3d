@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "purpose": "User-provided body and face construction references for the Prism modeling workflow",
+  "sources": [
+    {"url": "https://www.youtube.com/watch?v=H4QyodNR3YU", "reviewStatus": "pending-content-access", "title": null},
+    {"url": "https://www.youtube.com/watch?v=Lgg39sZF0kI", "reviewStatus": "pending-content-access", "title": null}
+  ],
+  "rules": [
+    "A URL, title or thumbnail does not establish that the tutorial was watched.",
+    "Keep original teaching notes separate from proposed API designs.",
+    "Do not copy videos, captions, or creator meshes into source history.",
+    "Do not change reference pose annotations or replace the model based on unreviewed material."
+  ]
+}
