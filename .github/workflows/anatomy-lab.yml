@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['src/lib/forms/**', 'models/anatomy-*.js', 'src/anatomy-lab*', 'tests/*forms*', 'scripts/review-anatomy.mjs', 'scripts/blender_anatomy.py', '.github/workflows/anatomy-lab.yml']
+    paths: ['src/lib/forms/**', 'src/lib/tangents.js', 'scripts/prepare-tangents.mjs', 'scripts/measure-arm.mjs', 'models/anatomy-*.js', 'src/anatomy-lab*', 'tests/*forms*', 'scripts/review-anatomy.mjs', 'scripts/blender_anatomy.py', '.github/workflows/anatomy-lab.yml']
 permissions:
   contents: read
 concurrency:
@@ -21,7 +21,10 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node scripts/prepare-tangents.mjs
       - run: node --test tests/*forms.test.js
+      - name: Measure filtered normal detail against the high mesh
+        run: node scripts/measure-arm.mjs
       - run: npm run build
       - run: npx playwright-core install --with-deps chromium
       - name: Render geometry and baked normals under identical lights
@@ -33,6 +36,7 @@ jobs:
           path: |
             dist/assets/anatomy-hand/
             reports/anatomy-*
+            reports/arm-detail-quality.json
           if-no-files-found: error
       - name: Native Blender import, deformation and packed scenes
         run: |

@@ -1,7 +1,5 @@
 import * as THREE from 'three';
-import { computeMikkTSpaceTangents } from 'three/addons/utils/BufferGeometryUtils.js';
-import * as MikkTSpace from 'three/addons/libs/mikktspace.module.js';
-await MikkTSpace.ready;
+import { computeTangents } from '../tangents.js';
 const V = (a) => a?.isVector3 ? a.clone() : new THREE.Vector3(...a);
 const clamp = (t) => Math.max(0, Math.min(1, t));
 export const smooth = (t) => { t = clamp(t); return t * t * (3 - 2 * t); };
@@ -103,7 +101,7 @@ export function tessellate(chart, { segments = [24, 24], detailed = false } = {}
   g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(indices);
-  computeMikkTSpaceTangents(g, MikkTSpace, true);
+  computeTangents(g);
   return g;
 }
 /** The low surface's interpolated, orthonormal tangent frame at a UV sample. */

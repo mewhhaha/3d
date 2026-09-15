@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import {refinePatch} from './refine.js';
-import { computeMikkTSpaceTangents } from 'three/addons/utils/BufferGeometryUtils.js';
-import * as MikkTSpace from 'three/addons/libs/mikktspace.module.js';
+import { computeTangents } from '../tangents.js';
 /** A local fairing region. Composition uses max so overlapping regions do not oversmooth. */
 export function jointRegion({ center, radius }) {
   if(!Array.isArray(center)||center.length!==3||!center.every(Number.isFinite)||!Array.isArray(radius)||radius.length!==3||!radius.every(v=>Number.isFinite(v)&&v>0))throw new Error('Invalid fairing region');
@@ -51,7 +50,7 @@ export function fairJoin(meshes,{region=()=>1,iterations=12,tolerance=1e-7}={}){
   normals.forEach(n=>n.normalize());
   for(const {g,mapping}of corners){
     for(let i=0;i<mapping.length;i++){const id=mapping[i];g.attributes.position.setXYZ(i,...positions[id]);g.attributes.normal.setXYZ(i,...normals[id].toArray());}
-    if(g.attributes.tangent)computeMikkTSpaceTangents(g,MikkTSpace,true);
+    if(g.attributes.tangent)computeTangents(g);
     g.attributes.position.needsUpdate=g.attributes.normal.needsUpdate=true;g.computeBoundingBox();g.computeBoundingSphere();
   }
   return {geometricVertices:nodes.length,iterations};
