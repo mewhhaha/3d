@@ -1,8 +1,8 @@
+import { normalizeTangentFrames } from './tangent-frame.js';
 import { THREE, buildModel, dispose } from './modeling.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 
-// GLTFExporter normal/metal-rough processing expects drawable images, not raw DataTexture.image objects.
-// Convert only export-owned textures; the live material graph remains untouched.
+// Convert only export-owned images. The live material graph remains untouched.
 function prepareImages(root) {
   const converted = new Map();
   root.traverse(node => {
@@ -32,6 +32,7 @@ export async function exportAssetGLB(definition, values) {
   const clips = new Set(); root.traverse(n => (n.animations || []).forEach(c => clips.add(c)));
   let originals = [];
   try {
+    root.traverse(node => { if (node.isMesh) normalizeTangentFrames(node.geometry); });
     originals = prepareImages(root);
     return await new GLTFExporter().parseAsync(scene, { binary: true, onlyVisible: true, trs: true, animations: [...clips] });
   } finally { originals.forEach(t => t.dispose()); dispose(root); }
