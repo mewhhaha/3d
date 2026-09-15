@@ -1,5 +1,6 @@
 import {chromium} from 'playwright-core';import validator from 'gltf-validator';import assert from 'node:assert/strict';
 import{mkdir,writeFile}from'node:fs/promises';import{startServer}from'./server.mjs';import{createHash}from'node:crypto';
+import {cageHandSource} from '../src/lib/forms/cage-hand.js';
 const folder='dist/assets/anatomy-hand';await mkdir(folder,{recursive:true});await mkdir('reports',{recursive:true});
 const{server,url}=await startServer({base:'/3d/'});let browser,page;const errors=[],report={commit:process.env.GITHUB_SHA||'local',variants:{}};
 try{
@@ -16,6 +17,7 @@ try{
   const original=await page.evaluate(()=>({stats:window.lab.stats(),rig:window.lab.rigInfo()}));assert.equal(roundtrip.stats.triangles,original.stats.triangles);assert.equal(roundtrip.rig.bones,original.rig.bones);assert.equal(roundtrip.rig.uvMeshes,original.rig.uvMeshes);if(component!=='eye')assert.deepEqual(roundtrip.clips.sort(),component==='arm'?['ElbowFlex','ForearmTurn','Grasp','WristFlex']:['Grasp','WristFlex']);
   report.variants[`${component}-${representation}`]={stats:original.stats,rig:original.rig,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),errors:validation.issues.numErrors,warnings:validation.issues.numWarnings,roundtrip:true};
   if(representation==='baked'){
+   if(component==='cage-hand')await writeFile(`${folder}/cage-hand-source.json`,JSON.stringify(cageHandSource(),null,2));
    for(const view of ['front','back','side']){await page.evaluate(v=>window.lab.frame(v),view);await page.locator('canvas').screenshot({path:`${folder}/${component}-${view}.png`});}
    const maps=await page.evaluate(()=>window.lab.normalMaps());report.variants[`${component}-${representation}`].normalBakes=maps.map(({rgba,...map})=>map);
    for(const map of maps){const png=await page.evaluate(({width,height,rgba})=>{const c=document.createElement('canvas');c.width=width;c.height=height;c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(rgba),width,height),0,0);return c.toDataURL('image/png').split(',')[1];},map);await writeFile(`${folder}/${component}-${map.name}-normal.png`,Buffer.from(png,'base64'));}

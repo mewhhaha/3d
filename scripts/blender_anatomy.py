@@ -10,6 +10,41 @@ from blender_studio import create_studio, visible_asset_meshes
 
 source, destination = map(Path, sys.argv[sys.argv.index('--') + 1:])
 reports = []
+def editable_cage(data, rig):
+    assert data['format'] == 'procedural-quad-cage' and data['version'] == 1
+    assert data['up'] == 'Y' and data['units'] == 'meters'
+    collection = bpy.data.collections.new('Construction source - enable to edit')
+    bpy.context.scene.collection.children.link(collection)
+    mesh = bpy.data.meshes.new('Hand control quads')
+    # Match glTF Y-up to Blender Z-up, independently of imported object transforms.
+    mesh.from_pydata([(x,-z,y) for x,y,z in data['points']], [], [f['vertices'] for f in data['faces']])
+    mesh.update()
+    obj = bpy.data.objects.new('EditableHandCage', mesh)
+    collection.objects.link(obj)
+    uv = mesh.uv_layers.new(name='ControlFaceAtlas')
+    for polygon, face in zip(mesh.polygons, data['faces']):
+        assert len(polygon.vertices) == 4
+        polygon.use_smooth = True
+        for loop, pair in zip(polygon.loop_indices, face['uv']):
+            uv.data[loop].uv = pair
+    groups = {j['name']:obj.vertex_groups.new(name=j['name']) for j in data['joints']}
+    for i, weights in enumerate(data['weights']):
+        for name, weight in weights:
+            groups[name].add([i], weight, 'REPLACE')
+    deform = obj.modifiers.new('Deformation skeleton', 'ARMATURE')
+    deform.object = rig
+    sub = obj.modifiers.new('Editable Catmull-Clark surface', 'SUBSURF')
+    sub.subdivision_type = 'CATMULL_CLARK'
+    sub.levels, sub.render_levels = data['subdivision']['viewport'], data['subdivision']['render']
+    sub.uv_smooth = 'NONE'
+    obj['source_notes'] = data['notes']
+    # Keep the construction object separate from the validated evaluated asset.
+    collection.hide_render = True
+    collection.hide_viewport = True
+    return dict(object=obj.name,quads=len(mesh.polygons),vertices=len(mesh.vertices),
+                groups=len(groups),subdivision_levels=sub.levels,render_levels=sub.render_levels,
+                hidden_source_collection=collection.name)
+
 for component in os.environ.get('STUDIES', 'hand,forearm,arm,cage-hand').split(','):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=str(source / f'{component}-baked.glb'))
@@ -78,6 +113,7 @@ for component in os.environ.get('STUDIES', 'hand,forearm,arm,cage-hand').split('
         elbow.rotation_quaternion = Quaternion((1.0, 0.0, 0.0, 0.0))
         bpy.context.view_layer.update()
         assert max((a-b).length for a,b in zip(initial,evaluated_positions(arm_skin))) < 1e-6
+    source_info = editable_cage(json.loads((source/'cage-hand-source.json').read_text()),rig) if component == 'cage-hand' else None
     studio = create_studio(meshes)
     scene = bpy.context.scene
     scene.render.engine = 'CYCLES'
@@ -96,13 +132,18 @@ for component in os.environ.get('STUDIES', 'hand,forearm,arm,cage-hand').split('
     blend = (folder / f'{component}-baked.blend').resolve()
     bpy.ops.wm.save_as_mainfile(filepath=str(blend))
     bpy.ops.wm.open_mainfile(filepath=str(blend))
+    if source_info:
+        editable=bpy.data.objects['EditableHandCage']
+        assert len(editable.data.polygons)==350 and all(len(p.vertices)==4 for p in editable.data.polygons)
+        assert editable.modifiers['Editable Catmull-Clark surface'].type=='SUBSURF'
+        assert len(editable.vertex_groups)==17
     assert all(i.packed_file for i in bpy.data.images if i.source == 'FILE')
     bpy.ops.render.render(write_still=True)
     report = dict(commit=os.environ.get('GITHUB_SHA', 'local'), component=component,
                   blender=bpy.app.version_string, bones=expected_bones, elbow_deformation_m=elbow_displacement, meshes=len(meshes), normal_nodes=len(normal_nodes),
                   packed_images=len(images), actions=names, deformation_distance_m=displacement,
                   restored_error_m=restore_error, native_saved=True, native_reopened=True,
-                  rendered=True, studio=studio)
+                  rendered=True, studio=studio, editable_source=source_info)
     (folder / 'validation.json').write_text(json.dumps(report, indent=2))
     reports.append(report)
 print('ANATOMY_BLENDER_OK', json.dumps(reports))

@@ -1,5 +1,8 @@
 import * as THREE from 'three';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import { computeTangents } from '../tangents.js';
 import { hand } from './hand.js';
+import { deformCage, softMove } from './cage-shape.js';
 import { quadCage, growFace, atlasCage, subdivideCage, displaceCage, cageGeometry } from './cage.js';
 import { contour } from './structure.js';
 import { smooth, surface, surfaceMesh, bakeNormals } from './surface.js';
@@ -21,8 +24,8 @@ export function palmHull({ breadth = 1, arch = .45 } = {}) {
     const key = `${i}:${j}:${k}`;
     if (!ids.has(key)) {
       const u = xs[i]/.043, t = ys[j]/ys.at(-1), z = zs[k];
-      const crown = 1 - .13*u*u;
-      const p = [xs[i]*breadth*width(t), ys[j] + smooth((t-.5)/.5)*(-.008*u*u-.002*u),
+      const crown = Math.sqrt(1 - .58*u*u);
+      const p = [xs[i]*breadth*width(t)*Math.sqrt(1-.12*z*z), ys[j] + smooth((t-.5)/.5)*(-.008*u*u-.002*u),
         z*depth(t)*crown - .002*arch*Math.sin(Math.PI*t)**2];
       ids.set(key, points.length); points.push(p);
     }
@@ -41,7 +44,12 @@ export function palmHull({ breadth = 1, arch = .45 } = {}) {
     face(`Radial${j}_${k}`,[[0,j,k],[0,j,k+1],[0,j+1,k+1],[0,j+1,k]]);
     face(`Ulnar${j}_${k}`,[[nx,j,k],[nx,j+1,k],[nx,j+1,k+1],[nx,j,k+1]]);
   }
-  return quadCage(points, faces);
+  return deformCage(quadCage(points, faces),
+    softMove({center:[0,.048,.015],radius:[.048,.046,.016],offset:[0,0,.003]}),
+    softMove({center:[-.023,.029,-.012],radius:[.020,.035,.016],offset:[-.001,0,-.005]}),
+    softMove({center:[.025,.034,-.012],radius:[.016,.033,.015],offset:[0,0,-.003]}),
+    softMove({center:[0,.052,-.014],radius:[.019,.023,.012],offset:[0,0,.002]}),
+  );
 }
 
 /** The same semantic hand definition now compiles by growing ports, not filling holes. */
@@ -54,7 +62,7 @@ export function handCage(definition = hand()) {
     const face = cage.faces.find(f=>f.tag===socket);
     const origin = face.vertices.reduce((s,i)=>s.add(V(cage.points[i])),new THREE.Vector3()).multiplyScalar(.25);
     const direction = thumb ? V([-.77,.63,-.06]).normalize() : V([lean*f.spread,1,-.04-.10*f.curl]).normalize();
-    const across = thumb ? V([direction.y,-direction.x,0]).normalize() : V([direction.y,-direction.x,0]).normalize();
+    const across = V([direction.y,-direction.x,0]).normalize();
     const front = new THREE.Vector3().crossVectors(across,direction).normalize();
     // A regular four-sided cage is rounded by subdivision; allow for that shrinkage.
     const shape = contour([[0,1.12],[.16,1.13],[.37,1.03],[.43,1.08],[.52,.99],[.70,.95],[.76,.92],[.90,.84],[.985,.55],[1,.35]]);
@@ -63,7 +71,7 @@ export function handCage(definition = hand()) {
     const ring = s => {
       const c = center(s), r = radius*1.24*shape(s);
       // Distal socket corners wind toward +Y; radial socket winds toward -X.
-      const signs = thumb ? [[-1,-1],[-1,1],[1,1],[1,-1]] : [[-1,-1],[-1,1],[1,1],[1,-1]];
+      const signs = [[-1,-1],[-1,1],[1,1],[1,-1]];
       // across x front = -direction, so increasing front then across gives +direction.
       return signs.map(([a,b])=>c.clone().addScaledVector(across,r*a).addScaledVector(front,r*.95*b).toArray());
     };
@@ -115,10 +123,14 @@ function skinWeights(digits,p){
   const candidates=digits.map(d=>{
     const q=p.clone().sub(d.origin),along=q.dot(d.direction),v=along/d.length;
     const dist=q.clone().addScaledVector(d.direction,-Math.max(0,along)).length();
-    const score=Math.exp(-2*(dist/(d.radius*1.7))**2)*smooth((v+.13)/.29);
-    return {d,v,score};
+    const support=1-smooth((dist/d.radius-1.45)/.60);
+    const score=support*Math.exp(-2*(dist/d.radius)**2)*smooth((v+.13)/.29);
+    return {d,v,score,support};
   }).sort((a,b)=>b.score-a.score).slice(0,2);
-  const total=candidates.reduce((s,c)=>s+c.score,0), activation=clamp(candidates[0].score*2);
+  const total=candidates.reduce((s,c)=>s+c.score,0);
+  // Ownership chooses a digit; longitudinal blending chooses where it leaves the palm.
+  // Do not leak radial falloff back into Wrist weights at the distal finger.
+  const activation=smooth((candidates[0].v+.12)/.30)*candidates[0].support;
   const values=new Map([['Wrist',1-activation]]);
   for(const {d,v,score}of candidates){
     const amount=activation*score/(total||1);if(amount<1e-5)continue;
@@ -153,14 +165,22 @@ export function buildCageHand(definition=hand(),{mode='baked',textureSize=1024,l
   const spec=rigDefinition(digits),rig=skeleton(spec),root=new THREE.Group();root.name='CageHandStudy';root.add(rig.root);
   const body=skin(geometry,material,rig,p=>skinWeights(digits,p),'ContinuousHand');root.add(body);
   body.userData.surface={representation:mode,chart:'HandAtlas',source:'Shared procedural branching quad cage',...(material.normalMap?{bake:material.normalMap.userData.bake}:{})};
-  const project=projectMesh(body),nailMaterial=new THREE.MeshStandardMaterial({color:'#bd9989',roughness:.49});nailMaterial.name='NailKeratin';
+  const project=projectMesh(body),nailMaterial=new THREE.MeshStandardMaterial({color:'#c49c8a',roughness:.38});nailMaterial.name='NailKeratin';
   for(const digit of digits){
     const chart=surface((u,v)=>{
-      const t=.73+.19*v,c=digit.center(t),w=digit.radius*.59*(.85+.15*Math.sin(Math.PI*v));
-      c.addScaledVector(digit.across,(u-.5)*2*w);c.z=project(c.x,c.y)+.00018;return c;
+      const a=2*u-1,b=2*v-1;
+      const x=a*Math.sqrt(1-.42*b*b),y=b*Math.sqrt(1-.42*a*a);
+      const c=digit.center(.837+.084*y);
+      c.addScaledVector(digit.across,x*digit.radius*.62);
+      c.z=project(c.x,c.y)+.00012+.00022*(1-x*x)*(1-y*y);return c;
     });
     const plate=surfaceMesh(`${digit.name}_Nail`,chart,{mode:'cage',segments:[8,8],material:nailMaterial});
-    root.add(skin(plate.geometry,plate.material,rig,()=>[[`${digit.name}_${digit.labels[2]}`,1]],plate.name));
+    // Projected triangle slopes are not a smooth nail normal field. Reconstruct the
+    // indexed patch normals before the Mikk split, rather than differentiating facets.
+    plate.geometry.deleteAttribute('normal'); plate.geometry.deleteAttribute('tangent');
+    const smoothPlate=mergeVertices(plate.geometry,1e-7); plate.geometry.dispose();
+    smoothPlate.computeVertexNormals(); computeTangents(smoothPlate);
+    root.add(skin(smoothPlate,plate.material,rig,p=>skinWeights(digits,p),plate.name));
   }
   nailMaterial.dispose();
   root.animations=[clip('Grasp',digits.filter(d=>!d.thumb).flatMap(d=>d.labels.map((label,i)=>rotationTrack(`${d.name}_${label}`,[[0,[0,0,0]],[1.1,[-[45,60,30][i],0,0]],[2.2,[0,0,0]]])))),
@@ -170,4 +190,18 @@ export function buildCageHand(definition=hand(),{mode='baked',textureSize=1024,l
   root.userData.provenance='First-principles procedural quad hull and socket extrusion; no template vertices or scans';
   root.userData.limitations='One connected skin mesh, but UV corner duplicates remain. Closed wrist study; not integrated into the old arm. Illustrative grasp, not contact or tendon simulation. Per-control-face atlas is not a production hand unwrap.';
   root.updateMatrixWorld(true);return root;
+}
+
+/** Portable editable construction source, separate from the evaluated triangle asset. */
+export function cageHandSource(definition=hand(),{textureSize=1024,lowLevel=2,highLevel=4}={}){
+  if(!Number.isInteger(lowLevel)||lowLevel<1||lowLevel>3||!Number.isInteger(highLevel)||highLevel<=lowLevel||highLevel>4)throw new Error('Invalid source subdivision levels');
+  const {cage,digits}=handCage(definition), mapped=atlasCage(cage,{size:textureSize,gutter:4}), joints=rigDefinition(digits);
+  const weights=mapped.points.map(p=>{
+    const values=skinWeights(digits,V(p)),total=values.reduce((s,[,w])=>s+w,0);
+    return values.map(([name,w])=>[name,w/total]);
+  });
+  return {format:'procedural-quad-cage',version:1,units:'meters',up:'Y',forward:'Z',
+    points:mapped.points,faces:mapped.faces.map(f=>({vertices:f.vertices,uv:f.uv,tag:f.tag})),
+    joints,weights,subdivision:{scheme:'Catmull-Clark',viewport:lowLevel,render:highLevel,uvInterpolation:'bilinear-per-face'},
+    atlas:mapped.atlas,notes:'Editable primary form, not the evaluated detail bake. Native subdivision and interpolated control weights can differ from compiled skin. JS relief and nails are not replayed by this control object.'};
 }
