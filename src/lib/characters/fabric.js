@@ -14,9 +14,9 @@ export function fadeEdges(field, margin = .12) {
   if (typeof field !== 'function' || !Number.isFinite(margin) || margin <= 0 || margin > .5) throw new TypeError('Invalid edge fade');
   return (u, v) => field(u, v) * THREE.MathUtils.smoothstep(v, 0, margin) * THREE.MathUtils.smoothstep(1 - v, 0, margin);
 }
-/** Drapes a sheet along a guide. Useful for scarves, sashes, straps and loose fabric. */
-export function drapeRibbon({ name = 'DrapedFabric', path, width = .06, across = [0, 1, 0], folds = () => 0, material, segments = 128, crossSegments = 20, hem = true } = {}) {
-  if (typeof path !== 'function' || typeof folds !== 'function') throw new TypeError('Ribbon needs path and fold functions');
+/** Drapes a sheet along a guide, then applies an optional surface constraint. */
+export function drapeRibbon({ name = 'DrapedFabric', path, width = .06, across = [0, 1, 0], folds = () => 0, material, segments = 128, crossSegments = 20, hem = true, conform = p => p } = {}) {
+  if (typeof path !== 'function' || typeof folds !== 'function' || typeof conform !== 'function') throw new TypeError('Ribbon needs path, fold and constraint functions');
   const point = u => new THREE.Vector3(...path(THREE.MathUtils.clamp(u, 0, 1)));
   const sample = (u, v) => {
     const p = point(u), tangent = point(u + .0001).sub(point(u - .0001)).normalize();
@@ -26,7 +26,7 @@ export function drapeRibbon({ name = 'DrapedFabric', path, width = .06, across =
     const normal = tangent.clone().cross(axis).normalize();
     const w = typeof width === 'function' ? width(u) : width, displacement = folds(u, v);
     if (!Number.isFinite(w) || w <= 0 || !Number.isFinite(displacement)) throw new Error('Invalid ribbon width or displacement');
-    return p.addScaledVector(axis, (v - .5) * w).addScaledVector(normal, displacement).toArray();
+    return conform(p.addScaledVector(axis, (v - .5) * w).addScaledVector(normal, displacement).toArray());
   };
   const surface = patch({ name, sample, uSegments: segments, vSegments: crossSegments, material });
   const pieces = [surface];
