@@ -76,7 +76,7 @@ export function buildHand(component = hand(), { mode='baked', textureSize=256, c
     const a=u*TAU,s=Math.sin(a),c=Math.cos(a);
     const x=rx(v)*s, z=rz(v)*c;
     const pad=.0035*opts.palm.arch*Math.exp(-(((u-.55)/.14)**2+((v-.42)/.28)**2));
-    return [x,v*(palmLength-.012*smooth((v-.66)/.34)),z-pad*Math.sin(Math.PI*v)**2];
+    return [x,v*palmLength,z-pad*Math.sin(Math.PI*v)**2];
   },{at:[.75,.5],radius:[.125,.2]});
   const palmRelief=layers(
     ...[-.1,0,.1].map((dx)=>mound({at:[dx,.63],radius:[.025,.25],height:.0007,wrapU:true})),
@@ -157,8 +157,9 @@ export function buildHand(component = hand(), { mode='baked', textureSize=256, c
   const nailAngle=Math.atan2(b2.z,b1.z)/TAU;
   const thumbNail=surface((u,v)=>{const uu=((nailAngle+(u-.5)*.22)%1+1)%1,vv=.77+.17*v;return thumbChart.point(uu,vv).addScaledVector(thumbChart.normal(uu,vv),.00025);});
   add(surfaceMesh('Thumb_Nail',thumbNail,{...options([8,8],nailmat),mode:'cage'}),()=>[['Thumb_IP',1]]);
+  const fairRegion = unionRegions(jointRegion({center:[0,palmLength,0],radius:[.10,.022,.04]}),jointRegion({center:start.toArray(),radius:[.028,.028,.03]}));
   fairJoin(entries.filter(e=>!e.part.name.endsWith('_Nail')).map(e=>e.part),{
-    region:unionRegions(jointRegion({center:[0,palmLength,0],radius:[.10,.022,.04]}),jointRegion({center:start.toArray(),radius:[.028,.028,.03]})),
+    region:p=>smooth(p[1]/.02)*fairRegion(p),
     iterations:mode==='sculpt'?128:12,
   });
   if(mode==='baked'){
@@ -181,6 +182,7 @@ export function buildHand(component = hand(), { mode='baked', textureSize=256, c
     rotationTrack(`${n}_PIP`,[[0,[0,0,0]],[1.1,[-65,0,0]],[2.2,[0,0,0]]]),
     rotationTrack(`${n}_DIP`,[[0,[0,0,0]],[1.1,[-35,0,0]],[2.2,[0,0,0]]]),
   ])),clip('WristFlex',[rotationTrack('Wrist',[[0,[0,0,0]],[1,[-30,0,0]],[2,[20,0,0]],[3,[0,0,0]]])])];
+  root.userData.ports={wrist:{center:[0,0,0],axis:[0,1,0],radii:[wristX,wristZ],segments:48}};
   root.userData.landmarks=Object.fromEntries(spec.map(j=>[j.name,j.position]));
   root.userData.provenance='First-principles procedural hand; no anatomical template vertices';root.userData.representation=mode;
   if(side==='left'){
