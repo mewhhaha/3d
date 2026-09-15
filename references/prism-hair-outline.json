@@ -1,0 +1,9 @@
+{
+ "schema":1,
+ "image":{"width":768,"height":1376,"sha256":"127f0f4216b12e279f01c77206720feb4e76ab989b7ed92576505faa4f329218"},
+ "provenance":"Manual coarse visible-hair annotation of the user's original image. Outer contour is the earlier fixed envelope; the newly annotated face opening is approximate. No tutorial or generated-image data.",
+ "uncertaintyPixels":12,
+ "outline":[[220,172],[224,117],[247,78],[286,53],[325,42],[355,50],[386,76],[412,102],[441,129],[451,142],[417,175],[376,217],[339,256],[303,283],[262,313],[235,327],[224,294],[219,249]],
+ "holes":[[[309,146],[315,175],[320,208],[327,246],[311,247],[292,235],[279,228],[264,214],[249,198],[245,188],[260,172],[278,153],[293,148]]],
+ "limitations":"Approximate mask, not pixel-perfect ground truth. Does not include individual flyaway strands. Authoring diagnostic, not held-out likeness. Do not change annotation to inflate a score."
+}

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { compactGeometry } from '../compact-geometry.js';
 import { group, material, mesh } from '../modeling.js';
 import { guideCurve, railSurface, compileSurface } from '../shape-rails.js';
 
@@ -34,7 +35,8 @@ export function guidedBob({ mode='cage', textureSize=512, ...shape }={}) {
   const mat=material('#ffffff',{map,roughness:.60,metalness:0,side:THREE.DoubleSide,emissive:'#ffffff',emissiveMap:map,emissiveIntensity:.10});
   mat.name='Prism / '+key+' fibers';
   const cut=(u,v)=>{const p=support(u,v);p[1]-=(fringe?.0007:.0012)*Math.sin(u*2*Math.PI*(fringe?7:16))**2*v**10;return p;};
-  root.add(compileSurface('Guided '+key,cut,{mode,segments:fringe?[48,32]:[128,48],refinement:3,textureSize,detail:hairFibers({count}),material:mat}));
+  const object=compileSurface('Guided '+key,cut,{mode,segments:fringe?[48,32]:[128,48],refinement:3,textureSize,detail:hairFibers({count}),material:mat});
+  const original=object.geometry;object.geometry=compactGeometry(original);original.dispose();root.add(object);
  }
  // Close only the small crown opening with a geometric fan, not a collapsed UV chart.
  const ring=Array.from({length:64},(_,i)=>guides.curtain(i/63,0)),center=ring.reduce((a,p)=>a.map((x,k)=>x+p[k]/ring.length),[0,0,0]);center[1]+=.003;

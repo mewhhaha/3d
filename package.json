@@ -25,7 +25,9 @@
     "study": "node scripts/study.mjs",
     "measure:sculpt": "node scripts/measure-sculpt.mjs",
     "review:pose": "node scripts/review-pose.mjs",
-    "measure:reference": "node scripts/measure-reference.mjs"
+    "measure:reference": "node scripts/measure-reference.mjs",
+    "review:forms": "node scripts/review-forms.mjs",
+    "measure:hair": "node scripts/measure-hair.mjs"
   },
   "dependencies": {
     "three": "0.186.0"
