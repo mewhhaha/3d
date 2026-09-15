@@ -22,8 +22,15 @@ for component in ('hand', 'forearm'):
     assert all(any(m.type == 'ARMATURE' for m in o.modifiers) for o in meshes)
     normal_nodes = [n for m in bpy.data.materials if m.use_nodes for n in m.node_tree.nodes if n.type == 'NORMAL_MAP']
     assert len(normal_nodes) >= 6
-    images = list(bpy.data.images)
-    assert images and all(i.has_data for i in images)
+    # Only material-referenced textures are asset images, not render buffers.
+    images = list({node.image for material in bpy.data.materials if material.use_nodes
+                   for node in material.node_tree.nodes
+                   if node.type == 'TEX_IMAGE' and node.image is not None})
+    assert len(images) >= 6, 'Missing referenced normal textures'
+    for image in images:
+        # Accessing pixels verifies decoding even when image data was lazy-loaded.
+        assert len(image.pixels) > 0, (image.name, image.source, tuple(image.size))
+        assert image.has_data and image.size[0] > 0 and image.size[1] > 0, image.name
     assert all(i.colorspace_settings.name == 'Non-Color' for i in images), [i.colorspace_settings.name for i in images]
     names = [a.name for a in bpy.data.actions]
     assert any('Grasp' in a for a in names) and any('WristFlex' in a for a in names)
@@ -33,7 +40,7 @@ for component in ('hand', 'forearm'):
             track.mute = True
     for bone in rig.pose.bones:
         bone.rotation_mode = 'QUATERNION'
-        bone.rotation_quaternion = Quaternion()
+        bone.rotation_quaternion = Quaternion((1.0, 0.0, 0.0, 0.0))
         bone.location = (0, 0, 0)
         bone.scale = (1, 1, 1)
     bpy.context.view_layer.update()
@@ -52,7 +59,7 @@ for component in ('hand', 'forearm'):
     after = evaluated_positions(finger)
     displacement = max((a - b).length for a, b in zip(before, after))
     assert displacement > .005, displacement
-    bone.rotation_quaternion = Quaternion()
+    bone.rotation_quaternion = Quaternion((1.0, 0.0, 0.0, 0.0))
     bpy.context.view_layer.update()
     restored = evaluated_positions(finger)
     restore_error = max((a - b).length for a, b in zip(before, restored))

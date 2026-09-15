@@ -1,12 +1,13 @@
 import * as THREE from 'three';
+import {clearSphere}from'./refine.js';
 import { surface, surfaceMesh, layers, grain, smooth } from './surface.js';
 const TAU=2*Math.PI;
 const stage=(kind,values)=>Object.freeze({kind,...values});
-function range(v,a,b,name){if(!Number.isFinite(v)||v<a||v>b)throw new Error(`${name} must be ${a}..${b}`);return v;}
+function range(v,a,b,name){if(!Number.isFinite(v)||v<a||v> b)throw new Error(`${name} must be ${a}..${b}`);return v;}
 export const eyeball=({radius=.014}={})=>stage('eyeball',{radius:range(radius,.010,.018,'eye radius')});
 export const eyelids=({openness=1,tilt=.05}={})=>stage('eyelids',{openness:range(openness,.4,1.2,'openness'),tilt:range(tilt,-.2,.2,'lid tilt')});
 export const iris=({color='#67553b',pupil=.38}={})=>{if(!/^#[0-9a-f]{6}$/i.test(color))throw new Error('Invalid iris color');return stage('iris',{color,pupil:range(pupil,.2,.6,'pupil')});};
-/** Orbital surface, separate sclera, iris and wet lid margin. Not a complete face. */
+/** An orbital patch study, not a complete face or facial rig. */
 export function eye(...components){
  const values=Object.fromEntries([eyeball(),eyelids(),iris()].map(v=>[v.kind,v])),seen=new Set();
  for(const c of components){if(!c||!Object.hasOwn(values,c.kind)||seen.has(c.kind))throw new Error('Invalid or duplicate eye component');values[c.kind]=c;seen.add(c.kind);}return stage('eye',{parts:values});
@@ -29,9 +30,9 @@ export function buildEye(component=eye(),{mode='baked',textureSize=256,skin='#b9
  const opening=u=>{const a=u*TAU,x=.0133*scale*Math.cos(a),s=Math.sin(a),y=scale*(s>=0?.0050:.0035)*s*lid.openness+x*lid.tilt;return new THREE.Vector3(x,y,Math.sqrt(Math.max(.000001,r*r-x*x-y*y))+.00023*scale);};
  const form=(u,v)=>{
   const a=u*TAU,outer=new THREE.Vector3(.032*scale*Math.cos(a),.023*scale*Math.sin(a),-.002*scale),inner=opening(u);
-  const p=outer.lerp(inner,v);p.z+=.002*scale*Math.sin(Math.PI*v)*Math.max(0,Math.sin(a));return p;
+  const p=outer.lerp(inner,v);p.z+=.002*scale*Math.sin(Math.PI*v)*Math.max(0,Math.sin(a));return clearSphere(p,r,.0004*scale);
  };
- const detail=layers(grain({amplitude:.000017*scale,frequency:36}),
+ const detail=layers(grain({amplitude:.000003*scale,frequency:36}),
   (u,v)=>-.00025*scale*Math.exp(-(((v-.70)/.05)**2))*Math.max(0,Math.sin(u*TAU))**.6,
   (u,v)=>-.00009*scale*Math.exp(-(((v-.78)/.04)**2))*Math.max(0,-Math.sin(u*TAU)));
  const chart=surface(form,{wrapU:true,detail:(u,v)=>detail(u,v)*smooth(v/.08)*smooth((1-v)/.10)});

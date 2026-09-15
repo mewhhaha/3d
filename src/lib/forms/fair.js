@@ -1,18 +1,21 @@
 import * as THREE from 'three';
+import {refinePatch} from './refine.js';
 import { computeMikkTSpaceTangents } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as MikkTSpace from 'three/addons/libs/mikktspace.module.js';
-/** Local fairing mask. Overlapping regions use max, not additive over-smoothing. */
+/** A local fairing region. Composition uses max so overlapping regions do not oversmooth. */
 export function jointRegion({ center, radius }) {
   if(!Array.isArray(center)||center.length!==3||!center.every(Number.isFinite)||!Array.isArray(radius)||radius.length!==3||!radius.every(v=>Number.isFinite(v)&&v>0))throw new Error('Invalid fairing region');
   return p=>Math.exp(-2*((p[0]-center[0])**2/radius[0]**2+(p[1]-center[1])**2/radius[1]**2+(p[2]-center[2])**2/radius[2]**2));
 }
 export const unionRegions=(...regions)=>p=>Math.max(0,...regions.map(r=>r(p)));
-/** Weld a geometric graph while keeping UV/material corners independent. Not retopology. */
+/** Weld the geometric graph while retaining separate UV/material corners. Not retopology. */
 export function fairJoin(meshes,{region=()=>1,iterations=12,tolerance=1e-7}={}){
   if(!Number.isInteger(iterations)||iterations<0||iterations>512)throw new Error('Invalid fairing iterations');
   const ids=new Map(),nodes=[],corners=[];
   for(const mesh of meshes){
-    const g=mesh.geometry;if(g.index)throw new Error('fairJoin expects non-indexed UV corners');
+    const g=mesh.geometry;
+    const uv=g.attributes.uv;if(!g.attributes.tangent&&uv&&uv.array.some(v=>v!==uv.array[0]))refinePatch(g);
+    if(g.index)throw new Error('fairJoin expects non-indexed UV corners');
     const p=g.attributes.position,mapping=[];
     for(let i=0;i<p.count;i++){
       const xyz=[p.getX(i),p.getY(i),p.getZ(i)],key=xyz.map(x=>Math.round(x/tolerance)).join(',');let id=ids.get(key);
@@ -53,7 +56,7 @@ export function fairJoin(meshes,{region=()=>1,iterations=12,tolerance=1e-7}={}){
   }
   return {geometricVertices:nodes.length,iterations};
 }
-/** Lookup actual high-mesh normals through corresponding, non-overlapping UV charts. */
+/** Spatial UV bins make high-to-low mesh-normal lookup independent of tessellation. */
 export function normalSampler(geometry,{bins=64}={}){
   const uv=geometry.attributes.uv,n=geometry.attributes.normal,lookup=new Map();
   for(let i=0;i<uv.count;i+=3){
