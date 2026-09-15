@@ -11,3 +11,11 @@ Copyright notices in the assets identify Manuel Bastioni, Data Collection AB, Jo
 `scripts/prepare-anatomy.py` lists every used source path and SHA-256 checksum. It downloads from the immutable commit on the first build, verifies each file, caches it in ignored `vendor-src/`, and compiles ignored `src/generated/human-data.js`. Generated assets are bundled into the static site; the browser makes no requests to third-party servers. Subsequent offline builds can use the verified cache. Native/template source data and generated review renders are not committed as large binaries.
 
 The reference artwork is generated concept art supplied in this conversation. It guides design, not a claim of measured likeness. The model has authored approximations rather than automatic reconstruction, photogrammetry, or image-projected clothing textures.
+
+## Procedural component studies and tangent generation
+
+`anatomy-hand`, `anatomy-eye` and `anatomy-arm` generate their component geometry from the functions in `src/lib/forms/`; they do not use MakeHuman anatomical vertices. They still use Three.js geometry/rendering utilities and the upstream MikkTSpace algorithm for interoperable tangent frames.
+
+`scripts/prepare-tangents.mjs` derives ignored `src/generated/mikk-runtime.js` from the locked Three.js 0.186.0 `examples/jsm/libs/mikktspace.module.js`. It checks source SHA-256 `f415ebd2f7bbe4ac06439be40d2ca4a11bb17123009bb33582176b1b21a14dac`. The adaptation changes instance initialization to permit scratch-memory recycling; it does not change the tangent algorithm or embedded Wasm bytes. The site retains Three.js's license at `vendor/three/LICENSE`, copied from the installed dependency.
+
+Upstream tangent implementation: https://github.com/donmccurdy/mikktspace-wasm and https://github.com/gltf-rs/mikktspace, implementing the MikkTSpace standard by Morten S. Mikkelsen. The repository's adapter and tests must not be represented as an original implementation of that standard. See `docs/arm-study.md` for limitations and reproduction commands.
