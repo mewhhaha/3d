@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import handRecipe from '../models/anatomy-hand.js';
+import cageHandRecipe from '../models/anatomy-cage-hand.js';
 import armRecipe from '../models/anatomy-arm.js';
 import eyeRecipe from '../models/anatomy-eye.js';
 import { buildModel, inspect, dispose } from './lib/modeling.js';
@@ -12,7 +13,7 @@ const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:tru
 view.prepend(renderer.domElement);const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(32,1,.0001,100);
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=false;
 const lighting=createStudioLighting(scene,renderer);let root,mixer,helper,clipAction,parameters={component:'hand',representation:'baked',spread:.3,tone:.5,openness:1,color:'#67553b'},animation='';
-const recipe=()=>parameters.component==='arm'?armRecipe:parameters.component==='eye'?eyeRecipe:handRecipe;
+const recipe=()=>parameters.component==='cage-hand'?cageHandRecipe:parameters.component==='arm'?armRecipe:parameters.component==='eye'?eyeRecipe:handRecipe;
 function render(){root?.updateMatrixWorld(true);renderer.render(scene,camera);}
 function resize(){const w=view.clientWidth,h=view.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();render();}
 const directions={front:[0,0,1],back:[0,0,-1],side:[1,0,.1],threequarter:[.75,.35,2]};

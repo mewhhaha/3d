@@ -6,7 +6,7 @@ try{
  browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined,args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
  page=await browser.newPage({viewport:{width:1400,height:1100}});page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(120000);
  await page.goto(url+'src/anatomy-lab.html?capture=1');await page.waitForFunction(()=>window.lab?.ready);
- for(const component of (process.env.STUDIES||'hand,forearm,eye,arm').split(','))for(const representation of ['sculpt','cage','baked']){
+ for(const component of (process.env.STUDIES||'hand,forearm,eye,arm,cage-hand').split(','))for(const representation of ['sculpt','cage','baked']){
   console.log('REVIEW',component,representation);await page.evaluate(p=>window.lab.set(p),{component,representation});await page.evaluate(()=>window.lab.frame('threequarter'));
   await page.locator('canvas').screenshot({path:`${folder}/${component}-${representation}.png`});
   const data=await page.evaluate(async()=>{const a=new Uint8Array(await window.lab.exportGLB());let s='';for(let i=0;i<a.length;i+=32768)s+=String.fromCharCode(...a.subarray(i,i+32768));return btoa(s);});
@@ -24,7 +24,7 @@ try{
    await page.evaluate(()=>{window.lab.pose('');window.lab.skeletonVisible(true);});await page.locator('canvas').screenshot({path:`${folder}/${component}-skeleton.png`});await page.evaluate(()=>window.lab.skeletonVisible(false));}
   }
  }
- for(const component of ['hand','forearm','arm'].filter(c=>report.variants[`${c}-sculpt`])){const hi=report.variants[`${component}-sculpt`].stats.triangles,lo=report.variants[`${component}-baked`].stats.triangles;assert.ok(hi/lo>10);report.variants[`${component}-baked`].triangleReduction=1-lo/hi;}
+ for(const component of ['hand','forearm','arm','cage-hand'].filter(c=>report.variants[`${c}-sculpt`])){const hi=report.variants[`${component}-sculpt`].stats.triangles,lo=report.variants[`${component}-baked`].stats.triangles;assert.ok(hi/lo>10);report.variants[`${component}-baked`].triangleReduction=1-lo/hi;}
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:`${folder}/mobile.png`,fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(errors.length,0,errors.join('\n'));
  await writeFile(`${folder}/comparison.json`,JSON.stringify(report,null,2));console.log('ANATOMY_REVIEW_OK',JSON.stringify(report.variants));
 }catch(e){if(page)await page.screenshot({path:'reports/anatomy-failure.png',fullPage:true}).catch(()=>{});await writeFile('reports/anatomy-error.txt',e.stack+'\n'+errors.join('\n'));throw e;}

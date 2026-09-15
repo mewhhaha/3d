@@ -10,7 +10,7 @@ from blender_studio import create_studio, visible_asset_meshes
 
 source, destination = map(Path, sys.argv[sys.argv.index('--') + 1:])
 reports = []
-for component in ('hand', 'forearm', 'arm'):
+for component in os.environ.get('STUDIES', 'hand,forearm,arm,cage-hand').split(','):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=str(source / f'{component}-baked.glb'))
     armatures = [o for o in bpy.context.scene.objects if o.type == 'ARMATURE']
@@ -22,12 +22,12 @@ for component in ('hand', 'forearm', 'arm'):
     assert meshes and all(o.data.uv_layers for o in meshes)
     assert all(any(m.type == 'ARMATURE' for m in o.modifiers) for o in meshes)
     normal_nodes = [n for m in bpy.data.materials if m.use_nodes for n in m.node_tree.nodes if n.type == 'NORMAL_MAP']
-    assert len(normal_nodes) >= 6
+    assert len(normal_nodes) >= (1 if component == 'cage-hand' else 6)
     # Only material-referenced textures are asset images, not render buffers.
     images = list({node.image for material in bpy.data.materials if material.use_nodes
                    for node in material.node_tree.nodes
                    if node.type == 'TEX_IMAGE' and node.image is not None})
-    assert len(images) >= 6, 'Missing referenced normal textures'
+    assert len(images) >= (1 if component == 'cage-hand' else 6), 'Missing referenced normal textures'
     for image in images:
         # Accessing pixels verifies decoding even when image data was lazy-loaded.
         assert len(image.pixels) > 0, (image.name, image.source, tuple(image.size))
@@ -45,7 +45,7 @@ for component in ('hand', 'forearm', 'arm'):
         bone.location = (0, 0, 0)
         bone.scale = (1, 1, 1)
     bpy.context.view_layer.update()
-    finger = next(o for o in meshes if o.name == 'Index')
+    finger = next(o for o in meshes if o.name == ('ContinuousHand' if component == 'cage-hand' else 'Index'))
     def evaluated_positions(obj):
         evaluated = obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
         mesh = evaluated.to_mesh()

@@ -1,0 +1,61 @@
+name: Connected hand cage study
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - src/lib/forms/cage*.js
+      - src/lib/forms/surface.js
+      - src/lib/forms/bake-quality.js
+      - models/anatomy-cage-hand.js
+      - src/anatomy-lab*
+      - scripts/review-anatomy.mjs
+      - scripts/measure-cage-hand.mjs
+      - scripts/blender_anatomy.py
+      - tests/cage*forms.test.js
+      - .github/workflows/cage-study.yml
+permissions:
+  contents: read
+concurrency:
+  group: cage-study-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  study:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      STUDIES: cage-hand
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node scripts/prepare-tangents.mjs
+      - run: node --test tests/cage*forms.test.js
+      - run: node scripts/measure-cage-hand.mjs
+      - run: npm run build
+      - run: npx playwright-core install --with-deps chromium
+      - run: node scripts/review-anatomy.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cage-hand-review
+          path: |
+            dist/assets/anatomy-hand/
+            reports/cage-hand-*
+            reports/anatomy-*
+      - name: Native rig, textures, save, reopen, studio render
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends blender python3-numpy
+          blender --background --factory-startup --python-exit-code 1 --python scripts/blender_anatomy.py -- dist/assets/anatomy-hand native-cage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cage-hand-blender
+          path: native-cage/
