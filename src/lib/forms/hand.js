@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import { surface, surfaceMesh, profile, layers, mound, crease, grain, smooth } from './surface.js';
+import { surface, surfaceMesh, profile, layers, mound, crease, grain, smooth, bakeNormals } from './surface.js';
+import { fairJoin, jointRegion, unionRegions, normalSampler } from './fair.js';
+import { dispose } from '../modeling.js';
 import { skeleton, skin, rotationTrack, clip } from '../rigging.js';
 const TAU = 2 * Math.PI;
 const v3 = (a) => new THREE.Vector3(...a);
@@ -23,7 +25,6 @@ export function forearm({ length = .255 } = {}, end = hand()) {
   return stage('forearm', { length: finite(length, .18, .34, 'forearm length'), end });
 }
 function cap(name, outer, holes, normal, mat) {
-  // Real annulus with finger openings, not overlapping spheres.
   const contour = outer.map(p => new THREE.Vector2(p.x, p.z)), rings = holes.map(h => h.map(p => new THREE.Vector2(p.x, p.z)));
   const all = [outer, ...holes].flat(), uvpoints = [contour, ...rings].flat();
   const triangles = THREE.ShapeUtils.triangulateShape(contour, rings), position = [], uv = [];
@@ -53,7 +54,7 @@ function influence(names, v, boundaries, width=.10) {
   }
   return [[names.at(-1),1]];
 }
-/** Compile shared landmark data into skin, digit geometry and a deformation skeleton. */
+/** Shared landmark data generates connected skin and a deformation skeleton. */
 export function buildHand(component = hand(), { mode='baked', textureSize=256, color='#b98770', side='right' } = {}) {
   if(!['hand','forearm'].includes(component.kind))throw new Error('buildHand: expected hand or forearm');
   if(!['right','left'].includes(side))throw new Error('side must be right or left');
@@ -65,7 +66,7 @@ export function buildHand(component = hand(), { mode='baked', textureSize=256, c
   spec.push({name:'Wrist',parent:'Forearm',position:[0,0,0]});
   const add=(part,weights)=>{entries.push({part,weights});return part;};
   const resolution=mode==='sculpt'?4:1;
-  const options=(segments,material=mat)=>({mode,textureSize,segments,material});
+  const options=(segments,material=mat)=>({mode:mode==='baked'?'cage':mode,textureSize,segments,material});
   const skinFields=opts.skin;
   const wristX=.024*width,wristZ=.011;
   const rx=profile([[0,wristX],[.32,.039*width],[.72,.040*width],[1,.041*width]]);
@@ -85,7 +86,7 @@ export function buildHand(component = hand(), { mode='baked', textureSize=256, c
   );
   const hole={u0:.625,u1:.875,v0:.3,v1:.7};
   const palmChart=surface(palmForm,{wrapU:true,mask:(u,v)=>!(u>hole.u0&&u<hole.u1&&v>hole.v0&&v<hole.v1),detail:(u,v)=>{
-    const d=Math.min(Math.abs(u-hole.u0),Math.abs(u-hole.u1),Math.abs(v-hole.v0),Math.abs(v-hole.v1));
+    const d=Math.hypot(Math.max(hole.u0-u,0,u-hole.u1),Math.max(hole.v0-v,0,v-hole.v1));
     return palmRelief(u,v)*smooth(v/.1)*smooth((1-v)/.1)*smooth(d/.03);
   }});
   add(surfaceMesh('Palm',palmChart,options([48,20])),()=>[['Wrist',1]]);
@@ -93,8 +94,8 @@ export function buildHand(component = hand(), { mode='baked', textureSize=256, c
   const digitCharts=[];
   for(const [name,x,length,radius,lean] of digitSpecs){
     const center=(v)=>v3([x*width+lean*opts.fingers.spread*smooth(v),palmLength+length*v,-.005*v*v-.011*opts.fingers.curl*v*v]);
-    const shape=profile([[0,1],[.12,1.03],[.32,.86],[.44,.98],[.59,.81],[.72,.88],[.84,.8],[.93,.66],[.98,.36],[1,.055]]);
-    const form=(u,v)=>{const a=u*TAU,r=radius*shape(v);return center(v).add(v3([r*width*Math.sin(a),0,r*1.12*Math.cos(a)]));};
+    const shape=profile([[0,1],[.12,1.03],[.32,.94],[.44,.98],[.59,.88],[.72,.91],[.84,.85],[.88,.82],[1,.03]]);
+    const form=(u,v)=>{const a=u*TAU,r=radius*(v>.88?.82*Math.sqrt(Math.max(.001,1-((v-.88)/.12)**2)):shape(v));return center(v).add(v3([r*width*Math.sin(a),0,r*1.12*Math.cos(a)]));};
     const detail=layers(
       ...[.43,.72].flatMap(t=>[
         crease({from:[.27,t-.02],to:[.73,t],width:.013,depth:.00027*skinFields.creases}),
@@ -152,6 +153,23 @@ export function buildHand(component = hand(), { mode='baked', textureSize=256, c
     const ring=Array.from({length:48*resolution},(_,i)=>palmChart.point(i/(48*resolution),0));
     add(endCap('WristSection',ring,new THREE.Vector3(),mat,true),()=>[['Wrist',1]]);
   }
+  const nailAngle=Math.atan2(b2.z,b1.z)/TAU;
+  const thumbNail=surface((u,v)=>{const uu=((nailAngle+(u-.5)*.22)%1+1)%1,vv=.77+.17*v;return thumbChart.point(uu,vv).addScaledVector(thumbChart.normal(uu,vv),.00025);});
+  add(surfaceMesh('Thumb_Nail',thumbNail,{...options([8,8],nailmat),mode:'cage'}),()=>[['Thumb_IP',1]]);
+  fairJoin(entries.filter(e=>!e.part.name.endsWith('_Nail')).map(e=>e.part),{
+    region:unionRegions(jointRegion({center:[0,palmLength,0],radius:[.10,.022,.04]}),jointRegion({center:start.toArray(),radius:[.028,.028,.03]})),
+    iterations:mode==='sculpt'?128:12,
+  });
+  if(mode==='baked'){
+    const high=buildHand(component,{mode:'sculpt',textureSize,color,side:'right'});
+    try{for(const {part}of entries){
+      if(!part.userData.surface||part.name.endsWith('_Nail'))continue;
+      const sample=normalSampler(high.getObjectByName(part.name).geometry);
+      part.material.normalMap=bakeNormals({normal:(u,v)=>sample(u,v),wrapU:true},part.geometry,{size:textureSize});
+      part.material.normalMap.name=part.name+'_Normal';part.material.normalMap.userData.bake.method='UV-correspondence / actual faired high mesh normals';
+      part.userData.surface.representation='baked';part.userData.surface.bake=part.material.normalMap.userData.bake;
+    }}finally{dispose(high);}
+  }
   const rig=skeleton(spec);root.add(rig.root);
   for(const {part,weights} of entries){
     const m=skin(part.geometry,part.material,rig,(p,i)=>weights(p,i,part.geometry),part.name);m.userData=part.userData;m.userData.anatomyPart=part.name;root.add(m);
@@ -163,14 +181,12 @@ export function buildHand(component = hand(), { mode='baked', textureSize=256, c
     rotationTrack(`${n}_DIP`,[[0,[0,0,0]],[1.1,[-35,0,0]],[2.2,[0,0,0]]]),
   ])),clip('WristFlex',[rotationTrack('Wrist',[[0,[0,0,0]],[1,[-30,0,0]],[2,[20,0,0]],[3,[0,0,0]]])])];
   root.userData.landmarks=Object.fromEntries(spec.map(j=>[j.name,j.position]));
-  root.userData.provenance='First-principles procedural hand; no anatomical template vertices';
-  root.userData.representation=mode;
+  root.userData.provenance='First-principles procedural hand; no anatomical template vertices';root.userData.representation=mode;
   if(side==='left'){
     root.traverse(o=>{if(o.isBone)o.position.x*=-1;if(!o.isMesh)return;const g=o.geometry;for(const key of ['position','normal','tangent']){const a=g.attributes[key];if(a)for(let i=0;i<a.count;i++){a.setX(i,-a.getX(i));if(key==='tangent')a.setW(i,-a.getW(i));}}
       for(const attr of Object.values(g.attributes))for(let i=0;i<attr.count;i+=3)for(let k=0;k<attr.itemSize;k++){const a=(i+1)*attr.itemSize+k,b=(i+2)*attr.itemSize+k;[attr.array[a],attr.array[b]]=[attr.array[b],attr.array[a]];}
     });
-    root.updateMatrixWorld(true);rig.skeleton.calculateInverses();
-    for(const p of Object.values(root.userData.landmarks))p[0]*=-1;
+    root.updateMatrixWorld(true);rig.skeleton.calculateInverses();for(const p of Object.values(root.userData.landmarks))p[0]*=-1;
   }
   root.updateMatrixWorld(true);return root;
 }
