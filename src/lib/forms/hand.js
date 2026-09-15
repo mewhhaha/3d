@@ -70,15 +70,17 @@ export function buildHand(component = hand(), { mode='baked', textureSize=256, c
   const options=(segments,material=mat)=>({mode:mode==='baked'?'cage':mode,textureSize,segments,material});
   const skinFields=opts.skin;
   const wristX=.024*width,wristZ=.011;
-  const rx=profile([[0,wristX],[.32,.039*width],[.72,.040*width],[1,.041*width]]);
-  const rz=profile([[0,wristZ],[.32,.016],[.72,.013],[1,.0108]]);
+  const rx=profile([[0,wristX],[.32,.039*width],[.72,.040*width],[1,.037*width]]);
+  const rz=profile([[0,wristZ],[.32,.016],[.72,.013],[1,.012]]);
   const palmForm=roundOpening((u,v)=>{
     const a=u*TAU,s=Math.sin(a),c=Math.cos(a);
     const crown=smooth((v-.60)/.36), squareness=.85*crown;
     const x=rx(v)*s*Math.sqrt(1+squareness*c*c), z=rz(v)*c*Math.sqrt(1+squareness*s*s);
     const pad=.0035*opts.palm.arch*Math.exp(-(((u-.55)/.14)**2+((v-.42)/.28)**2));
     const knuckleArc=-.0075*(x/(.041*width))**2-.0025*x/(.041*width);
-    return [x,v*palmLength+crown*(knuckleArc-.005*c*c),z-pad*Math.sin(Math.PI*v)**2];
+    // End the palm below the finger roots, leaving room for a rising web instead of a shelf.
+    const junctionRise=.012*smooth((v-.52)/.48);
+    return [x,v*palmLength-junctionRise+crown*(knuckleArc-.005*c*c),z-pad*Math.sin(Math.PI*v)**2];
   },{at:[.75,.5],radius:[.125,.2]});
   const palmRelief=layers(
     ...[-.1,0,.1].map((dx)=>mound({at:[dx,.63],radius:[.025,.25],height:.0007,wrapU:true})),
