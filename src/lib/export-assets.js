@@ -28,8 +28,13 @@ function prepareImages(root) {
   return [...converted.keys()];
 }
 export async function exportAssetGLB(definition, values) {
-  const root = buildModel(definition, values), scene = new THREE.Scene();
-  scene.name = definition.title; scene.add(root);
+  return exportOwnedObjectGLB(buildModel(definition, values), { title: definition.title });
+}
+
+/** Consumes and disposes an independently owned, bind-pose object. Never pass the live preview. */
+export async function exportOwnedObjectGLB(root, { title = root.name } = {}) {
+  const scene = new THREE.Scene();
+  scene.name = title; scene.add(root);
   const clips = new Set(); root.traverse(n => (n.animations || []).forEach(c => clips.add(c)));
   let originals = [];
   try {
