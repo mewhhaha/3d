@@ -61,3 +61,20 @@ const hit = query.closestPoint(point, {
 The hierarchy uses median centroid splits and AABB distance pruning. It is deterministic against the brute-force baseline, including equal-distance tie breaking. `transferSurfaceAttributes()` accepts `acceleration: 'auto' | 'brute-force' | 'bvh'`; auto keeps tiny jobs simple and switches to the hierarchy when the source-triangle × target-vertex candidate count reaches 150,000.
 
 Nearest geometry is not always the intended source. Optional `groupIndices` restrict transfer to explicit Three.js `BufferGeometry.groups`, and `minNormalDot` rejects source triangles whose geometric face normal disagrees with the target vertex normal. These are authored constraints, not automatic semantic correspondence: a group index is not a character-part ontology, and normal-facing cannot disambiguate two nearby same-facing layers. UV/corner data, skinning, discrete labels and semantic ownership still need separate transfer contracts.
+
+## Name face-domain construction intent instead of material groups
+
+Three.js `BufferGeometry.groups` are rendering partitions, not durable modeling identities. For correspondence, attachment and selection that should survive material regrouping, resolve author intent into named face-domain regions:
+
+```js
+import { defineFaceRegions, faceRegionVertexMask } from '../src/lib/face-regions.js';
+
+const tagged = defineFaceRegions(source, {
+  'shell.service-face': ({ centroid, normal }) => centroid.z > 0.02 && normal.z > 0.5,
+});
+const mask = faceRegionVertexMask(tagged, 'shell.service-face');
+```
+
+`defineFaceRegions()` evaluates predicates once and stores only JSON-safe names plus compressed triangle ranges in geometry metadata. Regions may overlap because they are construction semantics, not draw calls. `triangleSpatialIndex()` accepts `regionNames`, and `transferSurfaceAttributes()` accepts `sourceRegions`, so the same semantic name can drive a closest-surface attachment or a topology-transfer correspondence filter. Numeric `groupIndices` remain supported for cases where a material partition really is the intended constraint.
+
+Regions are explicitly face-domain and topology-dependent. Cloning preserves them, but changing triangle count makes the metadata stale and access fails rather than silently retargeting old face IDs. `faceRegionVertexMask()` is an explicit face-to-point conversion for vertex editing/visualization; its fractional incident-face ownership is an authoring weight, not a discrete label transfer. Arbitrary remeshing/boolean operations still need an explicit region-transfer contract.

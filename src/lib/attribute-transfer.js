@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { triangleSpatialIndex } from './triangle-spatial-index.js';
+import { faceRegionMembership, faceRegionNames } from './face-regions.js';
 
 const rejectedSemanticAttributes = new Set([
   'position', 'normal', 'tangent', 'uv', 'uv1', 'skinIndex', 'skinWeight',
@@ -30,6 +31,7 @@ function attributeComponent(attribute, index, component) {
 
 function bruteForceIndex(source, sourcePosition) {
   const triangles = [];
+  const regionMembership = faceRegionMembership(source);
   for (let offset = 0, triangleIndex = 0; offset < source.index.count; offset += 3, triangleIndex++) {
     const ia = source.index.getX(offset), ib = source.index.getX(offset + 1), ic = source.index.getX(offset + 2);
     if (ia === ib || ib === ic || ic === ia) throw new Error('transferSurfaceAttributes source contains a degenerate indexed triangle');
@@ -44,19 +46,25 @@ function bruteForceIndex(source, sourcePosition) {
       const group = source.groups[groupIndex];
       if (offset >= group.start && offset + 2 < group.start + group.count) groupIndices.push(groupIndex);
     }
-    triangles.push({ triangleIndex, indices: [ia, ib, ic], triangle, normal: triangle.getNormal(new THREE.Vector3()), groupIndices });
+    triangles.push({ triangleIndex, indices: [ia, ib, ic], triangle, normal: triangle.getNormal(new THREE.Vector3()), groupIndices, regionNames: regionMembership[triangleIndex] });
   }
   const stats = { triangles: triangles.length, queries: 0, triangleTests: 0, nodeTests: 0 };
   return {
     triangleCount: triangles.length,
-    closestPoint(point, { maxDistance = Infinity, groupIndices = null, normal = null, minNormalDot = -1 } = {}) {
+    closestPoint(point, { maxDistance = Infinity, groupIndices = null, regionNames = null, regionMatch = 'any', normal = null, minNormalDot = -1 } = {}) {
       const allowedGroups = groupIndices == null ? null : new Set(groupIndices);
+      if (!['any', 'all'].includes(regionMatch)) throw new Error("transferSurfaceAttributes sourceRegionMatch must be 'any' or 'all'");
+      const allowedRegions = regionNames == null ? null : new Set(regionNames);
       const queryNormal = normal ? normal.clone().normalize() : null;
       stats.queries++;
       let best = null, bestDistanceSq = maxDistance === Infinity ? Infinity : maxDistance * maxDistance;
       const candidate = new THREE.Vector3();
       for (const entry of triangles) {
         if (allowedGroups && !entry.groupIndices.some(index => allowedGroups.has(index))) continue;
+        if (allowedRegions) {
+          const accepted = regionMatch === 'all' ? [...allowedRegions].every(name => entry.regionNames.includes(name)) : entry.regionNames.some(name => allowedRegions.has(name));
+          if (!accepted) continue;
+        }
         if (queryNormal && entry.normal.dot(queryNormal) < minNormalDot) continue;
         stats.triangleTests++;
         entry.triangle.closestPointToPoint(point, candidate);
@@ -68,7 +76,7 @@ function bruteForceIndex(source, sourcePosition) {
       }
       if (!best) return null;
       const barycoord = THREE.Triangle.getBarycoord(best.point, best.entry.triangle.a, best.entry.triangle.b, best.entry.triangle.c, new THREE.Vector3());
-      return { point: best.point, distance: Math.sqrt(bestDistanceSq), distanceSq: bestDistanceSq, barycoord, triangleIndex: best.entry.triangleIndex, indices: best.entry.indices.slice(), normal: best.entry.normal.clone(), groupIndices: best.entry.groupIndices.slice() };
+      return { point: best.point, distance: Math.sqrt(bestDistanceSq), distanceSq: bestDistanceSq, barycoord, triangleIndex: best.entry.triangleIndex, indices: best.entry.indices.slice(), normal: best.entry.normal.clone(), groupIndices: best.entry.groupIndices.slice(), regionNames: best.entry.regionNames.slice() };
     },
     diagnostics() { return { ...stats }; },
   };
@@ -88,6 +96,8 @@ export function transferSurfaceAttributes(source, target, {
   maxDistance = Infinity,
   acceleration = 'auto',
   groupIndices = null,
+  sourceRegions = null,
+  sourceRegionMatch = 'any',
   minNormalDot = null,
   leafSize = 8,
 } = {}) {
@@ -98,6 +108,18 @@ export function transferSurfaceAttributes(source, target, {
   if (!['auto', 'brute-force', 'bvh'].includes(acceleration)) throw new Error("transferSurfaceAttributes acceleration must be 'auto', 'brute-force' or 'bvh'");
   if (groupIndices != null && (!Array.isArray(groupIndices) || !groupIndices.length || groupIndices.some(i => !Number.isInteger(i) || i < 0 || i >= source.groups.length))) {
     throw new Error('transferSurfaceAttributes groupIndices must refer to existing BufferGeometry groups');
+  }
+  if (!['any', 'all'].includes(sourceRegionMatch)) throw new Error("transferSurfaceAttributes sourceRegionMatch must be 'any' or 'all'");
+  let regionNames = null;
+  if (sourceRegions != null) {
+    const requested = typeof sourceRegions === 'string' ? [sourceRegions] : sourceRegions;
+    if (!Array.isArray(requested) || !requested.length || requested.some(name => typeof name !== 'string' || !name)) {
+      throw new Error('transferSurfaceAttributes sourceRegions must be a name or non-empty array of names');
+    }
+    regionNames = [...new Set(requested)];
+    const available = new Set(faceRegionNames(source));
+    const missing = regionNames.filter(name => !available.has(name));
+    if (missing.length) throw new Error(`transferSurfaceAttributes unknown face region${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}`);
   }
   if (minNormalDot != null && (!Number.isFinite(minNormalDot) || minNormalDot < -1 || minNormalDot > 1)) {
     throw new Error('transferSurfaceAttributes minNormalDot must be between -1 and 1');
@@ -123,7 +145,7 @@ export function transferSurfaceAttributes(source, target, {
   for (let vertex = 0; vertex < targetPosition.count; vertex++) {
     point.fromBufferAttribute(targetPosition, vertex);
     const normal = targetNormal ? queryNormal.fromBufferAttribute(targetNormal, vertex) : null;
-    const closest = index.closestPoint(point, { maxDistance: Infinity, groupIndices, normal, minNormalDot: minNormalDot ?? -1 });
+    const closest = index.closestPoint(point, { maxDistance: Infinity, groupIndices, regionNames, regionMatch: sourceRegionMatch, normal, minNormalDot: minNormalDot ?? -1 });
     if (!closest) throw new Error(`transferSurfaceAttributes found no acceptable source triangle for target vertex ${vertex}`);
     const distance = closest.distance;
     if (distance > maxDistance) throw new Error(`transferSurfaceAttributes target vertex ${vertex} is ${distance.toFixed(6)} from the source, beyond maxDistance ${maxDistance}`);
@@ -161,6 +183,8 @@ export function transferSurfaceAttributes(source, target, {
       triangleTests: diagnostics.triangleTests,
       nodeTests: diagnostics.nodeTests,
       groupIndices: groupIndices ? [...groupIndices] : null,
+      sourceRegions: regionNames,
+      sourceRegionMatch: regionNames ? sourceRegionMatch : null,
       minNormalDot,
     },
   };

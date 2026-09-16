@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "id": "face-regions",
+  "title": "Workflow study — named face-domain correspondence",
+  "module": "models/face-region-study.js",
+  "lockCamera": true,
+  "width": 560,
+  "height": 560,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"nearest","label":"Geometric nearest only","values":{"named":false},"maxTriangles":5000},
+    {"id":"named","label":"Named construction regions","values":{"named":true},"maxTriangles":5000}
+  ]
+}

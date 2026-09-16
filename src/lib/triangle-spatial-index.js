@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { faceRegionMembership, faceRegionNames } from './face-regions.js';
 
 function validateIndexedTriangles(geometry) {
   if (!geometry?.isBufferGeometry) throw new Error('triangleSpatialIndex needs a Three.js BufferGeometry');
@@ -55,6 +56,26 @@ function acceptsGroup(entry, groups) {
   return entry.groupIndices.some(index => groups.has(index));
 }
 
+function normalizeRegionFilter(geometry, regionNames, regionMatch) {
+  if (regionNames == null) return null;
+  if (!['any', 'all'].includes(regionMatch)) throw new Error("triangleSpatialIndex regionMatch must be 'any' or 'all'");
+  const names = typeof regionNames === 'string' ? [regionNames] : regionNames;
+  if (!Array.isArray(names) || !names.length || names.some(name => typeof name !== 'string' || !name)) {
+    throw new Error('triangleSpatialIndex regionNames must be a name or non-empty array of names');
+  }
+  const available = new Set(faceRegionNames(geometry));
+  const unique = [...new Set(names)];
+  const missing = unique.filter(name => !available.has(name));
+  if (missing.length) throw new Error(`triangleSpatialIndex unknown face region${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}`);
+  return { names: new Set(unique), match: regionMatch };
+}
+
+function acceptsRegions(entry, regions) {
+  if (!regions) return true;
+  if (regions.match === 'all') return [...regions.names].every(name => entry.regionNames.includes(name));
+  return entry.regionNames.some(name => regions.names.has(name));
+}
+
 /**
  * Build a deterministic median-split AABB hierarchy over indexed source triangles.
  * The index owns immutable triangle snapshots; rebuild it after source positions change.
@@ -63,6 +84,7 @@ export function triangleSpatialIndex(geometry, { leafSize = 8 } = {}) {
   const position = validateIndexedTriangles(geometry);
   if (!Number.isInteger(leafSize) || leafSize < 1) throw new Error('triangleSpatialIndex leafSize must be a positive integer');
   const entries = [];
+  const regionMembership = faceRegionMembership(geometry);
   for (let offset = 0, triangleIndex = 0; offset < geometry.index.count; offset += 3, triangleIndex++) {
     const ia = geometry.index.getX(offset), ib = geometry.index.getX(offset + 1), ic = geometry.index.getX(offset + 2);
     if (ia === ib || ib === ic || ic === ia) throw new Error('triangleSpatialIndex source contains a degenerate indexed triangle');
@@ -80,6 +102,7 @@ export function triangleSpatialIndex(geometry, { leafSize = 8 } = {}) {
       bounds: new THREE.Box3().setFromPoints([a, b, c]),
       centroid: new THREE.Vector3().addVectors(a, b).add(c).multiplyScalar(1 / 3),
       groupIndices: triangleGroups(geometry, offset),
+      regionNames: regionMembership[triangleIndex],
     });
   }
   const root = buildNode(entries.slice(), leafSize);
@@ -88,6 +111,8 @@ export function triangleSpatialIndex(geometry, { leafSize = 8 } = {}) {
   function closestPoint(pointLike, {
     maxDistance = Infinity,
     groupIndices = null,
+    regionNames = null,
+    regionMatch = 'any',
     normal = null,
     minNormalDot = -1,
   } = {}) {
@@ -96,6 +121,7 @@ export function triangleSpatialIndex(geometry, { leafSize = 8 } = {}) {
     if (!(maxDistance === Infinity || (Number.isFinite(maxDistance) && maxDistance >= 0))) throw new Error('triangleSpatialIndex maxDistance must be non-negative or Infinity');
     if (!Number.isFinite(minNormalDot) || minNormalDot < -1 || minNormalDot > 1) throw new Error('triangleSpatialIndex minNormalDot must be between -1 and 1');
     const groups = normalizeGroupFilter(groupIndices);
+    const regions = normalizeRegionFilter(geometry, regionNames, regionMatch);
     let queryNormal = null;
     if (normal != null) {
       queryNormal = normal?.isVector3 ? normal.clone() : new THREE.Vector3().fromArray(normal);
@@ -119,7 +145,7 @@ export function triangleSpatialIndex(geometry, { leafSize = 8 } = {}) {
       if (boxDistance * boxDistance > bestDistanceSq) continue;
       if (node.entries) {
         for (const entry of node.entries) {
-          if (!acceptsGroup(entry, groups)) continue;
+          if (!acceptsGroup(entry, groups) || !acceptsRegions(entry, regions)) continue;
           if (queryNormal && entry.normal.dot(queryNormal) < minNormalDot) continue;
           stats.triangleTests++;
           entry.triangle.closestPointToPoint(point, candidate);
@@ -157,6 +183,7 @@ export function triangleSpatialIndex(geometry, { leafSize = 8 } = {}) {
       indices: best.entry.indices.slice(),
       normal: best.entry.normal.clone(),
       groupIndices: best.entry.groupIndices.slice(),
+      regionNames: best.entry.regionNames.slice(),
     };
   }
 
