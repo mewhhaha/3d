@@ -58,10 +58,16 @@ test('segmented armor shares one support while preserving authored gaps and inde
  const sparse=segmentedArmor(support,{name:'Sparse plates',parts,segments:[8,12]});
  assert.deepEqual(sparse.userData.construction.segments,[8,12]);assert.ok(inspect(sparse).triangles<inspect(set).triangles*.5);
  assert.throws(()=>segmentedArmor(support,{parts:[parts[0],{...parts[1],label:'lower'}]}));dispose(set);dispose(sparse);
+ const lifted=armorLeaf(support,{name:'Raised plate',start:.2,end:.7,left:[[0,.15],[1,.15]],right:[[0,.30],[1,.30]],offset:.001,lift:[[0,0],[.5,.006],[1,0]],segments:[8,12],material:m.shell});
+ const plain=armorLeaf(support,{name:'Plain plate',start:.2,end:.7,left:[[0,.15],[1,.15]],right:[[0,.30],[1,.30]],segments:[8,12],material:m.shell});
+ const a=new THREE.Box3().setFromObject(lifted),b=new THREE.Box3().setFromObject(plain);assert.ok(a.getSize(new THREE.Vector3()).x>b.getSize(new THREE.Vector3()).x+.002);dispose(lifted);dispose(plain);
  const thigh=limbArmor({name:'Test thigh',length:.428,radii:[[0,.073,.08],[.22,.088,.081],[.52,.075,.073],[.79,.056,.06],[1,.045,.048]],type:'thigh'},m);
  assert.ok(thigh.getObjectByName('Test thigh / articulated front / main outer leaf'));
  assert.ok(thigh.getObjectByName('Test thigh / articulated front / main inner leaf'));
  assert.ok(thigh.getObjectByName('Test thigh / exposed flex bridge 0'));dispose(thigh);
+ const shin=limbArmor({name:'Test shin',length:.329,radii:[[0,.048,.048],[.25,.065,.056],[.49,.048,.05],[.80,.028,.031],[1,.027,.03]],type:'shin'},m);
+ assert.ok(shin.getObjectByName('Test shin / lateral brace stack / outer shin rail'));
+ assert.deepEqual(shin.getObjectByName('Test shin / knee bracket stack').userData.construction.parts[0].lift,[[0,.001],[.48,.006],[1,.0015]]);dispose(shin);
 });
 test('boot has a closed toe bumper and shields expose resolution-independent silhouette profiles',()=>{
  const m=cyberMaterials(),boot=sculptedBoot({},m),shield=contouredShield({},m);
