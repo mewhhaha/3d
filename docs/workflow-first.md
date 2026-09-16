@@ -99,3 +99,26 @@ const serviceExterior = faceRegionTriangles(
 `remapFaceRegions()` accepts an explicit target-face → source-face relation and carries selected source face-region names onto the new topology. `solidifyGeometry()` now uses its own construction ordering to preserve source semantics across the outer copy, inner copy and generated boundary rim. An optional `regionPrefix` adds structural target-only roles such as `shell.outer`, `shell.inner` and `shell.rim`, which can be intersected with inherited semantic names for later attachments, masks, or correspondence queries. `preserveRegions: false` intentionally drops source semantics while still allowing those structural roles.
 
 This is exact construction provenance, not universal semantic remeshing. It does not infer lineage through arbitrary booleans, remeshes or separately authored geometry, and it does not transfer edge-, point- or face-corner-domain semantics. For those unrelated-topology cases, use an explicit correspondence strategy such as the existing constrained closest-surface transfer instead of pretending the result is exact.
+
+## Bind an exact surface spot when nearest should stop searching
+
+Nearest-surface mounts are useful when the author means “find the closest admissible place again after this support changes.” They are the wrong semantic when the author means “this exact authored spot should move with the support.” Convert the former into a persistent barycentric anchor once the intended support location is established:
+
+```js
+import {
+  surfaceMount, bindSurfaceAnchor, attachSurfaceAnchor,
+} from '../src/lib/surface-mount.js';
+
+const mount = surfaceMount({
+  near: [0.08, 0.03, 0.12],
+  regionNames: ['panel.service', 'panel.shell.outer'],
+  regionMatch: 'all',
+  offset: 0.01,
+});
+const anchor = bindSurfaceAnchor(bindPoseSupport, mount);
+attachSurfaceAnchor(sensor, rebuiltSameTopologySupport, anchor);
+```
+
+`bindSurfaceAnchor()` stores one indexed face, its vertex triplet, barycentric point and an affine tangent direction. `resolveSurfaceAnchor()` / `attachSurfaceAnchor()` then rebuild the attachment frame from the current positions/normals of those same three vertices without running another nearest-surface query. Local component position/rotation/scale remain independently editable after the support frame, exactly as with `surfaceMount()`.
+
+This is intentionally a **same-topology** contract. The current face's three vertex indices must still match the recorded triplet; an index reorder, remesh, boolean or unrelated reconstruction fails with an explicit rebind requirement instead of silently jumping. Use `surfaceMount()` when repeated geometric search is actually desired. A future topology constructor may provide an exact anchor-remap contract when it owns corner correspondence, but v1 does not infer that relation.
