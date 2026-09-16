@@ -78,3 +78,24 @@ const mask = faceRegionVertexMask(tagged, 'shell.service-face');
 `defineFaceRegions()` evaluates predicates once and stores only JSON-safe names plus compressed triangle ranges in geometry metadata. Regions may overlap because they are construction semantics, not draw calls. `triangleSpatialIndex()` accepts `regionNames`, and `transferSurfaceAttributes()` accepts `sourceRegions`, so the same semantic name can drive a closest-surface attachment or a topology-transfer correspondence filter. Numeric `groupIndices` remain supported for cases where a material partition really is the intended constraint.
 
 Regions are explicitly face-domain and topology-dependent. Cloning preserves them, but changing triangle count makes the metadata stale and access fails rather than silently retargeting old face IDs. `faceRegionVertexMask()` is an explicit face-to-point conversion for vertex editing/visualization; its fractional incident-face ownership is an authoring weight, not a discrete label transfer. Arbitrary remeshing/boolean operations still need an explicit region-transfer contract.
+
+## Preserve face regions when a topology operation knows provenance
+
+When a construction stage knows exactly which source faces generated each new target face, keep that provenance exact rather than discarding semantic regions and trying to reconstruct them later with nearest-surface projection:
+
+```js
+const shell = solidifyGeometry(taggedSheet, {
+  thickness: 0.02,
+  rim: 'smooth',
+  regionPrefix: 'shell',
+});
+const serviceExterior = faceRegionTriangles(
+  shell,
+  ['panel.service', 'shell.outer'],
+  { match: 'all' },
+);
+```
+
+`remapFaceRegions()` accepts an explicit target-face → source-face relation and carries selected source face-region names onto the new topology. `solidifyGeometry()` now uses its own construction ordering to preserve source semantics across the outer copy, inner copy and generated boundary rim. An optional `regionPrefix` adds structural target-only roles such as `shell.outer`, `shell.inner` and `shell.rim`, which can be intersected with inherited semantic names for later attachments, masks, or correspondence queries. `preserveRegions: false` intentionally drops source semantics while still allowing those structural roles.
+
+This is exact construction provenance, not universal semantic remeshing. It does not infer lineage through arbitrary booleans, remeshes or separately authored geometry, and it does not transfer edge-, point- or face-corner-domain semantics. For those unrelated-topology cases, use an explicit correspondence strategy such as the existing constrained closest-surface transfer instead of pretending the result is exact.
