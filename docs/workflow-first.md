@@ -122,3 +122,20 @@ attachSurfaceAnchor(sensor, rebuiltSameTopologySupport, anchor);
 `bindSurfaceAnchor()` stores one indexed face, its vertex triplet, barycentric point and an affine tangent direction. `resolveSurfaceAnchor()` / `attachSurfaceAnchor()` then rebuild the attachment frame from the current positions/normals of those same three vertices without running another nearest-surface query. Local component position/rotation/scale remain independently editable after the support frame, exactly as with `surfaceMount()`.
 
 This is intentionally a **same-topology** contract. The current face's three vertex indices must still match the recorded triplet; an index reorder, remesh, boolean or unrelated reconstruction fails with an explicit rebind requirement instead of silently jumping. Use `surfaceMount()` when repeated geometric search is actually desired. A future topology constructor may provide an exact anchor-remap contract when it owns corner correspondence, but v1 does not infer that relation.
+
+## Carry persistent anchors through owned topology constructors
+
+A persistent anchor should not fall back to nearest-surface search when a constructor already knows exactly where its source face went. Constructors with exact face/corner provenance can remap the anchor instead:
+
+```js
+const sourceAnchor = bindSurfaceAnchor(partGeometry, mount);
+const assembly = composeGeometries([
+  { name: 'housing', geometry: partGeometry, position: [0.2, 0, 0], rotation: [0, 25, 0] },
+]);
+const assemblyAnchor = remapCompositionAnchor(assembly, sourceAnchor, { part: 'housing' });
+attachSurfaceAnchor(module, assembly, assemblyAnchor);
+```
+
+`surfaceTopologySignature()` guards bind-created anchors against accidental reuse on changed indexed topology. `remapSurfaceAnchor()` is the small constructor-owned primitive for exact target-face/corner correspondence. `remapSolidifyAnchor()` uses that contract for the one-to-one outer and inner face copies created by `solidifyGeometry()`; inner winding explicitly permutes the stored barycentric and tangent weights. `remapCompositionAnchor()` uses the deterministic vertex/face offsets created by `composeGeometries()`. Composition metadata records each part's source topology signature, and the remap requires an explicit part name because several parts may intentionally share identical topology.
+
+These remaps are exact construction provenance, not a general dependency graph or semantic remesher. Solidify rims, booleans, subdivision, decimation and unrelated reconstructions still need operation-specific provenance or an explicit nearest/rebind decision. After an anchor is remapped into a new topology, that target topology owns the anchor for subsequent evaluation.
