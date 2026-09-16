@@ -1,5 +1,40 @@
 # Automated refinement progress
 
+## 2026-09-16 — knee / boot articulation and representation-budget pass
+
+Base remote revision: `5eef4900b717278b349100b6510f1b40c4008e75`.
+Active recipe: `models/cyber-form-study.js`.
+
+### Accepted changes
+
+- Made `armorLeaf()` and `segmentedArmor()` tessellation an explicit construction option instead of a hidden fixed `[18,32]` grid. Segment counts now live with the representation, while the shared support and authored boundary curves continue to define shape. Individual leaves may override the set default.
+- Retessellated thigh/shin shells to `[12,20]`, small flex bridges to `[10,12]`, and knee bracket patches to `[10,14]`. This restores scene budget headroom without changing the accepted pose, camera, limb dimensions or annotated feature targets.
+- Added asymmetric inner/outer knee ears and receivers on the same thigh/shin supports. They interrupt the smooth circular-joint transition without introducing detached world-space coordinate tables.
+- Reworked the boot upper into separate outer/inner toe petals with a dark center channel, asymmetric instep leaves, and unequal ankle-cuff windows. The closed toe bumper and section-lofted sole remain independent parts.
+- Hardened the finite render batch against one observed Chromium failure mode: only a `Target page/context/browser has been closed`-class termination receives one fresh-session retry. Ordinary render, geometry, validation and budget failures are never retried.
+
+### Evidence
+
+- The exact original raster was not available as a standalone local file in this run. Visual inspection used the previously saved private reference comparison derived from the supplied original; public reference annotations were left unchanged.
+- `npm run doctor` — WebGL2 / Chromium / SwiftShader available.
+- `node --test tests/form-design.test.js tests/shape-rails.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/cyber-mechanics.test.js tests/contour-volume.test.js tests/render-batch.test.js` — **31/31 passed**.
+- `npm run build` — passed, 15 recipes built.
+- `node scripts/measure-reference.mjs models/cyber-form-study.js` — **9.3566575468 px RMS**, **17.9592707268 px maximum** over the same nine observed feature points, unchanged from the accepted pose.
+- Final cage/baked assembly: **527,552 triangles**, down from the preceding CI review's **601,312**. High evaluated hair assembly: **650,432 triangles**. These are below the unchanged form-study limits of 600,000 low/baked and 750,000 high; the limits were not raised.
+- Final full-scene cage GLB from `renders/run4-hero-final/` validates with **0 errors / 0 warnings**. The isolated boot renders at **21,324 triangles**.
+- The preceding commit's form-study CI had 33/33 targeted tests pass but then failed because low/baked/survey exceeded 600,000 triangles and one high render lost its Chromium page. This pass addresses both causes directly rather than relaxing acceptance criteria.
+- `npm run review:forms` — **passed end to end** after the changes. All four fixed-camera variants passed their unchanged budgets and GLB validation, clean preview/export isolation passed, full hero/depth/head/boot captures completed, region-mask/reference diagnostics completed, surface/cache checks passed, and all three standalone hair exports validated.
+
+### Visual assessment
+
+The knee transition now has separate asymmetric clamp-like masses around the circular bearing instead of only a smooth shell ending at a glowing disk. The boot has a visible dark center channel and independent toe/instep/cuff plates, reducing the single-piece sneaker reading. The fixed-camera hero still shows a much cleaner lower body than the reference: outer-shin layering is sparse, knee brackets are subtler than the artwork's dense stack, and the boot sole/toe silhouette remains too regular.
+
+The head/hair crown and simplified face remain larger full-character likeness errors than any lower-leg micro-detail. No small greeble pass should precede those primary forms.
+
+### Next target
+
+Keep the pose, camera and annotations fixed. Either strengthen the outer-shin/knee silhouette with a few larger connected bracket forms, or return to the crown/head cross-section. Prefer a small number of structural volumes over decorative density.
+
 ## 2026-09-16 — shoulder / reactor carrier pass
 
 Base remote revision: `5fdb4bddb051ca8f2018c1c0dd52a48a9d27eee1`.

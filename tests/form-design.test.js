@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { box, group, buildModel, dispose } from '../src/lib/modeling.js';
+import { box, group, buildModel, inspect, dispose } from '../src/lib/modeling.js';
 import { pointFields, weightedTransform, reshapeAssembly } from '../src/lib/shape-deform.js';
 import { guidedBob, bobGuides } from '../src/lib/cyber/hair-design.js';
 import { limbVolume, armorLeaf, segmentedArmor, limbArmor, sculptedBoot, contouredShield } from '../src/lib/cyber/contour-armor.js';
@@ -54,7 +54,9 @@ test('segmented armor shares one support while preserving authored gaps and inde
  const set=segmentedArmor(support,{name:'Test plates',parts});
  assert.equal(set.children.length,2);assert.deepEqual(set.userData.construction.parts.map(p=>[p.label,p.start,p.end]),[['lower',.08,.42],['upper',.51,.9]]);
  const boxes=set.children.map(o=>new THREE.Box3().setFromObject(o));assert.ok(boxes[0].max.y<boxes[1].min.y-.01);
- assert.throws(()=>segmentedArmor(support,{parts:[parts[0],{...parts[1],label:'lower'}]}));dispose(set);
+ const sparse=segmentedArmor(support,{name:'Sparse plates',parts,segments:[8,12]});
+ assert.deepEqual(sparse.userData.construction.segments,[8,12]);assert.ok(inspect(sparse).triangles<inspect(set).triangles*.5);
+ assert.throws(()=>segmentedArmor(support,{parts:[parts[0],{...parts[1],label:'lower'}]}));dispose(set);dispose(sparse);
  const thigh=limbArmor({name:'Test thigh',length:.428,radii:[[0,.073,.08],[.22,.088,.081],[.52,.075,.073],[.79,.056,.06],[1,.045,.048]],type:'thigh'},m);
  assert.ok(thigh.getObjectByName('Test thigh / articulated front / main outer leaf'));
  assert.ok(thigh.getObjectByName('Test thigh / articulated front / main inner leaf'));
@@ -63,7 +65,7 @@ test('segmented armor shares one support while preserving authored gaps and inde
 test('boot has a closed toe bumper and shields expose resolution-independent silhouette profiles',()=>{
  const m=cyberMaterials(),boot=sculptedBoot({},m),shield=contouredShield({},m);
  const shifted=contouredShield({width:.1,widthProfile:[[0,.5],[.5,1],[1,.5]],centerProfile:[[0,.2],[1,.2]]},m);
- assert.ok(boot.getObjectByName('Toe bumper'));assert.ok(boot.getObjectByName('Segmented ankle cuff'));
+ assert.ok(boot.getObjectByName('Toe bumper'));assert.ok(boot.getObjectByName('Toe outer petal'));assert.ok(boot.getObjectByName('Toe inner petal'));assert.ok(boot.getObjectByName('Segmented ankle cuff'));
  assert.equal(shield.children.length,2);assert.equal(shield.userData.construction.normalClearance,.0015);
  assert.equal(shifted.userData.construction.method,'profiled single-support layered shield');
  const baseX=shield.children[0].geometry.attributes.position.getX(0),shiftX=shifted.children[0].geometry.attributes.position.getX(0);
@@ -80,6 +82,8 @@ test('scene retains one authored camera and five lights at every construction st
    assert.equal(root.getObjectByName('Reactor carrier lugs').children.length,12);
    assert.ok(root.getObjectByName('Shoulder joint ball').scale.x<.9);
    assert.ok(root.getObjectByName('Contoured Thigh enclosing panels / articulated front / main outer leaf'));
+   assert.ok(root.getObjectByName('Contoured Thigh enclosing panels / knee bracket stack / outer knee ear'));
+   assert.ok(inspect(root).triangles<560000,'baked/cage default must keep headroom under the fixed form-study budget');
   }
   dispose(root);
  }
