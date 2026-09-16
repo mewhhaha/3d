@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
 import { mesh } from './modeling.js';
 import { faceRegionNames, remapFaceRegions } from './face-regions.js';
+import { remapSurfaceAnchor, surfaceAnchor, surfaceTopologySignature } from './surface-mount.js';
 
 const allowedShellAttributes = new Set(['position', 'normal', 'uv']);
 
@@ -175,6 +176,8 @@ export function solidifyGeometry(source, { thickness = 0.01, offset = 0, rim = '
     ...source.userData,
     solidify: {
       sourceVertices: sourceCount,
+      sourceTriangles: sourceTriangleCount,
+      sourceTopologySignature: surfaceTopologySignature(source),
       boundaryEdges: boundary.length,
       boundaryLoops: loops.length,
       rim,
@@ -208,6 +211,39 @@ export function solidifyGeometry(source, { thickness = 0.01, offset = 0, rim = '
     delete result.userData.faceRegions;
   }
   return result;
+}
+
+/**
+ * Remap a persistent source-surface anchor onto the exact outer or inner face copy created
+ * by `solidifyGeometry()`. This is constructor-owned provenance, not a nearest-surface guess.
+ * Inner faces reverse winding, so barycentric coordinates and tangent weights are permuted
+ * together with their source corners.
+ */
+export function remapSolidifyAnchor(shell, rawAnchor, { surface = 'outer' } = {}) {
+  validateSource(shell, 'remapSolidifyAnchor');
+  const anchor = surfaceAnchor(rawAnchor);
+  const meta = shell.userData?.solidify;
+  if (!meta || meta.topologyChanged !== true || !Number.isInteger(meta.sourceTriangles)
+    || typeof meta.sourceTopologySignature !== 'string') {
+    throw new Error('remapSolidifyAnchor needs geometry produced by solidifyGeometry with provenance metadata');
+  }
+  if (anchor.topologySignature == null) {
+    throw new Error('remapSolidifyAnchor needs an anchor bound with bindSurfaceAnchor so source topology is explicit');
+  }
+  if (anchor.topologySignature !== meta.sourceTopologySignature) {
+    throw new Error('remapSolidifyAnchor anchor belongs to a different source topology');
+  }
+  if (anchor.triangleIndex >= meta.sourceTriangles) {
+    throw new Error('remapSolidifyAnchor source triangle is outside the solidified source topology');
+  }
+  if (!['outer', 'inner'].includes(surface)) throw new Error("remapSolidifyAnchor surface must be 'outer' or 'inner'");
+  const triangleIndex = surface === 'outer'
+    ? anchor.triangleIndex
+    : meta.sourceTriangles + anchor.triangleIndex;
+  return remapSurfaceAnchor(anchor, shell, {
+    triangleIndex,
+    cornerMap: surface === 'outer' ? [0, 1, 2] : [0, 2, 1],
+  });
 }
 
 /** Apply an angle-based split-normal finish after topology construction. Angle is authored in degrees. */

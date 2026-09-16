@@ -42,6 +42,28 @@ function validateGeometry(geometry, label) {
 }
 
 /**
+ * Deterministic indexed-topology fingerprint used by persistent anchors.
+ * Positions are intentionally excluded so ordinary form edits keep the same signature.
+ * The two 32-bit accumulators are a practical guard against applying an anchor to a
+ * topology constructor's output without an explicit remap; this is not a cryptographic hash.
+ */
+export function surfaceTopologySignature(geometry) {
+  const position = validateGeometry(geometry, 'surfaceTopologySignature');
+  const index = geometry.index;
+  let a = 0x811c9dc5 >>> 0;
+  let b = 0x9e3779b9 >>> 0;
+  const mix = (value) => {
+    const v = value >>> 0;
+    a = Math.imul((a ^ v) >>> 0, 0x01000193) >>> 0;
+    b = Math.imul((b ^ ((v + 0x85ebca6b) >>> 0)) >>> 0, 0xc2b2ae35) >>> 0;
+  };
+  mix(position.count);
+  mix(index.count);
+  for (let i = 0; i < index.count; i++) mix(index.getX(i));
+  return `${position.count}:${index.count}:${a.toString(16).padStart(8, '0')}${b.toString(16).padStart(8, '0')}`;
+}
+
+/**
  * Define JSON-safe support-local attachment intent. `near` and `tangentHint` are in the
  * support geometry's local coordinates. `local` is an editable transform in the resolved
  * attachment frame, where +Z is the selected surface normal.
@@ -234,6 +256,7 @@ export function surfaceAnchor({
   indices,
   barycoord,
   tangentWeights: rawTangentWeights,
+  topologySignature = null,
   normalMode = 'smooth',
   offset = 0,
   local = {},
@@ -253,11 +276,15 @@ export function surfaceAnchor({
   }
   if (!['smooth', 'face'].includes(normalMode)) throw new Error("surfaceAnchor normalMode must be 'smooth' or 'face'");
   if (!Number.isFinite(offset)) throw new Error('surfaceAnchor offset must be finite');
+  if (topologySignature != null && (typeof topologySignature !== 'string' || !/^\d+:\d+:[0-9a-f]{16}$/.test(topologySignature))) {
+    throw new Error('surfaceAnchor topologySignature must be null or a valid indexed-topology signature');
+  }
   return {
     triangleIndex,
     indices: indices.slice(),
     barycoord: bary,
     tangentWeights: weights,
+    topologySignature,
     normalMode,
     offset,
     local: localTransform(local, 'surfaceAnchor'),
@@ -276,6 +303,7 @@ export function bindSurfaceAnchor(geometry, rawConstraint, options = {}) {
     indices: pose.hit.indices,
     barycoord: pose.hit.barycoord.toArray(),
     tangentWeights: tangentWeights(geometry, pose.hit.indices, pose.frame.tangent),
+    topologySignature: surfaceTopologySignature(geometry),
     normalMode: pose.constraint.normalMode,
     offset: pose.constraint.offset,
     local: pose.constraint.local,
@@ -283,10 +311,50 @@ export function bindSurfaceAnchor(geometry, rawConstraint, options = {}) {
   return anchor;
 }
 
+/**
+ * Remap one persistent anchor through a topology constructor that knows exactly which
+ * target triangle and corner order came from the source triangle. `cornerMap[targetCorner]`
+ * gives the corresponding source-anchor corner. This keeps barycentric coordinates and the
+ * affine tangent weights attached to their semantic source corners when winding changes.
+ */
+export function remapSurfaceAnchor(rawAnchor, targetGeometry, {
+  triangleIndex,
+  cornerMap = [0, 1, 2],
+} = {}) {
+  const position = validateGeometry(targetGeometry, 'remapSurfaceAnchor');
+  const anchor = surfaceAnchor(rawAnchor);
+  if (!Number.isInteger(triangleIndex) || triangleIndex < 0 || triangleIndex >= targetGeometry.index.count / 3) {
+    throw new Error('remapSurfaceAnchor triangleIndex must identify a target triangle');
+  }
+  if (!Array.isArray(cornerMap) || cornerMap.length !== 3
+    || cornerMap.some(i => !Number.isInteger(i) || i < 0 || i > 2)
+    || new Set(cornerMap).size !== 3) {
+    throw new Error('remapSurfaceAnchor cornerMap must be a permutation of [0, 1, 2]');
+  }
+  const offset = triangleIndex * 3;
+  const indices = [
+    targetGeometry.index.getX(offset),
+    targetGeometry.index.getX(offset + 1),
+    targetGeometry.index.getX(offset + 2),
+  ];
+  if (indices.some(i => i >= position.count)) throw new Error('remapSurfaceAnchor target triangle references an invalid vertex');
+  return surfaceAnchor({
+    ...anchor,
+    triangleIndex,
+    indices,
+    barycoord: cornerMap.map(i => anchor.barycoord[i]),
+    tangentWeights: cornerMap.map(i => anchor.tangentWeights[i]),
+    topologySignature: surfaceTopologySignature(targetGeometry),
+  });
+}
+
 /** Resolve a persistent anchor against a same-topology support rebuild. */
 export function resolveSurfaceAnchor(geometry, rawAnchor) {
   const position = validateGeometry(geometry, 'resolveSurfaceAnchor');
   const anchor = surfaceAnchor(rawAnchor);
+  if (anchor.topologySignature != null && anchor.topologySignature !== surfaceTopologySignature(geometry)) {
+    throw new Error('surfaceAnchor topology changed: indexed topology signature differs; remap or rebind explicitly');
+  }
   const triangleCount = geometry.index.count / 3;
   if (anchor.triangleIndex >= triangleCount) throw new Error('surfaceAnchor topology changed: recorded triangle no longer exists; rebind explicitly');
   const offset = anchor.triangleIndex * 3;

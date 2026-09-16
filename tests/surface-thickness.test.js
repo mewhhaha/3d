@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { creaseNormals, solidifyGeometry } from '../src/lib/surface-thickness.js';
+import { creaseNormals, solidifyGeometry, remapSolidifyAnchor } from '../src/lib/surface-thickness.js';
 import { defineFaceRegions, faceRegionNames, faceRegionTriangles } from '../src/lib/face-regions.js';
+import { bindSurfaceAnchor, resolveSurfaceAnchor } from '../src/lib/surface-mount.js';
 
 function quad() {
   const g = new THREE.BufferGeometry();
@@ -78,6 +79,37 @@ test('solidify may drop source semantics while retaining explicit shell roles',(
   assert.deepEqual(faceRegionNames(result),['derived.inner','derived.outer']);
   assert.deepEqual(result.userData.solidify.preservedFaceRegions,[]);
   assert.throws(()=>solidifyGeometry(defineFaceRegions(quad(),{'shell.outer':[0]}),{regionPrefix:'shell'}),/collides with source region/);
+});
+
+test('solidify remaps persistent anchors exactly onto outer and reversed-winding inner face copies',()=>{
+  const source=quad();
+  const anchor=bindSurfaceAnchor(source,{near:[.22,.08,.3],tangentHint:[1,.15,0],offset:.012});
+  const shell=solidifyGeometry(source,{thickness:.12,offset:0,rim:'sharp',regionPrefix:'shell'});
+  assert.throws(()=>resolveSurfaceAnchor(shell,anchor),/topology signature differs/,'topology changes require an explicit remap');
+  const outer=remapSolidifyAnchor(shell,anchor,{surface:'outer'});
+  const inner=remapSolidifyAnchor(shell,anchor,{surface:'inner'});
+  assert.equal(outer.triangleIndex,anchor.triangleIndex);
+  assert.equal(inner.triangleIndex,source.index.count/3+anchor.triangleIndex);
+  assert.deepEqual(outer.barycoord,anchor.barycoord);
+  assert.deepEqual(inner.barycoord,[anchor.barycoord[0],anchor.barycoord[2],anchor.barycoord[1]]);
+  const outerPose=resolveSurfaceAnchor(shell,outer), innerPose=resolveSurfaceAnchor(shell,inner);
+  assert.ok(outerPose.frame.origin.z>.05);
+  assert.ok(innerPose.frame.origin.z<-.05);
+  assert.ok(outerPose.frame.normal.z>.9);
+  assert.ok(innerPose.frame.normal.z<-.9);
+  assert.equal(shell.userData.solidify.sourceTriangles,2);
+  assert.equal(shell.userData.solidify.sourceTopologySignature,anchor.topologySignature);
+});
+
+test('solidify anchor remap rejects unrelated source anchors and non-solidify targets',()=>{
+  const source=quad(), other=quad();
+  other.setIndex([0,2,1,0,3,2]);
+  const anchor=bindSurfaceAnchor(other,{near:[.1,.1,.2]});
+  const shell=solidifyGeometry(source,{rim:false});
+  assert.throws(()=>remapSolidifyAnchor(shell,anchor),/different source topology/);
+  assert.throws(()=>remapSolidifyAnchor(source,bindSurfaceAnchor(source,{near:[0,0,.2]})),/produced by solidifyGeometry/);
+  assert.throws(()=>remapSolidifyAnchor(shell,{...bindSurfaceAnchor(source,{near:[0,0,.2]}),topologySignature:null}),/bindSurfaceAnchor/);
+  assert.throws(()=>remapSolidifyAnchor(shell,bindSurfaceAnchor(source,{near:[0,0,.2]}),{surface:'rim'}),/surface must/);
 });
 
 test('creaseNormals splits indexed topology by angle and drops stale tangents',()=>{

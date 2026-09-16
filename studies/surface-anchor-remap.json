@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "id": "surface-anchor-remap",
+  "title": "Workflow study — exact anchor remap through solidify",
+  "module": "models/surface-anchor-remap-study.js",
+  "lockCamera": true,
+  "width": 600,
+  "height": 600,
+  "views": [
+    "front",
+    "threequarter",
+    "side",
+    "back"
+  ],
+  "passes": [
+    "material",
+    "clay",
+    "wire",
+    "silhouette"
+  ],
+  "cases": [
+    {
+      "id": "combined",
+      "label": "Organic + mechanical anchor remap",
+      "values": {
+        "organic": true,
+        "mechanical": true
+      },
+      "maxTriangles": 16000
+    },
+    {
+      "id": "organic",
+      "label": "Leaf source anchor remapped through solidify",
+      "values": {
+        "organic": true,
+        "mechanical": false
+      },
+      "maxTriangles": 10000
+    },
+    {
+      "id": "mechanical",
+      "label": "Panel source anchor remapped through solidify",
+      "values": {
+        "organic": false,
+        "mechanical": true
+      },
+      "maxTriangles": 10000
+    }
+  ]
+}

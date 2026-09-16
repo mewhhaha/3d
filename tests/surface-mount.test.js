@@ -6,6 +6,7 @@ import { triangleSpatialIndex } from '../src/lib/triangle-spatial-index.js';
 import {
   surfaceMount, resolveSurfaceMount, attachSurfaceMount,
   surfaceAnchor, bindSurfaceAnchor, resolveSurfaceAnchor, attachSurfaceAnchor,
+  remapSurfaceAnchor, surfaceTopologySignature,
 } from '../src/lib/surface-mount.js';
 
 function quad(z = 0, slope = 0) {
@@ -168,11 +169,33 @@ test('surface anchor transports its tangent affinely with the bound triangle', (
 
 test('surface anchor rejects topology changes and invalid serialized anchors instead of guessing', () => {
   const g=quad(), anchor=bindSurfaceAnchor(g,{near:[.2,.1,.1]});
+  assert.equal(anchor.topologySignature, surfaceTopologySignature(g));
   const reordered=g.clone();
   const idx=[...reordered.index.array]; [idx[0],idx[1]]=[idx[1],idx[0]]; reordered.setIndex(idx);
-  assert.throws(()=>resolveSurfaceAnchor(reordered,anchor),/topology changed.*rebind explicitly/);
+  assert.throws(()=>resolveSurfaceAnchor(reordered,anchor),/topology changed.*remap or rebind explicitly/);
+  const expanded=g.clone(); expanded.setIndex([...g.index.array,0,1,2]);
+  assert.throws(()=>resolveSurfaceAnchor(expanded,anchor),/topology signature differs/);
   assert.throws(()=>surfaceAnchor({...anchor,barycoord:[.8,.8,-.6]}),/barycoord/);
   assert.throws(()=>surfaceAnchor({...anchor,tangentWeights:[1,1,1]}),/summing to zero/);
+});
+
+test('generic anchor remap preserves corner-owned barycentric and tangent data through winding changes',()=>{
+  const source=quad(), anchor=bindSurfaceAnchor(source,{near:[.21,.06,.2],tangentHint:[1,.2,0]});
+  const target=source.clone();
+  const shifted=[];
+  for(let i=0;i<source.getAttribute('position').count;i++){
+    const p=new THREE.Vector3().fromBufferAttribute(source.getAttribute('position'),i);
+    shifted.push(p.x,p.y,p.z+.2);
+  }
+  target.setAttribute('position',new THREE.Float32BufferAttribute(shifted,3));
+  target.setIndex([0,2,1,0,3,2]); target.computeVertexNormals();
+  const targetTriangle=anchor.triangleIndex;
+  const remapped=remapSurfaceAnchor(anchor,target,{triangleIndex:targetTriangle,cornerMap:[0,2,1]});
+  assert.deepEqual(remapped.barycoord,[anchor.barycoord[0],anchor.barycoord[2],anchor.barycoord[1]]);
+  assert.deepEqual(remapped.tangentWeights,[anchor.tangentWeights[0],anchor.tangentWeights[2],anchor.tangentWeights[1]]);
+  assert.equal(remapped.topologySignature,surfaceTopologySignature(target));
+  const pose=resolveSurfaceAnchor(target,remapped);
+  assert.ok(Math.abs(pose.frame.origin.z-.2)<1e-7);
 });
 
 test('attachSurfaceAnchor applies the persistent pose without mutating support', () => {
