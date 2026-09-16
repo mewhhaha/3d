@@ -29,7 +29,7 @@ Local review artifacts live under `renders/run18-profile-regions/`, including ma
 - `node --test tests/profile-sweep.test.js tests/face-regions.test.js tests/surface-thickness.test.js tests/triangle-spatial-index.test.js` — **28/28 passed**.
 - `node --test --test-name-pattern='profile-region-study' tests/models.test.js` — **1/1 passed** for recipe metadata/default geometry/determinism/limits.
 - `npm run build` — passed with **26 recipes**.
-- `npm run study -- studies/profile-regions.json renders/run18-profile-regions` — passed, **3 cases / 36 locked-camera renders**; manifest retains `visualAcceptance: "not-assessed"`. Combined case **2,864 triangles**, organic **1,572**, mechanical **1,292**. All three exported GLBs validate with **0 errors / 0 warnings**.
+- `npm run study -- studies/profile-regions.json renders/run18-profile-regions` — passed, **3 cases / 36 locked-camera renders**; manifest retains `visualAcceptance: "not-assessed"`. Final rendered reports contain **3,236 triangles** combined, **2,016** organic-only, and **1,220** mechanical-only. All three exported GLBs validate with **0 errors / 0 warnings**.
 - A repository-wide `npm test` attempt reached test **89 with no failures** before the bounded 210-second timeout; this is **not** a full-suite pass.
 
 ## Visual assessment
