@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "id": "geometry-composition",
+  "title": "Workflow study — owned geometry composition",
+  "module": "models/geometry-composition-study.js",
+  "lockCamera": true,
+  "width": 560,
+  "height": 560,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"combined","label":"Organic + mechanical owned composition","values":{"organic":true,"mechanical":true},"maxTriangles":9000},
+    {"id":"organic","label":"Three-leaf semantic composition","values":{"organic":true,"mechanical":false},"maxTriangles":6500},
+    {"id":"mechanical","label":"Panel + routed rail semantic composition","values":{"organic":false,"mechanical":true},"maxTriangles":6500}
+  ]
+}
