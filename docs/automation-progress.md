@@ -1,5 +1,36 @@
 # Automated refinement progress
 
+## 2026-09-16 — reusable triangle spatial query and constrained transfer
+
+Base remote revision: `394e8841e7609ab3478122bad7cef0765b8ad328`.
+Implementation revision: `d1f812eefbd60f0db28e7bcb369660426003638b`.
+Capability: accelerate repeated closest-triangle queries with a reusable AABB hierarchy and let authors constrain ambiguous proximity transfer by explicit source groups or target/source normal agreement.
+
+### Accepted changes
+
+- Added `triangleSpatialIndex()` as a general indexed-triangle nearest-point layer with deterministic tie breaking, barycentric output, face normals, source indices and query diagnostics.
+- Extended `transferSurfaceAttributes()` with `auto | brute-force | bvh` acceleration, explicit source `groupIndices`, and optional `minNormalDot` filtering against target vertex normals. Tiny transfers preserve the brute-force path; larger jobs can reuse the spatial hierarchy.
+- Added a compact workflow study with two independent ambiguity cases: layered organic sheets use an explicit source group, while a hard-surface service skin rejects a nearer opposite-facing backing sheet. Geometry stays fixed between study cases.
+- No cyber-android reference geometry or annotations changed in this pass.
+
+### Evidence
+
+- `npm run doctor` — Three.js r186, Chromium 144.0.7559.96, WebGL2, SwiftShader.
+- Focused geometry suite — **24/24 passed**; recipe/discovery/determinism checks — **2/2 passed**.
+- `npm run build` — passed with **23 recipes**.
+- `npm run study -- studies/spatial-transfer.json renders/run15-spatial-transfer` — passed, **2 cases / 24 locked-camera images**, identical **1,592 triangles** and silhouette IoU **1.0** in front/three-quarter/side; material differences isolate the mapping constraint. Both study GLBs validate with **0 errors / 0 warnings**.
+- Isolated constrained renders: organic **560 triangles**, mechanical **1,032 triangles**; both isolated GLBs validate with **0 errors / 0 warnings**.
+- Local post-warmup median benchmark: 7,560 candidate pairs brute **1.00 ms** / BVH **1.12 ms**; 33,696 pairs **1.89 / 1.74 ms**; 299,880 pairs **10.72 / 3.99 ms**; 1,218,000 pairs **37.22 / 6.92 ms**; 4,660,880 pairs **144.15 / 18.27 ms**. Environment-specific; not a general performance guarantee.
+- A repository-wide `npm test` attempt reached test **81** with no failures before the bounded 180-second timeout; this is **not** a full-suite pass.
+
+### Visual assessment
+
+The nearest-only organic fixture visibly switches from the intended green/gold sheet to the nearby purple/blue layer across part of the card; the group-constrained result stays on the authored upper layer. The nearest-only mechanical panel samples the closer magenta backing surface; the normal-facing result restores the intended cyan-to-orange front field. Clay, wire and silhouette remain unchanged, confirming this pass changes correspondence rather than shape.
+
+### Limitations / next target
+
+The index snapshots source triangles and must be rebuilt after source positions change. Median splits are intentionally simple; there is no dynamic refit, ray casting, overlap query, semantic part graph, projection direction or same-facing multilayer disambiguation. The next general workflow priority should move from proximity to **authored correspondence domains**: reusable source-region predicates / stable semantic tags that survive composition, so topology transfer and attachments can target named construction regions without depending on raw group numbers.
+
 ## 2026-09-16 — domed crown closure and raised shin-brace pass
 
 Base remote revision: `cae4a1a5d35f13f3e648fdf4f82e450e3e840b44`.
@@ -173,16 +204,21 @@ Active recipe: `models/cyber-form-study.js`.
 ### Evidence
 
 - `npm run doctor`: WebGL2 / Chromium / SwiftShader available.
-- Targeted geometry suite: `node --test tests/form-design.test.js tests/shape-rails.test.js tests/region-mask.test.js tests/compact-geometry.test.js` — 18/18 passed.
-- Full `npm test` was attempted twice but did not complete within the bounded local execution window; both attempts reached test 83 with no failures before timeout. This is not recorded as a repository-wide pass.
+- Targeted geometry suite: `node --test tests/form-design.test.js tests/shape-rails.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/contour-volume.test.js` — **22/22 passed**.
 - `npm run build` — passed, 15 recipes built.
-- `node scripts/measure-reference.mjs models/cyber-form-study.js` — 9 feature points, 9.3566575468 px RMS, 17.9592707268 px maximum. This matches the prior pose-alignment value to displayed precision; the pass is a shape change, not a pose correction.
-- Fixed-camera renders inspected locally: `renders/automation-head-face/{front,side,threequarter}-{material,clay}.png` and `renders/automation-hero-face/hero-material.png`.
+- Full `npm test` was attempted twice but did not complete within the bounded local execution window; both attempts reached test 83 with no failures before timeout. This is not recorded as a repository-wide pass.
+- `node scripts/measure-reference.mjs models/cyber-form-study.js` — **9.3566575468 px RMS**, **17.9592707268 px maximum**, unchanged.
+- Fixed-camera portrait material/clay front, side and three-quarter renders completed. Full hero material render completed with the locked reference camera.
+- Cage hero GLB validates with **0 errors / 0 warnings**.
 
 ### Visual assessment
 
-The lower face is no longer pulled sideways by a portrait-space deformation and reads more consistently from front, three-quarter and hero views. The face is still simplified: the chin remains too sharp, eye/lip attachments are separate surface geometry, and the head/hair crown is still too angular compared with the supplied reference. The broad chest/shoulder armor and luminous loop remain larger likeness errors than facial micro-detail.
+The lower face is shorter and more symmetric, with less of the long pulled wedge that made the previous head read unlike the reference. The jaw remains simplified and the separate eye/lip attachments still need stronger integration. The crown/hair mass remains a larger silhouette error than facial micro-detail.
+
+### Rejected experiment
+
+A crown-cap trial replaced the upper closing faces with a rounder cap while retaining the hair boundary. It created a new raised seam/ridge in front and side clay views, so it was discarded rather than committed.
 
 ### Next target
 
-Keep the pose, camera and annotations fixed. Refine one primary mass next: either soften the crown/head cross-section without introducing a cap ridge, or reshape the chest/shoulder armor boundaries and depth. Do not add decorative density before those forms improve.
+Keep the accepted pose/camera/reference measurements fixed. The next structural pass should address the broad crown/hair cross-section without perturbing normal-transfer quality, or improve the outer shin/knee silhouette if that reads as the larger full-figure defect.
