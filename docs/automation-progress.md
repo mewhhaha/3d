@@ -1,5 +1,36 @@
 # Automated refinement progress
 
+## 2026-09-16 — domed crown closure and raised shin-brace pass
+
+Base remote revision: `cae4a1a5d35f13f3e648fdf4f82e450e3e840b44`.
+Active recipe: `models/cyber-form-study.js`.
+
+### Accepted changes
+
+- Added reusable `loopCap()` construction in `src/lib/shape-rails.js`. It preserves an authored loop boundary exactly while replacing a single flat triangle fan with a concentric multi-ring dome. It is intentionally a small-loop cap primitive, not a general polygon hole filler.
+- Replaced only the bob's crown closure with `loopCap()`. The curtain/fringe supports, their low/high meshes, pose, camera, reference annotations and hair cut remain unchanged, avoiding the normal-transfer regression seen in the previous crown-support contraction trial.
+- Extended `armorLeaf()` / `segmentedArmor()` with a longitudinal `lift` profile. Raised armor can now vary its support-normal clearance along the limb while retaining shared shape, boundaries and tessellation.
+- Used that lift on the asymmetric knee ears/receivers and added three larger connected outer-shin masses: an upper shoulder plate, long lateral rail and lower clamp. They remain bands on the shared shin support rather than detached world-space greebles.
+
+### Evidence
+
+- Visual comparison used the previously saved private checkpoint containing the supplied reference; no public reference annotation was changed.
+- `npm run doctor` — WebGL2 / Chromium / SwiftShader available.
+- `node --test tests/shape-rails.test.js tests/form-design.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/cyber-mechanics.test.js tests/contour-volume.test.js tests/render-batch.test.js` — **32/32 passed**.
+- `npm run build` — passed, **15 recipes** built.
+- `node scripts/measure-reference.mjs models/cyber-form-study.js` — **9.3566575468 px RMS**, **17.9592707268 px maximum**, unchanged from the accepted pose.
+- Independent hair normal transfer remains effectively unchanged because the support is unchanged: curtain baked mean/p95/max **0.197 / 0.362 / 2.258 degrees**; fringe **0.271 / 0.613 / 8.768 degrees**. The fringe maximum still exceeds the five-degree editorial target and remains flagged.
+- Final fixed-camera cage hero: **533,056 triangles**. `renders/run6-final/cyber-form-study.glb` validates with **0 errors / 0 warnings**.
+- Head material/clay before/after captures are in `renders/run6-head-before/` and `renders/run6-head-after/`. Isolated shin before/after captures are in `renders/run6-shin-before/` and `renders/run6-shin-after2/`.
+
+### Visual assessment
+
+The crown closure no longer reads as the same sharp single-fan patch, and the change does not compromise the accepted hair normal transfer. The larger problem remains the broad planar crown support around that closure, so this is only a local improvement rather than a solved head silhouette. The shin now has a raised lateral stack instead of only shallow side strips, improving close-up mechanical layering, but the full hero still looks cleaner and less irregular than the reference.
+
+### Next target
+
+Keep pose, camera and annotations fixed. The next high-impact pass should change the crown/head primary cross-section without altering the accepted baked-support error tail, or strengthen the boot/ankle silhouette with a small number of larger connected shell forms. Avoid small greebles until those masses read correctly.
+
 ## 2026-09-16 — local-pivot portrait proportion pass
 
 Base remote revision: `a318c99701a3c0618c4b50eaeec907a41f3a2ccf`.
