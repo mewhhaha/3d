@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { compactGeometry } from '../compact-geometry.js';
-import { group, material, mesh } from '../modeling.js';
-import { guideCurve, railSurface, compileSurface } from '../shape-rails.js';
+import { group, material } from '../modeling.js';
+import { guideCurve, railSurface, compileSurface, loopCap } from '../shape-rails.js';
 
 import { cacheSurface } from '../surface-cache.js';
 import { partitionSurface, matchBoundary, surfaceEdge, edgeDerivative } from '../surface-boundary.js';
@@ -47,11 +47,9 @@ export function guidedBob({ mode='cage', textureSize=512, ...shape }={}) {
   const object=compileSurface('Guided '+key,cut,{mode,segments:fringe?[48,32]:[128,48],refinement:3,textureSize,detail:hairFibers({count}),material:mat});
   const original=object.geometry;object.geometry=compactGeometry(original);original.dispose();root.add(object);
  }
- // Close only the small crown opening with a geometric fan, not a collapsed UV chart.
- const ring=Array.from({length:64},(_,i)=>guides.curtain(i/63,0)),center=ring.reduce((a,p)=>a.map((x,k)=>x+p[k]/ring.length),[0,0,0]);center[1]+=.003;
- const geo=new THREE.BufferGeometry(),pos=[...center,...ring.flat()],idx=[];
- for(let i=0;i<ring.length;i++)idx.push(0,1+i,1+(i+1)%ring.length);
- geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute([.5,.5,...ring.flatMap((_,i)=>[i/ring.length,0])],2));geo.setIndex(idx);geo.computeVertexNormals();
- root.add(mesh(geo,{name:'Crown closure',material:material('#82a5a0',{roughness:.6,side:THREE.DoubleSide})}));
+ // Preserve the exact support boundary, but round the visible crown closure with several
+ // concentric rings. This avoids changing the curtain/fringe support or its normal bake.
+ const ring=Array.from({length:64},(_,i)=>guides.curtain(i/63,0));
+ root.add(loopCap('Crown closure',ring,{lift:.010,rings:5,material:material('#82a5a0',{roughness:.6,side:THREE.DoubleSide})}));
  root.userData.groom={method:'periodic crown-to-cut support, partitioned into matching charts; no reference projection',mode};return root;
 }
