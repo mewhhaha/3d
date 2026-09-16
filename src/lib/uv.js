@@ -58,6 +58,13 @@ export function packUV(meshes, { padding = 0.02 } = {}) {
     g.deleteAttribute('tangent'); return g;
   });
 }
+export function uvPreview(geometry, options = {}) {
+  const position=geometry?.attributes?.position,uv=geometry?.attributes?.uv;
+  if(!position) return {available:false,reason:'no-geometry',svg:null};
+  if(!uv) return {available:false,reason:'missing-uv',svg:null};
+  if(uv.count!==position.count || !uv.array.every(Number.isFinite)) return {available:false,reason:'invalid-uv',svg:null};
+  return {available:true,reason:null,svg:uvSVG(geometry,options)};
+}
 export function uvSVG(geometry, { size = 1024, maxTriangles = 100000 } = {}) {
   const uv=geometry.attributes.uv; if(!uv) throw new Error('Mesh has no UV coordinates');
   const index=geometry.index, length=index?index.count:uv.count, stride=Math.max(1,Math.ceil(length/3/maxTriangles));

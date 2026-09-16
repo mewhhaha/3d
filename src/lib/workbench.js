@@ -1,5 +1,5 @@
 import { THREE } from './modeling.js';
-import { auditUV, uvSVG } from './uv.js';
+import { auditUV, uvPreview } from './uv.js';
 import { checkerTexture } from './textures.js';
 export function installWorkbench({ getRoot, scene, camera, controls, render, frame, getModel }) {
   const style=document.createElement('style');
@@ -10,7 +10,7 @@ export function installWorkbench({ getRoot, scene, camera, controls, render, fra
     <label>Display <select id="surface-display"><option value="pbr">Materials / PBR</option><option value="clay">Clay</option><option value="normals">Normals</option><option value="uv">UV checker</option><option value="wire">Wireframe</option></select></label>
     <label>Inspect mesh <select id="surface-mesh"></select></label>
     <div class="two-buttons"><button id="surface-focus" type="button">Close-up</button><button id="surface-frame" type="button">Full model</button></div>
-    <p id="surface-audit"></p><img id="surface-uv" alt="UV layout for selected mesh" width="256" height="256">
+    <p id="surface-audit"></p><img id="surface-uv" alt="UV layout for selected mesh" width="256" height="256"><p id="surface-uv-status" hidden></p>
     <button id="surface-download-uv" type="button">Download UV layout (.svg)</button>
     <label>Texture <select id="surface-texture"><option value="map">Base color (sRGB)</option><option value="normalMap">Normal (linear)</option><option value="roughnessMap">Metallic / roughness (linear)</option></select></label>
     <img id="surface-map" alt="Selected texture map" width="256" height="256" hidden>
@@ -32,7 +32,15 @@ export function installWorkbench({ getRoot, scene, camera, controls, render, fra
     return {name:t.name||slot,data:canvas.toDataURL('image/png'),width:canvas.width,height:canvas.height,colorSpace:t.colorSpace};
   }
   function showTexture(){const t=textureData($('#surface-texture').value);$('#surface-map').hidden=!t;$('#surface-download-map').disabled=!t;if(t)$('#surface-map').src=t.data;}
-  function showUV(){if(!chosen())return;if(layoutURL)URL.revokeObjectURL(layoutURL);layoutURL=URL.createObjectURL(new Blob([uvSVG(chosen().geometry,{maxTriangles:10000})],{type:'image/svg+xml'}));$('#surface-uv').src=layoutURL;showTexture();}
+  function showUV(){
+    const mesh=chosen(),image=$('#surface-uv'),status=$('#surface-uv-status'),download=$('#surface-download-uv');if(!mesh)return;
+    if(layoutURL)URL.revokeObjectURL(layoutURL);layoutURL=undefined;
+    const preview=uvPreview(mesh.geometry,{maxTriangles:10000});
+    image.hidden=!preview.available;status.hidden=preview.available;download.disabled=!preview.available;
+    if(preview.available){layoutURL=URL.createObjectURL(new Blob([preview.svg],{type:'image/svg+xml'}));image.src=layoutURL;status.textContent='';}
+    else {image.removeAttribute('src');status.textContent=preview.reason==='invalid-uv'?'UV preview unavailable — selected mesh has an invalid UV set.':'UV preview unavailable — selected mesh has no UV coordinates.';}
+    showTexture();
+  }
   function setDisplay(mode='pbr') {if(!Object.hasOwn(modes,mode))throw new Error('Unknown display mode');scene.overrideMaterial=modes[mode];$('#surface-display').value=mode;document.querySelector('#wireframe').checked=mode==='wire';render();}
   function focus(name) {
     const object=typeof name==='string'?getRoot().getObjectByName(name):chosen();
@@ -46,7 +54,7 @@ export function installWorkbench({ getRoot, scene, camera, controls, render, fra
   document.querySelector('#wireframe').onchange=e=>setDisplay(e.target.checked?'wire':'pbr');
   $('#surface-mesh').onchange=showUV;$('#surface-texture').onchange=showTexture;
   $('#surface-focus').onclick=()=>focus();$('#surface-frame').onclick=()=>frame();
-  $('#surface-download-uv').onclick=()=>save(uvSVG(chosen().geometry),`${getModel()}-uv.svg`,'image/svg+xml');
+  $('#surface-download-uv').onclick=()=>{const preview=uvPreview(chosen()?.geometry);if(preview.available)save(preview.svg,`${getModel()}-uv.svg`,'image/svg+xml');};
   $('#surface-download-map').onclick=()=>{const t=textureData($('#surface-texture').value);if(t){const a=document.createElement('a');a.href=t.data;a.download=`${t.name}.png`;a.click();}};
   async function reference() {
     const id=getModel();
@@ -58,8 +66,8 @@ export function installWorkbench({ getRoot, scene, camera, controls, render, fra
     const a=auditUV(getRoot());$('#surface-audit').textContent=`${a.meshes-a.missing.length}/${a.meshes} meshes have UVs · ${a.textures} textures · ${a.invalid.length} invalid UV sets`;
     showUV();reference();
   }
-  return {refresh,api:{focus,setDisplay,surfaceAudit:()=>auditUV(getRoot()),uvLayout:()=>uvSVG(chosen().geometry),textureData,
-    surfaceMeshes:()=>meshes.map((m,i)=>({index:i,name:m.name,vertices:m.geometry.attributes.position.count})),
+  return {refresh,api:{focus,setDisplay,surfaceAudit:()=>auditUV(getRoot()),uvLayout:()=>uvPreview(chosen()?.geometry).svg,textureData,
+    surfaceMeshes:()=>meshes.map((m,i)=>({index:i,name:m.name,vertices:m.geometry.attributes.position.count,hasUV:uvPreview(m.geometry).available})),
     inspectMesh(index){if(!meshes[index])throw new Error('Unknown mesh');$('#surface-mesh').value=index;showUV();return meshes[index].name;},
   }};
 }

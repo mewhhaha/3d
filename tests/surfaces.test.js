@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {THREE,buildModel,inspect,dispose} from '../src/lib/modeling.js';
 import {patchGeometry,loft,sweep,displace,detail} from '../src/lib/surfaces.js';
 import {pbrMaterial,noise} from '../src/lib/textures.js';
-import {auditUV,projectUV,packUV,uvSVG} from '../src/lib/uv.js';
+import {auditUV,projectUV,packUV,uvSVG,uvPreview} from '../src/lib/uv.js';
 import bust from '../models/atelier-bust.js';
 import explorer from '../models/field-explorer.js';
 const digest=a=>createHash('sha256').update(new Uint8Array(a.buffer,a.byteOffset,a.byteLength)).digest('hex');
@@ -30,6 +30,17 @@ test('maps deterministic, correctly tagged, and packed for portable GLB export',
   }
   assert.equal(noise(.25,.42,32,4),noise(1.25,.42,32,4));
   assert.throws(()=>pbrMaterial('skin',{size:99999}));
+});
+
+test('UV preview reports optional capability without weakening strict UV tools',()=>{
+  const plain=new THREE.BoxGeometry().deleteAttribute('uv');
+  assert.deepEqual(uvPreview(plain),{available:false,reason:'missing-uv',svg:null});
+  assert.throws(()=>uvSVG(plain),/no UV coordinates/);
+  const mapped=new THREE.PlaneGeometry();
+  const preview=uvPreview(mapped,{size:128});assert.equal(preview.available,true);assert.equal(preview.reason,null);assert.match(preview.svg,/<svg/);
+  const invalid=mapped.clone();invalid.setAttribute('uv',new THREE.Float32BufferAttribute([0,0],2));
+  assert.deepEqual(uvPreview(invalid),{available:false,reason:'invalid-uv',svg:null});
+  plain.dispose();mapped.dispose();invalid.dispose();
 });
 test('UV projections, atlas chart placement, and true geometry displacement',()=>{
   const g=projectUV(new THREE.BoxGeometry(),{mode:'box'});assert.ok(g.attributes.uv.array.every(Number.isFinite));
