@@ -3,7 +3,7 @@ import { group, material } from '../modeling.js';
 import { contourVolume } from '../contour-volume.js';
 import { shapeProfile, surfaceBand, thickenSurface } from '../shape-rails.js';
 import { surfaceLayer, attachToSurface } from '../surface-frame.js';
-import { panel, radialPort, orient, routedCable } from './mechanics.js';
+import { radialPort, orient, routedCable } from './mechanics.js';
 
 /** A smooth support in physical units; one support drives both shell edges and attachments. */
 export function limbVolume({ length, radii, bend = [[0,0],[1,0]] }) {
@@ -48,20 +48,16 @@ export function limbArmor({ name, length, radii, type='thigh' },mats){
   const spec=type==='forearm'?{start:.025,end:.91,span:.22}:{start:.09,end:.99,span:.29},a=spec.span;
   root.add(armorLeaf(support,{name:name+' / front shell',start:spec.start,end:spec.end,segments:shellSegments,left:[[0,.5-a*.45],[.12,.5-a*.72],[.38,.5-a],[.64,.5-a*.82],[.84,.5-a],[1,.5-a*.68]],right:[[0,.5+a*.45],[.19,.5+a*.74],[.42,.5+a*.85],[.71,.5+a],[1,.5+a*.64]],material:mats.shell}));
  }
- // Narrow side plates leave controlled dark chassis channels between the front and rear shells.
  const wingWindows=type==='thigh'?[[.12,.47],[.55,.91]]:type==='shin'?[[.09,.42],[.52,.89]]:[[.15,.9]];
  for(const side of [-1,1])for(const [j,[start,end]] of wingWindows.entries()){
   const c=side<0?.08:.92,spread=(type==='shin'?.050:.044)*(j? .82:1);
   root.add(armorLeaf(support,{name:`${name} / rear wing ${side} ${j}`,start,end,segments:shellSegments,left:[[0,c-spread*.72],[.5,c-spread],[1,c-spread*.65]],right:[[0,c+spread*.72],[.5,c+spread],[1,c+spread*.65]],thickness:.003,material:mats.shell}));
  }
- // A dark nested bridge under each major front gap makes segmentation read as mechanics, not missing geometry.
  if(type==='thigh'||type==='shin'){
   const gaps=type==='thigh'?[[.285,.30],[.795,.805]]:[[.255,.27],[.775,.79]];
   for(const [i,[start,end]] of gaps.entries())root.add(armorLeaf(surfaceLayer(support,{offset:-.002}),{name:`${name} / exposed flex bridge ${i}`,start,end,segments:[10,12],left:[[0,.38],[1,.38]],right:[[0,.62],[1,.62]],thickness:.0025,material:mats.dark}));
  }
  if(type==='thigh'||type==='shin'){
-  // Different inner/outer knee ears interrupt the otherwise smooth tube and visually clamp the bearing.
-  // They are still bands on the shared support, so their clearance and curvature track the limb volume.
   const kneeParts=type==='thigh'?[
    {label:'outer knee ear',start:.01,end:.19,left:[[0,.075],[.55,.045],[1,.065]],right:[[0,.19],[.45,.22],[1,.18]],offset:.0025,lift:[[0,0],[.45,.0045],[1,.001]]},
    {label:'inner knee ear',start:.025,end:.145,left:[[0,.81],[.5,.80],[1,.825]],right:[[0,.91],[.55,.945],[1,.925]],offset:.002},
@@ -80,33 +76,42 @@ export function limbArmor({ name, length, radii, type='thigh' },mats){
  root.add(routedCable({name:name+' / surface inlay',points:accent,radius:.0010,segments:32,ends:false,material:type==='forearm'?mats.cyan:mats.orange}));
  root.userData.construction={method:front?'shared-support segmented armor with exposed flex gaps':'curve-bounded normal-offset shell',type};return root;
 }
+
+/** Reusable foot support: arch height, width and centerline are authored independently of shell tessellation. */
+export function archedFootSurface({heel=-.052,toe=.170,base=-.004,width=[[0,.034],[.24,.043],[.52,.052],[.78,.046],[1,.025]],height=[[0,.050],[.22,.046],[.50,.034],[.78,.023],[1,.014]],center=[[0,0],[1,0]]}={}){
+ if(![heel,toe,base].every(Number.isFinite)||toe<=heel)throw new Error('Invalid arched foot support');
+ const w=shapeProfile(width),h=shapeProfile(height),c=shapeProfile(center);
+ return (u,v)=>{const a=(u-.5)*Math.PI;return[c(v)-Math.sin(a)*w(v),base+Math.cos(a)*h(v),THREE.MathUtils.lerp(heel,toe,v)];};
+}
 /** Shaped footprint instead of a rounded rectangular sole; all values are local meters. */
 export function sculptedBoot({side=1}={},mats){
  const root=group(side>0?'Boot.L':'Boot.R');
- const footprint=[[-.037,-.066],[-.048,-.048],[-.046,.018],[-.061,.103],[-.056,.155],[-.033,.187],[.012,.191],[.047,.177],[.058,.138],[.052,.083],[.040,.005],[.038,-.049]];
+ const footprint=[[-.034,-.055],[-.046,-.044],[-.047,.006],[-.058,.084],[-.054,.137],[-.037,.165],[-.008,.174],[.031,.168],[.050,.148],[.055,.112],[.048,.058],[.039,.002],[.036,-.045]];
  const sole=contourVolume({name:'Contoured orange sole',outline:footprint,sections:[
-  {height:-.0435,scale:[.92,.97]}, {height:-.038,scale:[1,1]},
-  {height:-.026,scale:[1.01,1]}, {height:-.018,scale:[.91,.975]},
+  {height:-.0325,scale:[.92,.97]}, {height:-.029,scale:[1,1]},
+  {height:-.022,scale:[1.01,1]}, {height:-.017,scale:[.90,.975]},
  ],material:material('#cb431c',{roughness:.5,metalness:.08})});root.add(sole);
- root.add(contourVolume({name:'Dark flexible midsole',outline:footprint,sections:[{height:-.021,scale:[.88,.96]},{height:-.009,scale:[.88,.96]}],layers:2,material:mats.dark}));
- const width=shapeProfile([[0,.036],[.25,.044],[.55,.057],[.80,.057],[1,.024]]),height=shapeProfile([[0,.075],[.24,.060],[.53,.041],[.82,.025],[1,.017]]);
- const upper=(u,v)=>{const a=(u-.5)*Math.PI;return[-Math.sin(a)*width(v),-.006+Math.cos(a)*height(v),THREE.MathUtils.lerp(-.053,.181,v)];};
+ root.add(contourVolume({name:'Dark flexible midsole',outline:footprint,sections:[{height:-.0185,scale:[.88,.96]},{height:-.0095,scale:[.87,.95]}],layers:2,material:mats.dark}));
+ const upper=archedFootSurface();
  root.add(thickenSurface('Shoe flexible upper',upper,{thickness:.004,segments:[20,32],material:mats.dark}));
  const upperShell=surfaceLayer(upper,{offset:.0045});
- for(const [label,left,right,start,end,segments]of [
-  ['Toe outer petal',.07,.455,.53,.995,[12,20]],
-  ['Toe inner petal',.545,.93,.57,.985,[12,20]],
-  ['Outer instep',.03,.42,.05,.60,[12,20]],
-  ['Inner instep',.60,.97,.08,.57,[12,20]],
- ])root.add(thickenSurface(label,surfaceBand(upperShell,{left:()=>left,right:()=>right,start,end}),{thickness:.004,segments,material:mats.shell}));
- const toeOutline=[[-.026,-.013],[.026,-.013]];for(let i=0;i<=16;i++){const a=i/16*Math.PI;toeOutline.push([.026*Math.cos(a),-.005+.020*Math.sin(a)]);}
- const toe=panel({name:'Toe bumper',outline:toeOutline,depth:.006,bevel:.002,material:mats.shell});toe.position.z=.176;root.add(toe);
- const collar=limbVolume({length:.072,radii:[[0,.037,.038],[.5,.041,.043],[1,.044,.048]]}),cuff=group('Segmented ankle cuff');cuff.position.set(0,.094,-.026);
- for(const [label,a,b,start,end] of [['outer',.04,.42,.08,.98],['inner',.62,.95,.18,.88]])cuff.add(armorLeaf(collar,{name:'Ankle cuff '+label,start,end,left:[[0,a],[.42,a+.02],[.72,a+.07],[1,a+.045]],right:[[0,b],[.48,b-.015],[.78,b-.06],[1,b-.035]],thickness:.004,segments:[10,16],material:mats.shell}));
- root.add(cuff);
- for(const s of[-1,1])root.add(orient(radialPort({name:'Boot heel bearing',radius:.025,color:'amber',detail:1},mats),[s*.044,.026,-.024],[s,0,0]));
- for(const z of [-.033,.034,.080,.127])root.add(routedCable({name:'Raised sole grip',points:[[-.046,-.034,z],[-.047,-.0435,z+.005],[.047,-.0435,z+.005],[.048,-.034,z]],radius:.003,segments:12,ends:false,material:mats.orange}));
- root.userData.construction={method:'section-lofted sole + instep loft + toe and side shell bands'};return root;
+ root.add(segmentedArmor(upperShell,{name:'Articulated foot shell',segments:[12,20],parts:[
+  {label:'outer toe blade',start:.56,end:.995,left:[[0,.06],[.38,.03],[.75,.07],[1,.10]],right:[[0,.43],[.55,.46],[1,.40]],lift:[[0,0],[.45,.0035],[1,0]],material:mats.shell},
+  {label:'inner toe blade',start:.60,end:.97,left:[[0,.56],[.42,.54],[1,.60]],right:[[0,.93],[.55,.91],[1,.86]],offset:.0008,material:mats.shell},
+  {label:'outer heel quarter',start:.06,end:.36,left:[[0,.035],[.45,.025],[1,.065]],right:[[0,.39],[.45,.42],[1,.34]],lift:[[0,0],[.45,.005],[1,.001]],material:mats.shell},
+  {label:'inner heel quarter',start:.09,end:.33,left:[[0,.63],[.50,.60],[1,.66]],right:[[0,.965],[.52,.94],[1,.90]],offset:.001,material:mats.shell},
+  {label:'outer midfoot rail',start:.32,end:.61,left:[[0,.07],[.48,.055],[1,.09]],right:[[0,.255],[.50,.29],[1,.24]],offset:.0015,lift:[[0,0],[.52,.004],[1,0]],thickness:.0035,material:mats.shell},
+ ]}));
+ const collar=limbVolume({length:.044,radii:[[0,.036,.038],[.5,.040,.043],[1,.043,.045]]}),cuff=group('Segmented ankle yoke');cuff.position.set(0,.058,-.026);
+ cuff.add(segmentedArmor(collar,{name:'Ankle yoke shells',segments:[10,14],parts:[
+  {label:'outer yoke',start:.12,end:.95,left:[[0,.03],[.38,.02],[.72,.06],[1,.10]],right:[[0,.34],[.42,.37],[.72,.32],[1,.28]],lift:[[0,0],[.45,.005],[1,.002]],thickness:.004,material:mats.shell},
+  {label:'inner yoke',start:.20,end:.88,left:[[0,.68],[.50,.66],[1,.70]],right:[[0,.96],[.50,.94],[1,.90]],offset:.001,thickness:.004,material:mats.shell},
+  {label:'rear clamp left',start:.18,end:.72,left:[[0,.00],[1,.00]],right:[[0,.10],[.55,.13],[1,.11]],offset:.0015,thickness:.0035,material:mats.shell},
+  {label:'rear clamp right',start:.23,end:.68,left:[[0,.90],[.55,.87],[1,.89]],right:[[0,1],[1,1]],offset:.0015,thickness:.0035,material:mats.shell},
+ ]}));root.add(cuff);
+ for(const s of[-1,1])root.add(orient(radialPort({name:'Boot heel bearing',radius:.019,color:'cyan',detail:1},mats),[s*.043,.020,-.028],[s,0,0]));
+ for(const z of [-.030,.030,.075,.118])root.add(routedCable({name:'Raised sole grip',points:[[-.043,-.028,z],[-.044,-.033,z+.005],[.044,-.033,z+.005],[.045,-.028,z]],radius:.0025,segments:12,ends:false,material:mats.orange}));
+ root.userData.construction={method:'profiled foot support + shared-support segmented shell + compact ankle yoke'};return root;
 }
 
 export function contouredShield({name='Contoured shield',width=.14,height=.13,bulge=.025,notch=.0,
