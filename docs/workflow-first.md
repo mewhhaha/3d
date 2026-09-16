@@ -27,3 +27,18 @@ const finished = creaseNormals(shell, { angle: 40 });
 ```
 
 `solidifyGeometry()` owns new topology and makes that ownership explicit: supported UVs are rebuilt, unsupported topology-dependent attributes are reported as invalidated, and skin/morph/material-group dependencies are rejected rather than silently copied. It is a simple normal-offset shell, not an even-thickness/self-intersection solver. `creaseNormals()` is an optional downstream shading stage, not a substitute for beveling or physical edge construction. This separation lets the same source sheet become a leaf, hair/card strip, cloth trim or hard-surface panel without changing the source path/profile merely to change wall depth.
+
+## Transfer continuous attributes after topology changes
+
+Some useful construction stages deliberately create new topology: a solidified sheet, rebuilt trim, retessellated support, or additive boundary profile no longer has one-to-one source vertices. For continuous point-domain authoring data, use an explicit closest-surface projection instead of assuming vertex correspondence:
+
+```js
+import { transferSurfaceAttributes } from '../src/lib/attribute-transfer.js';
+
+const coloredShell = transferSurfaceAttributes(source, shell, {
+  attributes: ['color', 'mask'],
+  maxDistance: 0.04,
+});
+```
+
+`transferSurfaceAttributes()` clones the target, finds the closest point on the indexed source triangle surface, and barycentrically interpolates only the named non-normalized Float32 attributes. `maxDistance` is an authoring guard against accidental projection onto remote geometry. The first version is intentionally conservative: UVs, normals, tangents, skin data and other domain-specific/discrete semantics are rejected rather than silently treated as generic floats. It is also a brute-force search, so use it as a bounded construction/data-transfer stage rather than a per-frame deformation operation. Geometry construction, attribute transfer and export semantics remain separate responsibilities.

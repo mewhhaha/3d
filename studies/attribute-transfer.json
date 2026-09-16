@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "id": "attribute-transfer",
+  "title": "Workflow study — closest-surface attribute transfer",
+  "module": "models/attribute-transfer-study.js",
+  "lockCamera": true,
+  "width": 560,
+  "height": 560,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"plain","label":"New topology without attribute transfer","values":{"transfer":false},"maxTriangles":7000},
+    {"id":"transferred","label":"Continuous attributes transferred from source surface","values":{"transfer":true},"maxTriangles":7000}
+  ]
+}
