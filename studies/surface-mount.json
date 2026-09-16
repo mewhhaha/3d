@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "id": "surface-mount",
+  "title": "Workflow study — re-evaluable surface mounts",
+  "module": "models/surface-mount-study.js",
+  "lockCamera": true,
+  "width": 600,
+  "height": 600,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"combined","label":"Organic + mechanical re-evaluation","values":{"organic":true,"mechanical":true},"maxTriangles":16000},
+    {"id":"organic","label":"Leaf + bud mount re-evaluation","values":{"organic":true,"mechanical":false},"maxTriangles":10000},
+    {"id":"mechanical","label":"Panel + sensor mount re-evaluation","values":{"organic":false,"mechanical":true},"maxTriangles":10000}
+  ]
+}
