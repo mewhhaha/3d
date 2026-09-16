@@ -40,6 +40,10 @@ scripts/blender_reference.py imports the legacy reference-explorer GLB, checks d
 
 Report model ID, tested revision, deployment state and honest caveats. Pages may remain unconfigured even when all checks pass: Settings > Pages > Source: GitHub Actions.
 
+## Workflow-first continuation
+
+Read `docs/workflow-first.md` before choosing work. The current priority is a reusable modeling/sculpting/scene-building vocabulary and a fast local render/inspect/export loop that can serve future characters, creatures, props, sculptures and environments. Reference scenes are integration/regression cases, not the architecture. Prefer one high-leverage authoring capability over successive cosmetic edits to the cyber android; exercise new general operations on two materially different small fixtures when practical. Research the concrete modeling problem with primary artist/developer sources, record bounded source notes under `docs/research/`, and connect research to an implementation, measured experiment or evidence-based rejection. Do not add infrastructure merely to report on itself.
+
 ## Current primary reference: cyber android
 
 Read `docs/cyber-android.md` and `models/cyber-android-scene.js`. The user supplied the cyber-android artwork with mint/orange bob, pale mechanical armor, radial backpack, luminous loop and neon platform. Build and render actual repository geometry; do not substitute an image-generation result for a model render. Use local material and neutral-clay/side/portrait captures before checkpoints. The initial scene is a procedural blockout/material study, not accepted likeness. Its rigid Survey head motion, high draw-call count and draft geometry must not be described as the earlier hand's skinned, normal-baked pipeline. Render/export and Pages UI are independently tested by `Cyber android scene checks`; report deployment separately.

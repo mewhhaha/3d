@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { group, material } from '../modeling.js';
 import { contourVolume } from '../contour-volume.js';
 import { shapeProfile, surfaceBand, thickenSurface } from '../shape-rails.js';
-import { surfaceLayer, attachToSurface } from '../surface-frame.js';
+import { surfaceLayer, surfacePath } from '../surface-frame.js';
 import { radialPort, orient, routedCable } from './mechanics.js';
 
 /** A smooth support in physical units; one support drives both shell edges and attachments. */
@@ -72,7 +72,7 @@ export function limbArmor({ name, length, radii, type='thigh' },mats){
    {label:'lower outer clamp',start:.08,end:.30,left:[[0,.14],[.55,.11],[1,.13]],right:[[0,.265],[.45,.29],[1,.25]],offset:.0015,lift:[[0,0],[.55,.0065],[1,0]],thickness:.0035,material:mats.shell},
   ]}));
  }
- const accent=[];for(let i=0;i<=24;i++){const v=.15+i/24*.65,u=.5+(type==='forearm'?-.045:.065)+.019*Math.sin(v*10),temp=new THREE.Object3D();attachToSurface(temp,support,{u,v,offset:.002});accent.push(temp.position.toArray());}
+ const accent=surfacePath(support,Array.from({length:25},(_,i)=>{const v=.15+i/24*.65;return[.5+(type==='forearm'?-.045:.065)+.019*Math.sin(v*10),v];}),{offset:.002});
  root.add(routedCable({name:name+' / surface inlay',points:accent,radius:.0010,segments:32,ends:false,material:type==='forearm'?mats.cyan:mats.orange}));
  root.userData.construction={method:front?'shared-support segmented armor with exposed flex gaps':'curve-bounded normal-offset shell',type};return root;
 }
