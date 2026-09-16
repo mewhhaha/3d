@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { box, group, buildModel, dispose } from '../src/lib/modeling.js';
 import { pointFields, weightedTransform, reshapeAssembly } from '../src/lib/shape-deform.js';
 import { guidedBob, bobGuides } from '../src/lib/cyber/hair-design.js';
-import { limbVolume, armorLeaf, sculptedBoot, contouredShield } from '../src/lib/cyber/contour-armor.js';
+import { limbVolume, armorLeaf, segmentedArmor, limbArmor, sculptedBoot, contouredShield } from '../src/lib/cyber/contour-armor.js';
 import { cyberMaterials } from '../src/lib/cyber/mechanics.js';
 import { surface } from '../src/lib/forms/surface.js';
 import { measureRecipe } from '../scripts/measure-reference.mjs';
@@ -45,6 +45,21 @@ test('physical limb support faces outward and its bounded armor has actual thick
  assert.ok(leaf.geometry.index.count>100);assert.equal(leaf.userData.construction.thickness,.004);dispose(leaf);
  assert.throws(()=>limbVolume({length:-1,radii:[[0,.1,.1],[1,.1,.1]]}));
 });
+test('segmented armor shares one support while preserving authored gaps and independent leaves',()=>{
+ const support=limbVolume({length:.42,radii:[[0,.07,.08],[.5,.085,.075],[1,.045,.05]]}),m=cyberMaterials();
+ const parts=[
+  {label:'lower',start:.08,end:.42,left:[[0,.30],[1,.34]],right:[[0,.48],[1,.49]],material:m.shell},
+  {label:'upper',start:.51,end:.90,left:[[0,.52],[1,.51]],right:[[0,.72],[1,.68]],offset:.001,material:m.shell},
+ ];
+ const set=segmentedArmor(support,{name:'Test plates',parts});
+ assert.equal(set.children.length,2);assert.deepEqual(set.userData.construction.parts.map(p=>[p.label,p.start,p.end]),[['lower',.08,.42],['upper',.51,.9]]);
+ const boxes=set.children.map(o=>new THREE.Box3().setFromObject(o));assert.ok(boxes[0].max.y<boxes[1].min.y-.01);
+ assert.throws(()=>segmentedArmor(support,{parts:[parts[0],{...parts[1],label:'lower'}]}));dispose(set);
+ const thigh=limbArmor({name:'Test thigh',length:.428,radii:[[0,.073,.08],[.22,.088,.081],[.52,.075,.073],[.79,.056,.06],[1,.045,.048]],type:'thigh'},m);
+ assert.ok(thigh.getObjectByName('Test thigh / articulated front / main outer leaf'));
+ assert.ok(thigh.getObjectByName('Test thigh / articulated front / main inner leaf'));
+ assert.ok(thigh.getObjectByName('Test thigh / exposed flex bridge 0'));dispose(thigh);
+});
 test('boot has a closed toe bumper and shields expose resolution-independent silhouette profiles',()=>{
  const m=cyberMaterials(),boot=sculptedBoot({},m),shield=contouredShield({},m);
  const shifted=contouredShield({width:.1,widthProfile:[[0,.5],[.5,1],[1,.5]],centerProfile:[[0,.2],[1,.2]]},m);
@@ -64,6 +79,7 @@ test('scene retains one authored camera and five lights at every construction st
    assert.ok(root.getObjectByName('Guided curtain'));assert.ok(root.getObjectByName('Contoured Thigh enclosing panels'));
    assert.equal(root.getObjectByName('Reactor carrier lugs').children.length,12);
    assert.ok(root.getObjectByName('Shoulder joint ball').scale.x<.9);
+   assert.ok(root.getObjectByName('Contoured Thigh enclosing panels / articulated front / main outer leaf'));
   }
   dispose(root);
  }
