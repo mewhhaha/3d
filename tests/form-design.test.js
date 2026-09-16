@@ -15,11 +15,12 @@ test('point fields compose in order, copy inputs and reject invalid results',()=
  assert.deepEqual(f(p),[4,4,6]);assert.deepEqual(p,[1,2,3]);
  assert.throws(()=>pointFields(()=>[1,2,NaN])(p));assert.throws(()=>pointFields(2));
 });
-test('weighted transforms blend primary-form edits without mutating inputs',()=>{
+test('weighted transforms blend primary-form edits around optional pivots without mutating inputs',()=>{
  const p=[2,3,4],half=weightedTransform(()=>.5,{scale:[.5,1,1.5],offset:[1,-2,0]});
  assert.deepEqual(half(p),[2,2,5]);assert.deepEqual(p,[2,3,4]);
- assert.deepEqual(weightedTransform(()=>0,{scale:[0,0,0],offset:[9,9,9]})(p),p);
- assert.throws(()=>weightedTransform(()=>1.1)(p));assert.throws(()=>weightedTransform(null));
+ assert.deepEqual(weightedTransform(()=>1,{scale:[2,.5,1],pivot:[1,1,0]})(p),[3,2,4]);
+ assert.deepEqual(weightedTransform(()=>0,{scale:[0,0,0],offset:[9,9,9],pivot:[7,8,9]})(p),p);
+ assert.throws(()=>weightedTransform(()=>1.1)(p));assert.throws(()=>weightedTransform(null));assert.throws(()=>weightedTransform(()=>1,{pivot:[0,NaN,0]}));
 });
 test('static assembly sculpt honors nested transforms without changing its source',()=>{
  const input=group('Root',[group('Offset',[box({size:[1,1,1],position:[1,0,0]})],{position:[0,2,0],rotation:[0,20,0]})]);

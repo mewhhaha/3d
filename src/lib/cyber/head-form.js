@@ -8,6 +8,8 @@ export const portraitFields=pointFields(
  weightedTransform(p=>smooth(-p[1],.008,.108),{scale:[.82,1,1],offset:[0,.008,.004]}),
  // Soften broad lower cheek corners while leaving the eye band essentially untouched.
  weightedTransform(p=>smooth(Math.abs(p[0]),.060,.105)*smooth(-p[1],-.010,.075),{scale:[.92,1,1],offset:[0,0,-.007]}),
+ // Shorten the pointed chin around a local jaw pivot without dragging the mouth/eye band.
+ weightedTransform(p=>smooth(-p[1],.050,.112),{scale:[1.06,.78,1],pivot:[0,-.052,0],offset:[0,0,-.002]}),
  // Keep the nose as a small anime plane rather than a protruding button.
  p=>{const w=Math.exp(-((p[0]/.018)**2+((p[1]+.018)/.020)**2+((p[2]-.077)/.030)**2));return[p[0],p[1],p[2]-.004*w];},
 );

@@ -5,13 +5,13 @@ export function pointFields(...fields){
  if(fields.some(f=>typeof f!=='function'))throw new Error('Point fields must be functions');
  return p=>{if(!point(p))throw new Error('Invalid field input');let q=p.slice();for(const f of fields){q=f(q.slice());if(!point(q))throw new Error('Invalid field result');}return q;};
 }
-/** Blend a local affine edit by an authored scalar field. Scale is relative to the
- * original point and offset is in local units; weight 0 is identity and 1 is the full edit.
+/** Blend a local affine edit by an authored scalar field. Scale is evaluated around an optional local pivot
+ * and offset is in local units; weight 0 is identity and 1 is the full edit.
  * This is useful for broad primary-form edits such as jaw taper or panel flare without
  * coupling the operation to vertex indices or render resolution. */
-export function weightedTransform(weight,{scale=[1,1,1],offset=[0,0,0]}={}){
- if(typeof weight!=='function'||![scale,offset].every(v=>Array.isArray(v)&&v.length===3&&v.every(Number.isFinite)))throw new Error('Weighted transform needs a scalar field and finite scale/offset vectors');
- return p=>{if(!point(p))throw new Error('Invalid field input');const w=weight(p.slice());if(!Number.isFinite(w)||w<0||w>1)throw new Error('Weighted transform weight must be in [0,1]');return p.map((x,i)=>x*(1+(scale[i]-1)*w)+offset[i]*w);};
+export function weightedTransform(weight,{scale=[1,1,1],offset=[0,0,0],pivot=[0,0,0]}={}){
+ if(typeof weight!=='function'||![scale,offset,pivot].every(v=>Array.isArray(v)&&v.length===3&&v.every(Number.isFinite)))throw new Error('Weighted transform needs a scalar field and finite scale/offset/pivot vectors');
+ return p=>{if(!point(p))throw new Error('Invalid field input');const w=weight(p.slice());if(!Number.isFinite(w)||w<0||w>1)throw new Error('Weighted transform weight must be in [0,1]');return p.map((x,i)=>x+(((x-pivot[i])*scale[i]+pivot[i]+offset[i])-x)*w);};
 }
 /** A coordinate-independent sculpt pass over an owned static assembly. Returns a copy.
  * Each mesh is evaluated in root-local space; topology, UVs and names survive.
