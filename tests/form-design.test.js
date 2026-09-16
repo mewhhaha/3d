@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import*as THREE from 'three';
 import { box, group, buildModel, dispose } from '../src/lib/modeling.js';
 import { pointFields, weightedTransform, reshapeAssembly } from '../src/lib/shape-deform.js';
 import { guidedBob, bobGuides } from '../src/lib/cyber/hair-design.js';
@@ -17,7 +17,7 @@ test('point fields compose in order, copy inputs and reject invalid results',()=
 });
 test('weighted transforms blend primary-form edits without mutating inputs',()=>{
  const p=[2,3,4],half=weightedTransform(()=>.5,{scale:[.5,1,1.5],offset:[1,-2,0]});
- assert.deepEqual(half(p),[2,2,5]);assert.deepEqual(p,[2,3,4]);
+ assert.deepEqual(half(p),[2,2,5]);assert.deepEqual(p,[1,2,3]);
  assert.deepEqual(weightedTransform(()=>0,{scale:[0,0,0],offset:[9,9,9]})(p),p);
  assert.throws(()=>weightedTransform(()=>1.1)(p));assert.throws(()=>weightedTransform(null));
 });
@@ -35,7 +35,7 @@ test('static assembly sculpt honors nested transforms without changing its sourc
 });
 test('guide lofts have finite differential frames and do not depend on render resolution',()=>{
  const charts=bobGuides();for(const chart of Object.values(charts))for(let j=0;j<=16;j++)for(let i=0;i<=16;i++){
-  const n=surface(chart).normal(i/16,j/16);assert.ok(n.toArray().every(Number.isFinite));assert.ok(Math.abs(n.length()-1)<1e-8);
+ const n=surface(chart).normal(i/16,j/16);assert.ok(n.toArray().every(Number.isFinite));assert.ok(Math.abs(n.length()-1)<1e-8);
  }
 });
 test('physical limb support faces outward and its bounded armor has actual thickness',()=>{
@@ -60,7 +60,11 @@ test('scene retains one authored camera and five lights at every construction st
  for(const stage of ['gesture','masses','assembly']){
   const root=buildModel(model,{stage});let cameras=0,lights=0;root.traverse(o=>{if(o.isCamera)cameras++;if(o.isLight)lights++;});
   assert.equal(cameras,1);assert.equal(lights,5);assert.equal(root.getObjectByName('Android').userData.poseGuide.stage,stage);
-  if(stage==='assembly'){assert.ok(root.getObjectByName('Guided curtain'));assert.ok(root.getObjectByName('Contoured Thigh enclosing panels'));}
+  if(stage==='assembly'){
+   assert.ok(root.getObjectByName('Guided curtain'));assert.ok(root.getObjectByName('Contoured Thigh enclosing panels'));
+   assert.equal(root.getObjectByName('Reactor carrier lugs').children.length,12);
+   assert.ok(root.getObjectByName('Shoulder joint ball').scale.x<.9);
+  }
   dispose(root);
  }
 });

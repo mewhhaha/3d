@@ -58,6 +58,22 @@ export function armorPanel(spec, mats) {
   face.scale.set(.955,.98,1); face.position.z=.004;
   root.add(edge,face); return root;
 }
+/** Place independently authored modules around a local XY annulus.
+ * The builder receives a stable radial/tangent frame; geometry remains owned by the child. */
+export function radialArray({name='Radial array',count,radius,start=0,span=Math.PI*2,phase=0,z=0,orientation='radial',build}={}) {
+  if(!Number.isInteger(count)||count<1||count>256)throw new Error('Invalid radial array count');
+  if(![radius,start,span,phase,z].every(Number.isFinite)||radius<0||span<=0||span>Math.PI*2+1e-9)throw new Error('Invalid radial array frame');
+  if(!['radial','tangent','fixed'].includes(orientation)||typeof build!=='function')throw new Error('Invalid radial array builder');
+  const closed=Math.abs(span-Math.PI*2)<1e-9, step=count===1?0:span/(closed?count:count-1),g=group(name);
+  for(let i=0;i<count;i++){
+    const angle=start+phase+i*step,c=Math.cos(angle),s=Math.sin(angle),frame={angle,position:[c*radius,s*radius,z],radial:[c,s,0],tangent:[-s,c,0]};
+    const child=build(i,frame);if(!child?.isObject3D)throw new Error('Radial array builder must return Object3D');
+    child.position.add(V(frame.position));
+    if(orientation!=='fixed')child.rotation.z+=angle+(orientation==='tangent'?Math.PI/2:0);
+    g.add(child);
+  }
+  g.userData.radialArray={count,radius,start,span,phase,z,orientation};return g;
+}
 /** Concentric mechanical port; local normal +Z, all layers are geometry. */
 export function radialPort({ name='Radial port', radius=.06, color='cyan', detail=1, bolts=6 }, mats) {
   positive(radius,'port radius'); if(!mats[color])throw new Error('Unknown port emitter');
@@ -95,13 +111,17 @@ export function routedCable({name='Cable',points,radius=.009,material:mat,segmen
   g.userData.route={points,arcLength:curve.getLength(),clamps};return g;
 }
 /** Bundle offsets use the route's parallel frame instead of global-axis guesses. */
-export function cableLoom({name='Luminous loom',points,colors=['pink','lime','cyan'],radius=.007,spacing=.016,segments=100,clamps=0},mats) {
+export function cableLoom({name='Luminous loom',points,colors=['pink','lime','cyan'],radius=.007,spacing=.016,segments=100,clamps=0,emissiveScale=1,opacity=1},mats) {
+  if(![emissiveScale,opacity].every(Number.isFinite)||emissiveScale<0||emissiveScale>2||opacity<=0||opacity>1)throw new Error('Invalid loom look');
   const curve=cableCurve(points),frames=curve.computeFrenetFrames(segments,false),g=group(name);
   colors.forEach((color,k)=>{
     if(!mats[color])throw new Error('Unknown loom emitter');
     const route=Array.from({length:segments+1},(_,i)=>curve.getPointAt(i/segments).addScaledVector(frames.normals[i],(k-(colors.length-1)/2)*spacing).toArray());
-    g.add(routedCable({name:`${name} / ${color}`,points:route,radius,material:mats[color],segments,clamps,clampMaterial:mats.edge}));
-  });return g;
+    // Clone per loom so local bloom/alpha tuning never mutates the shared emitter palette.
+    const mat=mats[color].clone();mat.name=`${mats[color].name} / ${name}`;mat.emissiveIntensity*=emissiveScale;
+    if(opacity<1){mat.transparent=true;mat.opacity=opacity;mat.depthWrite=false;}
+    g.add(routedCable({name:`${name} / ${color}`,points:route,radius,material:mat,segments,clamps,clampMaterial:mats.edge}));
+  });g.userData.loomLook={emissiveScale,opacity};return g;
 }
 export function bellows({name='Bellows',from,to,radius=.024,ribs=8},mats){
  const g=group(name),a=V(from),b=V(to),d=b.clone().sub(a).normalize();

@@ -1,5 +1,37 @@
 # Automated refinement progress
 
+## 2026-09-16 — shoulder / reactor carrier pass
+
+Base remote revision: `5fdb4bddb051ca8f2018c1c0dd52a48a9d27eee1`.
+Active recipe: `models/cyber-form-study.js`.
+
+### Accepted changes
+
+- Added `radialArray()` to the cyber mechanics vocabulary. It places owned modules in a stable local annular frame and exposes radial/tangent directions without baking placement into each child mesh.
+- Added a nested structural carrier around the existing main backpack reactor: independent inner/outer rings, six radial braces, and twelve alternating carrier lugs all compose in the reactor's existing local frame. The pre-existing cooling cartridges are retained rather than replaced.
+- Recessed the spherical shoulder joint cores and enlarged/profiled the ceramic shoulder cowls, preserving the shoulder centers and arm mounts while making the shell rather than the black ball define more of the outer shoulder silhouette.
+- Added per-loom `emissiveScale` and `opacity` controls. Each loom clones its emitter materials so look-development changes remain local. The reference power loop now uses four thinner, closer, partially transparent strands with lower emission instead of three broad opaque tubes.
+
+### Evidence
+
+- Original reference recovered from the prior private checkpoint and hash-checked: `127f0f4216b12e279f01c77206720feb4e76ab989b7ed92576505faa4f329218`.
+- `npm run doctor` — WebGL2 / Chromium / SwiftShader available.
+- Targeted geometry/mechanics suite: `node --test tests/cyber-mechanics.test.js tests/form-design.test.js tests/shape-rails.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/contour-volume.test.js` — **26/26 passed**.
+- `npm run build` — passed, 15 recipes built.
+- `node scripts/measure-reference.mjs models/cyber-form-study.js` — 9 feature points, **9.3566575468 px RMS**, **17.9592707268 px maximum**, unchanged from the preceding pose alignment.
+- Cage-hair scene export after this pass validates with **0 GLB errors and 0 warnings**. Informational unused-UV messages remain.
+- Fixed-camera hero comparison: `renders/automation-backpack-before/hero-material.png` versus `renders/automation-backpack-final/hero-material.png`. Reactor material/clay close-ups are in `renders/automation-shoulder-after/`.
+
+### Visual assessment
+
+The main reactor no longer reads as a single clean neon disk floating inside a sparse hoop: the carrier rings, braces and lugs give it a larger mechanical mass closer to the supplied artwork. The shoulder shell covers more of the joint and the black spherical core is less dominant. The hanging power loop is no longer blown out into three three thick opaque strokes; its four colored cores remain individually visible through overlapping sections.
+
+The pack is still much cleaner and more radially symmetric than the reference, which has more irregular manifolds, hose crossings and asymmetric brackets. The head/hair crown remains angular, the face is simplified, and the thigh/shin/boot armor is still smoother and less layered than the reference. No pose, camera, reference annotation or limb-length change was made.
+
+### Next target
+
+Keep pose, camera and annotations fixed. Refine the pelvis-to-thigh and knee-to-boot armor transitions, or return to the head/hair crown if those primary silhouettes dominate the next fixed-camera comparison. Prefer a few connected layered shells and exposed chassis paths over decorative surface noise.
+
 ## 2026-09-16 — torso silhouette pass
 
 Base remote revision: `2e5a30a88fcb46bce0a7eb1004ba145e34cc3928`.

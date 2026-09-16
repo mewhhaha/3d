@@ -46,6 +46,24 @@ const chestLeaf = contouredShield({
 
 This is still a regular single-chart surface: it can taper and bias a plate, but it does not make arbitrary concave cutouts, booleans, collision-aware overlaps or automatically segmented armor. The torso pass uses these profiles to expose more of the black thoracic core while keeping the reference pose, named landmarks and camera unchanged.
 
+## Compose repeated mechanics from a local radial frame
+
+`radialArray()` places independently authored modules around a local XY annulus and passes each builder a position plus radial/tangent directions. This keeps placement separate from the module geometry and avoids repeating trigonometry in reactor, joint, fan or dial assemblies.
+
+```js
+const lugs = radialArray({
+  name: 'Carrier lugs', count: 12, radius: 0.18,
+  build: (i, frame) => box({
+    name: 'Carrier lug', size: [0.04, 0.022, 0.054],
+    radius: 0.006, material: i % 3 ? edge : shell,
+  }),
+});
+```
+
+The current refinement uses this frame for the new carrier braces and lugs around the existing reactor, while the concentric rings and pre-existing cooling cartridges remain independent children in the same reactor-local space. `radialArray()` does not solve interpenetration or mechanical linkage; children still own their geometry and can be edited independently.
+
+Luminous cable geometry and look development are also separated. `cableLoom()` now accepts local `emissiveScale` and `opacity` values and clones the selected emitter materials rather than mutating the shared palette. This lets a routed bundle retain its socket endpoints and physical curve while reducing bloom or translucency independently of other neon parts.
+
 ## One support across material boundaries
 
 The recovered hair had separate side and fringe patches. Their boundaries could drift, and merely making the visible outer silhouette larger left holes or creases elsewhere. The new upper hair uses one periodic support partitioned into two domains. The lower side section continues from that support using a boundary and inward derivative constraint.
@@ -129,4 +147,4 @@ The local renderer uses software WebGL and no Blender. Authored scene cameras an
 
 ## Next useful work
 
-Inspect the new primary shapes before adding small decoration. The remaining face is doll-like, the crown has an unwanted groove, armor still has broad simple panels, the toe bumper is too regular, and the luminous loop is opaque and too bright. Keep this pose and reference fixed while addressing one of these regions, with neutral and alternative views. Never change an annotation just to improve a metric.
+Inspect the new primary shapes before adding small decoration. The remaining face is doll-like, the crown has an unwanted groove, the backpack is still cleaner and more symmetric than the reference, and the thigh/shin/boot armor is too smooth through its transitions. The main power loop has been reduced in radius, emission and opacity without moving its socket endpoints. Keep this pose and reference fixed while addressing one of the remaining primary forms, with neutral and alternative views. Never change an annotation just to improve a metric.
