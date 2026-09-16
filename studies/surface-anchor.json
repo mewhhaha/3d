@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "id": "surface-anchor",
+  "title": "Workflow study — persistent barycentric surface anchors",
+  "module": "models/surface-anchor-study.js",
+  "lockCamera": true,
+  "width": 600,
+  "height": 600,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"combined","label":"Organic + mechanical persistent anchors","values":{"organic":true,"mechanical":true},"maxTriangles":16000},
+    {"id":"organic","label":"Curled leaf anchor vs nearest re-query","values":{"organic":true,"mechanical":false},"maxTriangles":10000},
+    {"id":"mechanical","label":"Arched panel anchor vs nearest re-query","values":{"organic":false,"mechanical":true},"maxTriangles":10000}
+  ]
+}

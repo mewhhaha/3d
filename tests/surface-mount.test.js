@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { defineFaceRegions } from '../src/lib/face-regions.js';
 import { triangleSpatialIndex } from '../src/lib/triangle-spatial-index.js';
-import { surfaceMount, resolveSurfaceMount, attachSurfaceMount } from '../src/lib/surface-mount.js';
+import {
+  surfaceMount, resolveSurfaceMount, attachSurfaceMount,
+  surfaceAnchor, bindSurfaceAnchor, resolveSurfaceAnchor, attachSurfaceAnchor,
+} from '../src/lib/surface-mount.js';
 
 function quad(z = 0, slope = 0) {
   const g = new THREE.BufferGeometry();
@@ -96,4 +99,87 @@ test('surface mount validates ambiguous input and max distance failures', () => 
   assert.throws(()=>resolveSurfaceMount(quad(),{near:[0,0,2],maxDistance:.01}),/no matching/);
   const other=quad(.2), index=triangleSpatialIndex(other);
   assert.throws(()=>resolveSurfaceMount(quad(),{near:[0,0,0]},{index}),/different geometry/);
+});
+
+
+test('surface anchor binds a JSON-safe barycentric spot and reproduces its bind pose', () => {
+  const g = quad(0, .2);
+  const mount = surfaceMount({near:[.17,.11,.4], tangentHint:[1,.2,0], offset:.025, local:{position:[.01,-.02,.005],rotation:[3,-7,18],scale:.9}});
+  const nearest = resolveSurfaceMount(g, mount);
+  const anchor = bindSurfaceAnchor(g, mount);
+  assert.deepEqual(JSON.parse(JSON.stringify(anchor)), anchor);
+  const resolved = resolveSurfaceAnchor(g, anchor);
+  assert.equal(resolved.hit.triangleIndex, nearest.hit.triangleIndex);
+  assert.deepEqual(resolved.hit.indices, nearest.hit.indices);
+  close(resolved.hit.barycoord.x + resolved.hit.barycoord.y + resolved.hit.barycoord.z, 1);
+  assert.ok(resolved.position.distanceTo(nearest.position) < 1e-8);
+  assert.ok(resolved.quaternion.angleTo(nearest.quaternion) < 1e-8);
+  assert.equal(resolved.diagnostics.binding, 'barycentric-anchor');
+});
+
+test('persistent anchor follows the exact same triangle and barycentric point through support edits', () => {
+  const base = quad(0, 0);
+  const anchor = bindSurfaceAnchor(base, {near:[.23,.14,.3], tangentHint:[1,0,0], offset:.01});
+  const edited = quad(.03, .6);
+  const p = edited.getAttribute('position');
+  // Same indexed topology, but a local vertex edit strongly changes the bound triangle.
+  const moved = anchor.indices[1];
+  p.setXYZ(moved, p.getX(moved)+.18, p.getY(moved)-.08, p.getZ(moved)+.16);
+  p.needsUpdate=true; edited.computeVertexNormals();
+  const pose = resolveSurfaceAnchor(edited, anchor);
+  const expected = new THREE.Vector3();
+  anchor.indices.forEach((i, corner) => expected.addScaledVector(new THREE.Vector3().fromBufferAttribute(p,i), anchor.barycoord[corner]));
+  assert.ok(pose.frame.origin.distanceTo(expected) < 1e-7);
+  assert.equal(pose.hit.triangleIndex, anchor.triangleIndex);
+  assert.deepEqual(pose.hit.indices, anchor.indices);
+});
+
+test('persistent anchor does not jump when a nearer admissible triangle appears', () => {
+  const base = new THREE.BufferGeometry();
+  base.setAttribute('position', new THREE.Float32BufferAttribute([
+    -.4,-.3,0, .4,-.3,0, 0,.4,0,
+    -.4,-.3,.35, .4,-.3,.35, 0,.4,.35,
+  ],3));
+  base.setIndex([0,1,2,3,4,5]); base.computeVertexNormals();
+  const anchor = bindSurfaceAnchor(base,{near:[.12,.08,.04],tangentHint:[1,0,0]});
+  assert.equal(anchor.triangleIndex,0);
+  const edited = base.clone();
+  const p = edited.getAttribute('position');
+  for (const i of [0,1,2]) p.setZ(i,.26);
+  for (const i of [3,4,5]) p.setZ(i,.01);
+  p.needsUpdate=true; edited.computeVertexNormals();
+  const persistent = resolveSurfaceAnchor(edited, anchor);
+  const nearest = resolveSurfaceMount(edited,{near:[.12,.08,.02],tangentHint:[1,0,0]});
+  assert.equal(persistent.hit.triangleIndex,0);
+  assert.equal(nearest.hit.triangleIndex,1);
+  assert.ok(persistent.position.distanceTo(nearest.position) > .2);
+});
+
+test('surface anchor transports its tangent affinely with the bound triangle', () => {
+  const base=quad();
+  const anchor=bindSurfaceAnchor(base,{near:[.2,.12,.1],tangentHint:[1,.25,0]});
+  const edited=base.clone(), p=edited.getAttribute('position');
+  for(let i=0;i<p.count;i++) p.setXYZ(i,p.getX(i)+.28*p.getY(i),p.getY(i),p.getZ(i)+.4*p.getX(i));
+  p.needsUpdate=true; edited.computeVertexNormals();
+  const pose=resolveSurfaceAnchor(edited,anchor);
+  close(pose.frame.tangent.length(),1); close(pose.frame.tangent.dot(pose.frame.normal),0);
+  assert.ok(Math.abs(pose.frame.tangent.z)>.1);
+});
+
+test('surface anchor rejects topology changes and invalid serialized anchors instead of guessing', () => {
+  const g=quad(), anchor=bindSurfaceAnchor(g,{near:[.2,.1,.1]});
+  const reordered=g.clone();
+  const idx=[...reordered.index.array]; [idx[0],idx[1]]=[idx[1],idx[0]]; reordered.setIndex(idx);
+  assert.throws(()=>resolveSurfaceAnchor(reordered,anchor),/topology changed.*rebind explicitly/);
+  assert.throws(()=>surfaceAnchor({...anchor,barycoord:[.8,.8,-.6]}),/barycoord/);
+  assert.throws(()=>surfaceAnchor({...anchor,tangentWeights:[1,1,1]}),/summing to zero/);
+});
+
+test('attachSurfaceAnchor applies the persistent pose without mutating support', () => {
+  const base=quad(), anchor=bindSurfaceAnchor(base,{near:[-.12,.18,.2],offset:.018,local:{rotation:[0,0,12],scale:.75}});
+  const edited=quad(.04,.25), before=[...edited.attributes.position.array];
+  const object=new THREE.Group();
+  const result=attachSurfaceAnchor(object,edited,anchor);
+  assert.equal(result,object); vectorClose(object.scale,[.75,.75,.75]);
+  assert.deepEqual([...edited.attributes.position.array],before);
 });
