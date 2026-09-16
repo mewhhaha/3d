@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {profileSweepGeometry} from '../src/lib/profile-sweep.js';
+import {faceRegionNames,faceRegionTriangles} from '../src/lib/face-regions.js';
 
 const straight=()=>new THREE.LineCurve3(new THREE.Vector3(0,0,0),new THREE.Vector3(0,0,1));
 const rectangle=[[-.10,-.04],[.10,-.04],[.10,.04],[-.10,.04]];
@@ -50,7 +51,6 @@ test('tilt rolls the section around the guide tangent while closed path seams re
  }
 });
 
-
 test('local profile offsets keep section shape independent from placement',()=>{
  const geometry=profileSweepGeometry({path:straight(),profile:rectangle,segments:2,up:[1,0,0],offset:t=>[.02*t,-.01],caps:false});
  const position=geometry.attributes.position,ring=5;
@@ -66,4 +66,41 @@ test('profile sweep rejects malformed path, profile and taper fields',()=>{
  assert.throws(()=>profileSweepGeometry({path:straight(),profile:rectangle,scale:0}),/scale/);
  assert.throws(()=>profileSweepGeometry({path:straight(),profile:rectangle,scale:()=>[1,NaN]}),/scale/);
  assert.throws(()=>profileSweepGeometry({path:straight(),profile:rectangle,offset:[0,NaN]}),/offset/);
+});
+
+test('profile sweep exposes exact structural side and cap regions',()=>{
+ const geometry=profileSweepGeometry({path:straight(),profile:rectangle,segments:8,up:[1,0,0],regionPrefix:'strap'});
+ assert.deepEqual(faceRegionNames(geometry),['strap.cap.end','strap.cap.start','strap.side']);
+ assert.equal(faceRegionTriangles(geometry,'strap.side').length,8*4*2);
+ assert.equal(faceRegionTriangles(geometry,'strap.cap.start').length,2);
+ assert.equal(faceRegionTriangles(geometry,'strap.cap.end').length,2);
+});
+
+test('parametric face regions are authored in sweep space instead of world coordinates',()=>{
+ const build=segments=>profileSweepGeometry({
+  path:straight(),profile:rectangle,segments,up:[1,0,0],regionPrefix:'strap',
+  faceRegions:{
+   'strap.tip':meta=>meta.kind==='side'&&meta.pathMid>=.75,
+   'strap.flank':meta=>meta.kind==='side'&&meta.profileEdge===1,
+   'strap.terminal':meta=>meta.kind==='cap'&&meta.end==='end',
+  },
+ });
+ const coarse=build(8),fine=build(16);
+ assert.equal(faceRegionTriangles(coarse,'strap.tip').length,2*4*2);
+ assert.equal(faceRegionTriangles(fine,'strap.tip').length,4*4*2);
+ assert.equal(faceRegionTriangles(coarse,'strap.flank').length,8*2);
+ assert.equal(faceRegionTriangles(fine,'strap.flank').length,16*2);
+ assert.deepEqual(faceRegionTriangles(coarse,'strap.terminal'),faceRegionTriangles(coarse,'strap.cap.end'));
+ assert.deepEqual(faceRegionTriangles(fine,'strap.terminal'),faceRegionTriangles(fine,'strap.cap.end'));
+});
+
+test('open profile region metadata omits nonexistent caps and validates selectors',()=>{
+ const geometry=profileSweepGeometry({
+  path:straight(),profile:[[-.08,0],[0,.02],[.08,0]],closedProfile:false,segments:10,up:[1,0,0],regionPrefix:'ribbon',
+  faceRegions:{'ribbon.leading':meta=>meta.kind==='side'&&meta.profileEdge===0},
+ });
+ assert.deepEqual(faceRegionNames(geometry),['ribbon.leading','ribbon.side']);
+ assert.equal(faceRegionTriangles(geometry,'ribbon.leading').length,20);
+ assert.throws(()=>profileSweepGeometry({path:straight(),profile:rectangle,regionPrefix:'strap',faceRegions:{'strap.side':()=>true}}),/collides/);
+ assert.throws(()=>profileSweepGeometry({path:straight(),profile:rectangle,faceRegions:{bad:true}}),/predicate/);
 });

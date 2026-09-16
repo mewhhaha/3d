@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mesh } from './modeling.js';
 import { transportedFrames } from './curve-frame.js';
+import { defineFaceRegions } from './face-regions.js';
 
 const finite2=(value,label)=>{
   if(!Array.isArray(value)||value.length!==2||!value.every(Number.isFinite))throw new Error(`${label} must contain two finite numbers`);
@@ -56,7 +57,7 @@ function samplePoint(frame,p,sx,sy){
 /** Sweep an independently authored 2D profile along a 3D guide using transported frames.
  * Profile coordinates are meters in the local normal/binormal plane. `scale` is a separate
  * taper field and `tilt` is delegated to the guide frame, so path, section and roll remain editable. */
-export function profileSweepGeometry({path,profile,segments=64,closed=false,closedProfile=true,caps=true,up,tilt=0,scale=1,offset=[0,0]}={}){
+export function profileSweepGeometry({path,profile,segments=64,closed=false,closedProfile=true,caps=true,up,tilt=0,scale=1,offset=[0,0],regionPrefix=null,faceRegions=null}={}){
   count(segments,'profileSweep segments',2);
   if(typeof closed!=='boolean'||typeof closedProfile!=='boolean'||typeof caps!=='boolean')throw new Error('profileSweep closed, closedProfile and caps must be booleans');
   if(closed&&caps) caps=false;
@@ -64,7 +65,10 @@ export function profileSweepGeometry({path,profile,segments=64,closed=false,clos
   const curve=pathCurve(path,closed),section=normalizedProfile(profile,closedProfile);
   const frames=transportedFrames(curve,{segments,closed,up,tilt});
   const {distances,total}=cumulativeProfile(section,closedProfile);
-  const ringSize=section.length+(closedProfile?1:0),positions=[],uvs=[],indices=[];
+  if(regionPrefix!=null&&(typeof regionPrefix!=='string'||!regionPrefix.length))throw new Error('profileSweep regionPrefix must be a non-empty string or null');
+  if(faceRegions!=null&&(!faceRegions||typeof faceRegions!=='object'||Array.isArray(faceRegions)))throw new Error('profileSweep faceRegions must be a name -> predicate object');
+  if(faceRegions)for(const [name,selector] of Object.entries(faceRegions))if(typeof selector!=='function')throw new Error(`profileSweep face region '${name}' must be a predicate function`);
+  const ringSize=section.length+(closedProfile?1:0),positions=[],uvs=[],indices=[],faceMeta=[];
   const scales=[],offsets=[];
   for(let i=0;i<=segments;i++){
     const [sx,sy]=scaleAt(scale,i/segments,i),[ox,oy]=vector2At(offset,i/segments,i,'offset');scales.push([sx,sy]);offsets.push([ox,oy]);
@@ -78,6 +82,8 @@ export function profileSweepGeometry({path,profile,segments=64,closed=false,clos
   for(let i=0;i<segments;i++)for(let j=0;j<profileEdges;j++){
     const a=i*ringSize+j,b=a+1,c=(i+1)*ringSize+j,d=c+1;
     indices.push(a,b,c,b,d,c);
+    const meta={kind:'side',pathSegment:i,pathStart:i/segments,pathEnd:(i+1)/segments,pathMid:(i+.5)/segments,profileEdge:j,profileStart:distances[j]/total,profileEnd:distances[j+1]/total,profileMid:(distances[j]+distances[j+1])/(2*total),closedPath:closed,closedProfile};
+    faceMeta.push({...meta,triangleInQuad:0},{...meta,triangleInQuad:1});
   }
   const sideVertexCount=positions.length/3;
   const geometry=new THREE.BufferGeometry();
@@ -103,11 +109,13 @@ export function profileSweepGeometry({path,profile,segments=64,closed=false,clos
         const ux=(p.x-bounds.minX)/bounds.dx,uy=(p.y-bounds.minY)/bounds.dy;
         uv.push((end===0?0:.5)+ux*.5,uy*.22);
       }
-      for(const tri of triangles){
-        const a=vertexOffset+tri[0],b=vertexOffset+tri[1],c=vertexOffset+tri[2];
+      for(let triangleIndex=0;triangleIndex<triangles.length;triangleIndex++){
+        const tri=triangles[triangleIndex],a=vertexOffset+tri[0],b=vertexOffset+tri[1],c=vertexOffset+tri[2];
         const pa=new THREE.Vector3(...pos.slice(a*3,a*3+3)),pb=new THREE.Vector3(...pos.slice(b*3,b*3+3)),pc=new THREE.Vector3(...pos.slice(c*3,c*3+3));
         const face=new THREE.Vector3().crossVectors(pb.clone().sub(pa),pc.clone().sub(pa));
         idx.push(...(face.dot(frame.tangent)*sign>=0?[a,b,c]:[a,c,b]));
+        const p0=section[tri[0]],p1=section[tri[1]],p2=section[tri[2]];
+        faceMeta.push({kind:'cap',end:end===0?'start':'end',pathT:end/segments,profileTriangle:triangleIndex,profileCentroid:[(p0.x+p1.x+p2.x)/3,(p0.y+p1.y+p2.y)/3],closedPath:closed,closedProfile});
       }
     }
     geometry.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
@@ -116,9 +124,24 @@ export function profileSweepGeometry({path,profile,segments=64,closed=false,clos
   }
   geometry.computeBoundingBox();geometry.computeBoundingSphere();
   geometry.userData={...geometry.userData,profileSweep:{segments,profilePoints:section.length,closed,closedProfile,caps,sideVertexCount}};
+  const definitions={};
+  if(regionPrefix){
+    definitions[`${regionPrefix}.side`]=faceMeta.flatMap((meta,index)=>meta.kind==='side'?[index]:[]);
+    if(caps){
+      definitions[`${regionPrefix}.cap.start`]=faceMeta.flatMap((meta,index)=>meta.kind==='cap'&&meta.end==='start'?[index]:[]);
+      definitions[`${regionPrefix}.cap.end`]=faceMeta.flatMap((meta,index)=>meta.kind==='cap'&&meta.end==='end'?[index]:[]);
+    }
+  }
+  if(faceRegions){
+    for(const [name,selector] of Object.entries(faceRegions)){
+      if(Object.hasOwn(definitions,name))throw new Error(`profileSweep face region '${name}' collides with a structural region`);
+      definitions[name]=faceMeta.flatMap((meta,index)=>selector(meta)?[index]:[]);
+    }
+  }
+  if(Object.keys(definitions).length)defineFaceRegions(geometry,definitions,{clone:false});
   return geometry;
 }
 export function profileSweep(options){
-  const {path,profile,segments,closed,closedProfile,caps,up,tilt,scale,offset,...meshOptions}=options??{};
-  return mesh(profileSweepGeometry({path,profile,segments,closed,closedProfile,caps,up,tilt,scale,offset}),meshOptions);
+  const {path,profile,segments,closed,closedProfile,caps,up,tilt,scale,offset,regionPrefix,faceRegions,...meshOptions}=options??{};
+  return mesh(profileSweepGeometry({path,profile,segments,closed,closedProfile,caps,up,tilt,scale,offset,regionPrefix,faceRegions}),meshOptions);
 }

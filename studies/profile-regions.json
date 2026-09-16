@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "id": "profile-regions",
+  "title": "Workflow study — sweep-space face regions",
+  "module": "models/profile-region-study.js",
+  "lockCamera": true,
+  "width": 560,
+  "height": 560,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"combined","label":"Organic + mechanical sweep regions","values":{"organic":true,"mechanical":true},"maxTriangles":8000},
+    {"id":"organic","label":"Organic path/profile regions through shell","values":{"organic":true,"mechanical":false},"maxTriangles":5000},
+    {"id":"mechanical","label":"Mechanical side/cap + semantic regions","values":{"organic":false,"mechanical":true},"maxTriangles":5000}
+  ]
+}
