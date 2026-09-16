@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { defineFaceRegions, faceRegionNames, faceRegionTriangles, faceRegionVertexMask, faceRegionMembership } from '../src/lib/face-regions.js';
+import { defineFaceRegions, faceRegionNames, faceRegionTriangles, faceRegionVertexMask, faceRegionMembership, remapFaceRegions } from '../src/lib/face-regions.js';
 
 function strip() {
   const g = new THREE.BufferGeometry();
@@ -52,6 +52,40 @@ test('named region metadata rejects stale topology instead of silently retargeti
 test('region names are explicit construction identifiers, not arbitrary object keys', () => {
   assert.throws(() => defineFaceRegions(strip(), { 'bad name': [0] }), /face region name/);
   assert.throws(() => defineFaceRegions(strip(), { empty: [] }), /non-empty triangle list/);
+});
+
+
+test('face regions remap through explicit target-to-source face provenance and add target roles', () => {
+  const source = defineFaceRegions(strip(), {
+    'panel.left': [0, 1],
+    'panel.right': [2, 3],
+  });
+  const target = new THREE.BufferGeometry();
+  target.setAttribute('position', source.getAttribute('position').clone());
+  target.setIndex([
+    0,1,4, 0,4,3, 1,2,5, 1,5,4,
+    0,1,4, 0,4,3, 1,2,5, 1,5,4,
+  ]);
+  const remapped = remapFaceRegions(source, target, face => face % 4, {
+    targetRegions: {
+      'shell.outer': [0, 1, 2, 3],
+      'shell.inner': [4, 5, 6, 7],
+    },
+  });
+  assert.deepEqual(faceRegionNames(remapped), ['panel.left', 'panel.right', 'shell.inner', 'shell.outer']);
+  assert.deepEqual(faceRegionTriangles(remapped, 'panel.left'), [0, 1, 4, 5]);
+  assert.deepEqual(faceRegionTriangles(remapped, ['panel.left', 'shell.inner'], { match: 'all' }), [4, 5]);
+  assert.deepEqual(faceRegionTriangles(remapped, 'shell.outer'), [0, 1, 2, 3]);
+  assert.deepEqual(faceRegionNames(target), [], 'target remains immutable by default');
+});
+
+test('face-region remapping rejects invalid provenance and semantic name collisions', () => {
+  const source = defineFaceRegions(strip(), { 'panel.left': [0, 1] });
+  const target = strip();
+  assert.throws(() => remapFaceRegions(source, target, () => 99), /invalid source face/);
+  assert.throws(() => remapFaceRegions(source, target, face => face, {
+    targetRegions: { 'panel.left': [0] },
+  }), /collides with source region/);
 });
 
 import { triangleSpatialIndex } from '../src/lib/triangle-spatial-index.js';

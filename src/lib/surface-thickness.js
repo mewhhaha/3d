@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
 import { mesh } from './modeling.js';
+import { faceRegionNames, remapFaceRegions } from './face-regions.js';
 
 const allowedShellAttributes = new Set(['position', 'normal', 'uv']);
 
@@ -35,18 +36,19 @@ function sourceNormals(source, position) {
 }
 function boundaryData(index) {
   const edges = new Map();
-  const add = (a, b) => {
+  const add = (a, b, triangleIndex) => {
     const key = a < b ? `${a}:${b}` : `${b}:${a}`;
     const found = edges.get(key);
     if (found) {
-      found.count++;
+      found.count++; found.faces.push(triangleIndex);
       if (found.count > 2) throw new Error('solidifyGeometry needs manifold triangle edges');
-    } else edges.set(key, { a, b, count: 1 });
+    } else edges.set(key, { a, b, count: 1, faces: [triangleIndex] });
   };
   for (let i = 0; i < index.count; i += 3) {
+    const triangleIndex = i / 3;
     const a = index.getX(i), b = index.getX(i + 1), c = index.getX(i + 2);
     if (a === b || b === c || c === a) throw new Error('solidifyGeometry rejects degenerate triangles');
-    add(a, b); add(b, c); add(c, a);
+    add(a, b, triangleIndex); add(b, c, triangleIndex); add(c, a, triangleIndex);
   }
   const boundary = [...edges.values()].filter(edge => edge.count === 1);
   if (!boundary.length) return { boundary, loops: [] };
@@ -92,11 +94,13 @@ function edgeSideNormal(outerA, innerA, outerB) {
  * `offset` follows Blender-like semantics: -1 keeps the outer surface fixed, 0 centers thickness,
  * +1 keeps the inner surface fixed. `rim` may be false, 'sharp', or 'smooth'.
  */
-export function solidifyGeometry(source, { thickness = 0.01, offset = 0, rim = 'sharp' } = {}) {
+export function solidifyGeometry(source, { thickness = 0.01, offset = 0, rim = 'sharp', preserveRegions = true, regionPrefix = null } = {}) {
   const { position, uv } = validateSource(source);
   finiteNumber(offset, 'solidifyGeometry offset');
   if (offset < -1 || offset > 1) throw new Error('solidifyGeometry offset must be in -1..1');
   if (![false, 'sharp', 'smooth'].includes(rim)) throw new Error("solidifyGeometry rim must be false, 'sharp', or 'smooth'");
+  if (typeof preserveRegions !== 'boolean') throw new Error('solidifyGeometry preserveRegions must be boolean');
+  if (regionPrefix != null && (typeof regionPrefix !== 'string' || !regionPrefix.length)) throw new Error('solidifyGeometry regionPrefix must be a non-empty face-region prefix');
   const normal = sourceNormals(source, position), index = source.index;
   const { boundary, loops } = boundaryData(index);
   const sourceCount = position.count, positions = [], normals = [], uvs = uv ? [] : null, thicknesses = [];
@@ -112,10 +116,10 @@ export function solidifyGeometry(source, { thickness = 0.01, offset = 0, rim = '
     pushVec3(positions, p.clone().addScaledVector(n, -t * innerFactor)); pushVec3(normals, n.multiplyScalar(-1));
     if (uv) uvs.push(uv.getX(i), uv.getY(i));
   }
-  const indices = [], outerIndexCount = index.count;
-  for (let i = 0; i < index.count; i += 3) indices.push(index.getX(i), index.getX(i + 1), index.getX(i + 2));
+  const indices = [], faceSources = [], sourceTriangleCount = index.count / 3, outerIndexCount = index.count;
+  for (let i = 0; i < index.count; i += 3) { indices.push(index.getX(i), index.getX(i + 1), index.getX(i + 2)); faceSources.push(i / 3); }
   const innerStart = indices.length;
-  for (let i = 0; i < index.count; i += 3) indices.push(sourceCount + index.getX(i), sourceCount + index.getX(i + 2), sourceCount + index.getX(i + 1));
+  for (let i = 0; i < index.count; i += 3) { indices.push(sourceCount + index.getX(i), sourceCount + index.getX(i + 2), sourceCount + index.getX(i + 1)); faceSources.push(i / 3); }
   const rimStart = indices.length;
 
   if (rim === 'sharp') {
@@ -125,8 +129,10 @@ export function solidifyGeometry(source, { thickness = 0.01, offset = 0, rim = '
       for (const point of [oa, ia, ob, ib]) { pushVec3(positions, point); pushVec3(normals, sideNormal); }
       if (uvs) uvs.push(0, 1, 0, 0, 1, 1, 1, 0);
       indices.push(base, base + 1, base + 2, base + 2, base + 1, base + 3);
+      faceSources.push(edge.faces[0], edge.faces[0]);
     }
   } else if (rim === 'smooth') {
+    const boundaryFace = new Map(boundary.map(edge => [`${edge.a}:${edge.b}`, edge.faces[0]]));
     for (const loop of loops) {
       const edgeNormals = loop.map((vertex, i) => {
         const nextVertex = loop[(i + 1) % loop.length];
@@ -151,6 +157,9 @@ export function solidifyGeometry(source, { thickness = 0.01, offset = 0, rim = '
       for (let i = 0; i < loop.length; i++) {
         const a = base + i * 2, nextPair = a + 2;
         indices.push(a, a + 1, nextPair, nextPair, a + 1, nextPair + 1);
+        const sourceFace = boundaryFace.get(`${loop[i]}:${loop[(i + 1) % loop.length]}`);
+        if (!Number.isInteger(sourceFace)) throw new Error('solidifyGeometry could not resolve smooth-rim face provenance');
+        faceSources.push(sourceFace, sourceFace);
       }
     }
   }
@@ -172,6 +181,8 @@ export function solidifyGeometry(source, { thickness = 0.01, offset = 0, rim = '
       offset,
       variableThickness: typeof thickness === 'function',
       topologyChanged: true,
+      preservedFaceRegions: preserveRegions ? faceRegionNames(source) : [],
+      generatedFaceRegions: regionPrefix == null ? [] : [ `${regionPrefix}.outer`, `${regionPrefix}.inner`, ...(rim ? [`${regionPrefix}.rim`] : []) ],
       preservedAttributes: uv ? ['uv'] : [],
       invalidatedAttributes,
       rejectedDependencies: ['skin weights', 'morph targets', 'material groups'],
@@ -179,6 +190,23 @@ export function solidifyGeometry(source, { thickness = 0.01, offset = 0, rim = '
       ranges: { outer: [0, outerIndexCount], inner: [innerStart, index.count], rim: [rimStart, indices.length - rimStart] },
     },
   };
+  if (faceSources.length !== result.index.count / 3) throw new Error('solidifyGeometry internal face provenance count mismatch');
+  const targetRegions = {};
+  if (regionPrefix != null) {
+    targetRegions[`${regionPrefix}.outer`] = Array.from({ length: sourceTriangleCount }, (_, i) => i);
+    targetRegions[`${regionPrefix}.inner`] = Array.from({ length: sourceTriangleCount }, (_, i) => sourceTriangleCount + i);
+    if (rim) targetRegions[`${regionPrefix}.rim`] = Array.from({ length: faceSources.length - sourceTriangleCount * 2 }, (_, i) => sourceTriangleCount * 2 + i);
+  }
+  if (preserveRegions || Object.keys(targetRegions).length) {
+    remapFaceRegions(source, result, targetFace => faceSources[targetFace], {
+      sourceRegions: preserveRegions ? null : [],
+      targetRegions,
+      clone: false,
+    });
+  } else if (result.userData.faceRegions) {
+    result.userData = { ...result.userData };
+    delete result.userData.faceRegions;
+  }
   return result;
 }
 
@@ -201,6 +229,6 @@ export function creaseNormals(source, { angle = 60 } = {}) {
 }
 
 export function solidify(geometry, options = {}) {
-  const { thickness, offset, rim, ...meshOptions } = options;
-  return mesh(solidifyGeometry(geometry, { thickness, offset, rim }), meshOptions);
+  const { thickness, offset, rim, preserveRegions, regionPrefix, ...meshOptions } = options;
+  return mesh(solidifyGeometry(geometry, { thickness, offset, rim, preserveRegions, regionPrefix }), meshOptions);
 }

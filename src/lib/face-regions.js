@@ -159,6 +159,67 @@ export function faceRegionMembership(geometry) {
   return membership;
 }
 
+
+/**
+ * Transfer named face-domain regions through a topology operation with known face provenance.
+ * `mapTargetFace(targetFaceIndex)` returns one source face index, an array of source face
+ * indices, or null when the target face has no source-face semantic parent. Optional
+ * `targetRegions` define new target-only roles (for example an operation's outer/inner/rim faces).
+ */
+export function remapFaceRegions(source, target, mapTargetFace, {
+  sourceRegions = null,
+  targetRegions = {},
+  clone = true,
+} = {}) {
+  validateGeometry(source);
+  validateGeometry(target);
+  if (typeof mapTargetFace !== 'function') throw new Error('remapFaceRegions needs a target-face mapping function');
+  if (!targetRegions || typeof targetRegions !== 'object' || Array.isArray(targetRegions)) {
+    throw new Error('remapFaceRegions targetRegions must be a name -> selector object');
+  }
+  const requested = sourceRegions == null
+    ? null
+    : (typeof sourceRegions === 'string' ? [sourceRegions] : sourceRegions);
+  if (requested != null && !Array.isArray(requested)) throw new Error('remapFaceRegions sourceRegions must be a region name or array');
+  const available = sourceRegions == null || requested.length ? faceRegionNames(source) : [];
+  const names = sourceRegions == null ? available : requested;
+  const uniqueNames = [...new Set(names.map(validateName))];
+  const missing = uniqueNames.filter(name => !available.includes(name));
+  if (missing.length) throw new Error(`unknown source face region${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}`);
+  const collisions = uniqueNames.filter(name => Object.hasOwn(targetRegions, name));
+  if (collisions.length) throw new Error(`remapFaceRegions target region collides with source region: ${collisions.join(', ')}`);
+
+  const sourceTriangleCount = source.index.count / 3;
+  const targetTriangleCount = target.index.count / 3;
+  const memberships = Object.fromEntries(uniqueNames.map(name => [name, new Set(faceRegionTriangles(source, name))]));
+  const remapped = Object.fromEntries(uniqueNames.map(name => [name, []]));
+  for (let targetFace = 0; targetFace < targetTriangleCount; targetFace++) {
+    const raw = mapTargetFace(targetFace);
+    if (raw == null) continue;
+    const parents = Array.isArray(raw) ? raw : [raw];
+    if (!parents.length || parents.some(face => !Number.isInteger(face) || face < 0 || face >= sourceTriangleCount)) {
+      throw new Error(`remapFaceRegions mapping for target face ${targetFace} contains an invalid source face`);
+    }
+    for (const name of uniqueNames) {
+      if (parents.some(face => memberships[name].has(face))) remapped[name].push(targetFace);
+    }
+  }
+
+  const definitions = { ...remapped, ...targetRegions };
+  const output = clone ? target.clone() : target;
+  if (!Object.keys(definitions).length) {
+    if (output.userData?.[STORAGE_KEY]) {
+      output.userData = { ...output.userData };
+      delete output.userData[STORAGE_KEY];
+    }
+    return output;
+  }
+  for (const [name, selector] of Object.entries(remapped)) {
+    if (!selector.length) throw new Error(`remapFaceRegions source region '${name}' maps to no target faces`);
+  }
+  return defineFaceRegions(output, definitions, { clone: false });
+}
+
 /** Convert named face-domain regions into a point-domain selection for vertex editing/visualization. */
 export function faceRegionVertexMask(geometry, regionNames, { match = 'any' } = {}) {
   const position = validateGeometry(geometry);

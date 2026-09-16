@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { creaseNormals, solidifyGeometry } from '../src/lib/surface-thickness.js';
+import { defineFaceRegions, faceRegionNames, faceRegionTriangles } from '../src/lib/face-regions.js';
 
 function quad() {
   const g = new THREE.BufferGeometry();
@@ -55,6 +56,28 @@ test('topology-changing dependencies are rejected or explicitly invalidated',()=
   const thick=solidifyGeometry(tangent);
   assert.deepEqual(thick.userData.solidify.invalidatedAttributes,['tangent']);
   assert.equal(thick.getAttribute('tangent'),undefined);
+});
+
+
+test('solidify propagates source face regions and can name outer inner and rim roles',()=>{
+  const source=defineFaceRegions(quad(),{'panel.a':[0],'panel.b':[1]});
+  const result=solidifyGeometry(source,{thickness:.08,rim:'sharp',regionPrefix:'shell'});
+  assert.deepEqual(faceRegionNames(result),['panel.a','panel.b','shell.inner','shell.outer','shell.rim']);
+  assert.deepEqual(faceRegionTriangles(result,'shell.outer'),[0,1]);
+  assert.deepEqual(faceRegionTriangles(result,'shell.inner'),[2,3]);
+  assert.deepEqual(faceRegionTriangles(result,'shell.rim'),[4,5,6,7,8,9,10,11]);
+  assert.deepEqual(faceRegionTriangles(result,'panel.a'),[0,2,4,5,6,7]);
+  assert.deepEqual(faceRegionTriangles(result,['panel.b','shell.rim'],{match:'all'}),[8,9,10,11]);
+  assert.deepEqual(result.userData.solidify.preservedFaceRegions,['panel.a','panel.b']);
+  assert.deepEqual(result.userData.solidify.generatedFaceRegions,['shell.outer','shell.inner','shell.rim']);
+});
+
+test('solidify may drop source semantics while retaining explicit shell roles',()=>{
+  const source=defineFaceRegions(quad(),{'panel.a':[0]});
+  const result=solidifyGeometry(source,{rim:false,preserveRegions:false,regionPrefix:'derived'});
+  assert.deepEqual(faceRegionNames(result),['derived.inner','derived.outer']);
+  assert.deepEqual(result.userData.solidify.preservedFaceRegions,[]);
+  assert.throws(()=>solidifyGeometry(defineFaceRegions(quad(),{'shell.outer':[0]}),{regionPrefix:'shell'}),/collides with source region/);
 });
 
 test('creaseNormals splits indexed topology by angle and drops stale tangents',()=>{
