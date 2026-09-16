@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "id": "composition-anchor",
+  "title": "Workflow study — persistent anchors through owned composition",
+  "module": "models/composition-anchor-study.js",
+  "lockCamera": true,
+  "width": 600,
+  "height": 600,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"combined","label":"Repeated organic parts + mechanical assembly","values":{"organic":true,"mechanical":true},"maxTriangles":12000},
+    {"id":"organic","label":"One source anchor remapped into three transformed leaf copies","values":{"organic":true,"mechanical":false},"maxTriangles":9000},
+    {"id":"mechanical","label":"Independent housing + rail anchors remapped after composition","values":{"organic":false,"mechanical":true},"maxTriangles":7000}
+  ]
+}

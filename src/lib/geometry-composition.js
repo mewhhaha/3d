@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { defineFaceRegions, faceRegionNames, faceRegionTriangles } from './face-regions.js';
+import { remapSurfaceAnchor, surfaceAnchor, surfaceTopologySignature } from './surface-mount.js';
 
 const PART_RE = /^[A-Za-z][A-Za-z0-9_.:/-]*$/;
 const DEG = Math.PI / 180;
@@ -134,7 +135,14 @@ export function composeGeometries(rawParts, {
     const source = part.geometry.index;
     for (let i = 0; i < source.count; i++) indices[indexOffset + i] = source.getX(i) + vertexOffset;
     const faceCount = source.count / 3;
-    const entry = { name: part.name, firstVertex: vertexOffset, vertexCount: part.position.count, firstFace: faceOffset, faceCount };
+    const entry = {
+      name: part.name,
+      firstVertex: vertexOffset,
+      vertexCount: part.position.count,
+      firstFace: faceOffset,
+      faceCount,
+      sourceTopologySignature: surfaceTopologySignature(part.geometry),
+    };
     composition.push(entry);
 
     if (preserveRegions) {
@@ -166,4 +174,44 @@ export function composeGeometries(rawParts, {
   finalGeometry.computeBoundingBox();
   finalGeometry.computeBoundingSphere();
   return finalGeometry;
+}
+
+
+/**
+ * Remap one persistent anchor from an owned source part into the exact face copy created by
+ * `composeGeometries()`. Composition preserves each source part's face/corner order and only
+ * adds deterministic vertex/face offsets, so barycentric and affine tangent weights keep their
+ * corner meaning. `part` is explicit because two composed parts may share identical topology.
+ */
+export function remapCompositionAnchor(composedGeometry, rawAnchor, { part } = {}) {
+  if (!composedGeometry?.isBufferGeometry) throw new Error('remapCompositionAnchor needs a composed BufferGeometry');
+  if (typeof part !== 'string' || !part) throw new Error('remapCompositionAnchor part must be a non-empty part name');
+  const meta = composedGeometry.userData?.geometryComposition;
+  if (!meta || meta.version !== 1 || !Array.isArray(meta.parts)) {
+    throw new Error('remapCompositionAnchor needs geometry produced by composeGeometries');
+  }
+  const entry = meta.parts.find(candidate => candidate?.name === part);
+  if (!entry) throw new Error(`remapCompositionAnchor unknown composition part '${part}'`);
+  const anchor = surfaceAnchor(rawAnchor);
+  if (anchor.topologySignature == null) {
+    throw new Error('remapCompositionAnchor needs an anchor bound with bindSurfaceAnchor so source topology is explicit');
+  }
+  if (anchor.topologySignature !== entry.sourceTopologySignature) {
+    throw new Error(`remapCompositionAnchor anchor belongs to a different source topology than part '${part}'`);
+  }
+  if (anchor.triangleIndex >= entry.faceCount) {
+    throw new Error(`remapCompositionAnchor source triangle is outside composition part '${part}'`);
+  }
+  const triangleIndex = entry.firstFace + anchor.triangleIndex;
+  const offset = triangleIndex * 3;
+  const expected = anchor.indices.map(index => index + entry.firstVertex);
+  const actual = [
+    composedGeometry.index.getX(offset),
+    composedGeometry.index.getX(offset + 1),
+    composedGeometry.index.getX(offset + 2),
+  ];
+  if (!actual.every((value, i) => value === expected[i])) {
+    throw new Error(`remapCompositionAnchor part '${part}' face/corner provenance is inconsistent`);
+  }
+  return remapSurfaceAnchor(anchor, composedGeometry, { triangleIndex, cornerMap: [0, 1, 2] });
 }

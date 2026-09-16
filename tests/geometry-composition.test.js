@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { composeGeometries } from '../src/lib/geometry-composition.js';
+import { composeGeometries, remapCompositionAnchor } from '../src/lib/geometry-composition.js';
 import { defineFaceRegions, faceRegionNames, faceRegionTriangles } from '../src/lib/face-regions.js';
 import { triangleSpatialIndex } from '../src/lib/triangle-spatial-index.js';
+import { bindSurfaceAnchor, resolveSurfaceAnchor, surfaceTopologySignature } from '../src/lib/surface-mount.js';
 
 function quad(z=0) {
   const g=new THREE.BufferGeometry();
@@ -24,8 +25,8 @@ test('composition owns buffers, offsets indices and leaves sources unchanged',()
  assert.deepEqual(snapshot(a),beforeA);assert.deepEqual(snapshot(b),beforeB);
  out.attributes.position.setX(0,99);assert.notEqual(a.attributes.position.getX(0),99);
  assert.deepEqual(out.userData.geometryComposition.parts,[
-  {name:'a',firstVertex:0,vertexCount:4,firstFace:0,faceCount:2},
-  {name:'b',firstVertex:4,vertexCount:4,firstFace:2,faceCount:2},
+  {name:'a',firstVertex:0,vertexCount:4,firstFace:0,faceCount:2,sourceTopologySignature:surfaceTopologySignature(a)},
+  {name:'b',firstVertex:4,vertexCount:4,firstFace:2,faceCount:2,sourceTopologySignature:surfaceTopologySignature(b)},
  ]);
 });
 
@@ -71,4 +72,49 @@ test('composition rejects ambiguous or unsupported attribute ownership',()=>{
  const tangent=quad();tangent.setAttribute('tangent',new THREE.Float32BufferAttribute(new Float32Array(16),4));
  assert.throws(()=>composeGeometries([{name:'tan',geometry:tangent}]),/tangent needs an explicit/);
  assert.throws(()=>composeGeometries([{name:'same',geometry:quad()},{name:'same',geometry:quad()}]),/duplicate/);
+});
+
+
+test('persistent anchors remap exactly into named transformed composition parts',()=>{
+ const source=defineFaceRegions(quad(),{'mount.zone':[0,1]},{clone:false});
+ const anchor=bindSurfaceAnchor(source,{near:[.18,.13,.2],regionNames:['mount.zone'],tangentHint:[1,.25,0],offset:.012});
+ const position=[1.1,-.35,.6],rotation=[12,38,-17],scale=[1.25,.85,1.1];
+ const composed=composeGeometries([
+  {name:'first',geometry:source,position:[-.8,.1,-.2],rotation:[0,-15,5]},
+  {name:'mounted',geometry:source,position,rotation,scale},
+ ]);
+ const remapped=remapCompositionAnchor(composed,anchor,{part:'mounted'});
+ const entry=composed.userData.geometryComposition.parts[1];
+ assert.equal(remapped.triangleIndex,entry.firstFace+anchor.triangleIndex);
+ assert.deepEqual(remapped.indices,anchor.indices.map(i=>i+entry.firstVertex));
+ assert.deepEqual(remapped.barycoord,anchor.barycoord);
+ assert.deepEqual(remapped.tangentWeights,anchor.tangentWeights);
+ assert.equal(remapped.topologySignature,surfaceTopologySignature(composed));
+
+ const sourcePose=resolveSurfaceAnchor(source,anchor);
+ const expectedMatrix=new THREE.Matrix4().compose(
+  new THREE.Vector3().fromArray(position),
+  new THREE.Quaternion().setFromEuler(new THREE.Euler(...rotation.map(THREE.MathUtils.degToRad),'XYZ')),
+  new THREE.Vector3().fromArray(scale),
+ );
+ const expectedOrigin=sourcePose.frame.origin.clone().applyMatrix4(expectedMatrix);
+ const pose=resolveSurfaceAnchor(composed,remapped);
+ assert.ok(pose.frame.origin.distanceTo(expectedOrigin)<1e-6);
+ assert.ok(Math.abs(pose.frame.tangent.dot(pose.frame.normal))<1e-6);
+ source.dispose();composed.dispose();
+});
+
+test('composition-anchor remap uses explicit part identity and rejects stale source topology',()=>{
+ const source=quad(), anchor=bindSurfaceAnchor(source,{near:[.1,.1,.2]});
+ const composed=composeGeometries([{name:'left',geometry:source},{name:'right',geometry:source,position:[2,0,0]}]);
+ const left=remapCompositionAnchor(composed,anchor,{part:'left'}),right=remapCompositionAnchor(composed,anchor,{part:'right'});
+ assert.notEqual(left.triangleIndex,right.triangleIndex);
+ assert.ok(resolveSurfaceAnchor(composed,left).frame.origin.distanceTo(resolveSurfaceAnchor(composed,right).frame.origin)>1.9);
+ assert.throws(()=>remapCompositionAnchor(composed,anchor,{part:'missing'}),/unknown composition part/);
+ assert.throws(()=>remapCompositionAnchor(composed,{...anchor,topologySignature:null},{part:'left'}),/bindSurfaceAnchor/);
+ const other=quad();other.setIndex([0,2,1,0,3,2]);
+ const otherAnchor=bindSurfaceAnchor(other,{near:[.1,.1,.2]});
+ assert.throws(()=>remapCompositionAnchor(composed,otherAnchor,{part:'left'}),/different source topology/);
+ assert.throws(()=>remapCompositionAnchor(source,anchor,{part:'left'}),/produced by composeGeometries/);
+ source.dispose();other.dispose();composed.dispose();
 });
