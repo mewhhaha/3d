@@ -1,5 +1,38 @@
 # Automated refinement progress
 
+## 2026-09-16 — local-pivot portrait proportion pass
+
+Base remote revision: `a318c99701a3c0618c4b50eaeec907a41f3a2ccf`.
+Active recipe: `models/cyber-form-study.js`.
+
+### Accepted changes
+
+- Extended `weightedTransform()` with an optional local `pivot`. Broad form scales can now occur around an authored construction point instead of the scene origin, while retaining the existing scalar weight and offset semantics.
+- Used the pivoted field on the portrait lower face to shorten the overly pointed chin without materially dragging the mouth or eye band. The field starts below the mouth and reaches full strength only at the chin tip.
+- Kept the existing hair support, reference annotations, pose, camera and limb dimensions unchanged.
+
+### Rejected experiment
+
+- Tested a pre-tessellation crown contraction intended to round the broad top opening. Neutral renders were only marginally better and independent normal-transfer checks regressed badly: fringe baked maximum error rose from the prior single-digit tail to more than 18 degrees (and stronger variants reached higher). The trial was discarded rather than trading a small silhouette change for a worse low/baked representation.
+
+### Evidence
+
+- The exact original raster is still not present as a standalone file in this workspace; visual comparison used the previously saved private comparison derived from the supplied original. Public annotations were not changed.
+- `npm run doctor` — WebGL2 / Chromium / SwiftShader available.
+- `node --test tests/shape-rails.test.js tests/form-design.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/cyber-mechanics.test.js tests/contour-volume.test.js tests/render-batch.test.js` — **31/31 passed**.
+- `npm run build` — passed, 15 recipes built.
+- `node scripts/measure-reference.mjs models/cyber-form-study.js` — **9.3566575468 px RMS**, **17.9592707268 px maximum**, unchanged from the accepted pose.
+- Head review: front, side and three-quarter material/clay renders completed at 600x700.
+- Full fixed-camera cage hero completed at 640x1147 with **527,552 triangles**. An earlier baked+GLB attempt hit a Chromium page-closed termination and was not counted as validation.
+
+### Visual assessment
+
+The chin no longer ends in the previous needle-like point, so the face reads closer to the reference's shorter lower-face proportion while preserving the established look-back pose. The hair crown remains too angular/planar and the facial topology is still simplified; the eye and lip surfaces remain separate attachments rather than integrated facial topology.
+
+### Next target
+
+Keep the pose/camera/reference fixed. Revisit the crown through a support change that does not create a normal-bake tail regression, or strengthen one of the remaining large silhouette masses (outer shin/knee stack) before adding small decorative parts.
+
 ## 2026-09-16 — knee / boot articulation and representation-budget pass
 
 Base remote revision: `5eef4900b717278b349100b6510f1b40c4008e75`.
