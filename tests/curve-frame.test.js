@@ -29,10 +29,13 @@ test('tilt adds authored roll without changing the path or tangent',()=>{
 
 test('closed frames distribute seam correction and expose local offset poses',()=>{
  const curve=new THREE.CatmullRomCurve3([
-  new THREE.Vector3(.4,0,0),new THREE.Vector3(0,.18,.4),new THREE.Vector3(-.4,0,0),new THREE.Vector3(0,-.18,-.4)
+  new THREE.Vector3(.43,.02,.01),new THREE.Vector3(.11,.21,.37),new THREE.Vector3(-.36,.06,.24),
+  new THREE.Vector3(-.31,-.16,-.18),new THREE.Vector3(.08,-.23,-.39)
  ],true,'centripetal');
  const frames=transportedFrames(curve,{segments:80,closed:true,up:[0,1,0]});
- assert.ok(frames[0].normal.distanceTo(frames.at(-1).normal)<1e-6);
+ assert.ok(frames[0].origin.distanceTo(frames.at(-1).origin)<1e-12);
+ assert.ok(frames[0].tangent.distanceTo(frames.at(-1).tangent)<1e-12);
+ assert.ok(frames[0].normal.distanceTo(frames.at(-1).normal)<1e-12);
  const poses=curveTransforms(curve,{segments:12,closed:true,up:[0,1,0],offset:[.02,-.01,.005]});
  const p=poses[3],expected=p.origin.clone().addScaledVector(p.normal,.02).addScaledVector(p.binormal,-.01).addScaledVector(p.tangent,.005);
  assert.ok(p.position.distanceTo(expected)<1e-12);

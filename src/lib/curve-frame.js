@@ -41,6 +41,11 @@ export function transportedFrames(curve,{segments=64,closed=false,up,tilt=0}={})
     if(!point.toArray().every(Number.isFinite)||!tangent.toArray().every(Number.isFinite)||tangent.lengthSq()<1e-18)throw new Error('Curve frame sampled an invalid point or tangent');
     points.push(point);tangents.push(tangent.normalize());
   }
+  if(closed){
+    // Three.js tangent sampling clamps endpoint differences instead of wrapping them.
+    // A closed authoring frame must share one endpoint position/tangent before seam roll is distributed.
+    points[segments].copy(points[0]);tangents[segments].copy(tangents[0]);
+  }
   normals[0]=chooseNormal(tangents[0],up);
   binormals[0]=new THREE.Vector3().crossVectors(tangents[0],normals[0]).normalize();
   const rotation=new THREE.Quaternion();

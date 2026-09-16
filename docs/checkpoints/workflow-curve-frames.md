@@ -14,7 +14,7 @@ That made a common operation — “keep this authored cross-section/detail orie
 - Added `src/lib/curve-frame.js` with `transportedFrames()`, `curveTransforms()`, `offsetCurvePoints()` and `attachToCurve()`.
 - A transported frame exposes origin, tangent, normal, binormal and quaternion. Local +X is the transported normal, +Y the binormal and +Z the route tangent.
 - Authors may seed the frame with `up`, add constant or functional `tilt` in degrees, and generate local normal/binormal/tangent offsets in meters without hidden parenting.
-- Closed curves distribute the residual start/end normal mismatch around the loop before authored tilt is applied.
+- Closed curves explicitly share the endpoint position/tangent, then distribute the residual start/end normal mismatch around the loop before authored tilt is applied; an asymmetric-loop regression checks an exact frame seam.
 - Migrated generic `sweep()` and cyber `cableLoom()` to the same helper. A regression assertion preserves the pinned Three.js r186 default frame direction so the cable bundle does not reorder simply because the helper became public.
 - Added `curve-frame-study` with an organic tapered horn/tendril and a mechanical paired-rail harness. Both are driven by inflected 3D paths but use the same frame field for different authoring tasks.
 
@@ -27,8 +27,8 @@ See `docs/research/curve-frames.md` for source URLs, exact observations and limi
 ## Local evidence
 
 - `npm run doctor` — Chromium 144, WebGL2 and SwiftShader available.
-- `node --test tests/curve-frame.test.js tests/surfaces.test.js tests/cyber-mechanics.test.js` — **17/17 passed** after the accepted compatibility seed direction.
-- `npm run build` — passed with **18 recipes** before the final documentation-only edits; no recipe source changed afterward.
+- `node --test tests/curve-frame.test.js tests/surfaces.test.js tests/cyber-mechanics.test.js` — **17/17 passed** after the accepted compatibility seed direction and closed-seam regression.
+- `npm run build` — passed with **18 recipes**.
 - Combined `curve-frame-study` — **15,444 triangles**, nine material/clay/wire renders, GLB **0 errors / 0 warnings**.
 - Organic-only fixture — **9,120 triangles**, four renders, GLB **0 errors / 0 warnings**.
 - Mechanical-only fixture — **6,324 triangles**, four renders, GLB **0 errors / 0 warnings**.
