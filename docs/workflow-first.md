@@ -10,3 +10,20 @@ The repository is a reusable code-first 3D workshop. Individual references are i
 - Preserve old recipes as regressions when evolving the vocabulary; avoid hiding giant coordinate tables behind wrappers with no independent users.
 
 Current workflow research notes live under `docs/research/`. The cyber-android remains a demanding reference case, but future references should be able to use the same construction vocabulary without inheriting its camera, dimensions, annotations or styling.
+
+## Keep sheet shape, shell thickness, and shading finish separate
+
+Thin authored surfaces should not need thickness baked into their guide/profile data. `src/lib/surface-thickness.js` provides a bounded topology stage after a surface has been designed:
+
+```js
+import { solidifyGeometry, creaseNormals } from '../src/lib/surface-thickness.js';
+
+const shell = solidifyGeometry(authoredSheet, {
+  thickness: 0.012,
+  offset: -1,
+  rim: 'smooth',
+});
+const finished = creaseNormals(shell, { angle: 40 });
+```
+
+`solidifyGeometry()` owns new topology and makes that ownership explicit: supported UVs are rebuilt, unsupported topology-dependent attributes are reported as invalidated, and skin/morph/material-group dependencies are rejected rather than silently copied. It is a simple normal-offset shell, not an even-thickness/self-intersection solver. `creaseNormals()` is an optional downstream shading stage, not a substitute for beveling or physical edge construction. This separation lets the same source sheet become a leaf, hair/card strip, cloth trim or hard-surface panel without changing the source path/profile merely to change wall depth.
