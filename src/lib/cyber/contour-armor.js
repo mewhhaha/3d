@@ -11,8 +11,10 @@ export function limbVolume({ length, radii, bend = [[0,0],[1,0]] }) {
  const rx=shapeProfile(radii.map(([t,x])=>[t,x])),rz=shapeProfile(radii.map(([t,,z])=>[t,z])),sweep=shapeProfile(bend);
  return (u,v)=>{const t=1-v,a=(u-.5)*2*Math.PI;return[Math.sin(a)*rx(t),-length*t,Math.cos(a)*rz(t)+sweep(t)];};
 }
-export function armorLeaf(support,{name='Armor leaf',left,right,start=0,end=1,thickness=.004,segments=[18,32],material}={}) {
- return thickenSurface(name,surfaceBand(support,{left:shapeProfile(left),right:shapeProfile(right),start,end}),{thickness,segments,material});
+export function armorLeaf(support,{name='Armor leaf',left,right,start=0,end=1,thickness=.004,segments=[18,32],offset=0,lift=null,material}={}) {
+ if(!Number.isFinite(offset)||lift!==null&&(!Array.isArray(lift)||lift.length<2))throw new Error('Armor leaf offset/lift must be finite authored profiles');
+ const rise=lift&&shapeProfile(lift),base=(offset||rise)?surfaceLayer(support,{offset,relief:rise?(_,v)=>rise(v):()=>0}):support;
+ return thickenSurface(name,surfaceBand(base,{left:shapeProfile(left),right:shapeProfile(right),start,end}),{thickness,segments,material});
 }
 /** Compose independently editable longitudinal shell patches on one support.
  * Each part owns only boundaries/thickness/look; pose and limb volume stay shared. */
@@ -20,13 +22,12 @@ export function segmentedArmor(support,{name='Segmented armor',parts=[],segments
  if(typeof support!=='function'||!Array.isArray(parts)||!parts.length)throw new Error('Segmented armor needs a support and parts');
  const root=group(name),seen=new Set();
  for(const [index,part] of parts.entries()){
-  const {label=`segment ${index}`,left,right,start=0,end=1,thickness=.004,offset=0,segments:partSegments=segments,material}=part;
+  const {label=`segment ${index}`,left,right,start=0,end=1,thickness=.004,offset=0,lift=null,segments:partSegments=segments,material}=part;
   if(typeof label!=='string'||!label||seen.has(label)||![start,end,thickness,offset].every(Number.isFinite)||start<0||end>1||end<=start||thickness<=0)throw new Error('Invalid segmented armor part');
   seen.add(label);
-  const base=offset?surfaceLayer(support,{offset}):support;
-  root.add(armorLeaf(base,{name:`${name} / ${label}`,left,right,start,end,thickness,segments:partSegments,material}));
+  root.add(armorLeaf(support,{name:`${name} / ${label}`,left,right,start,end,thickness,offset,lift,segments:partSegments,material}));
  }
- root.userData.construction={method:'shared-support segmented shell set',segments,parts:parts.map(({label,start=0,end=1,offset=0,segments:partSegments=segments})=>({label,start,end,offset,segments:partSegments}))};return root;
+ root.userData.construction={method:'shared-support segmented shell set',segments,parts:parts.map(({label,start=0,end=1,offset=0,lift=null,segments:partSegments=segments})=>({label,start,end,offset,lift,segments:partSegments}))};return root;
 }
 
 export function limbArmor({ name, length, radii, type='thigh' },mats){
@@ -62,13 +63,18 @@ export function limbArmor({ name, length, radii, type='thigh' },mats){
   // Different inner/outer knee ears interrupt the otherwise smooth tube and visually clamp the bearing.
   // They are still bands on the shared support, so their clearance and curvature track the limb volume.
   const kneeParts=type==='thigh'?[
-   {label:'outer knee ear',start:.01,end:.19,left:[[0,.075],[.55,.045],[1,.065]],right:[[0,.19],[.45,.22],[1,.18]],offset:.003},
+   {label:'outer knee ear',start:.01,end:.19,left:[[0,.075],[.55,.045],[1,.065]],right:[[0,.19],[.45,.22],[1,.18]],offset:.0025,lift:[[0,0],[.45,.0045],[1,.001]]},
    {label:'inner knee ear',start:.025,end:.145,left:[[0,.81],[.5,.80],[1,.825]],right:[[0,.91],[.55,.945],[1,.925]],offset:.002},
   ]:[
-   {label:'outer knee receiver',start:.82,end:.995,left:[[0,.065],[.5,.045],[1,.08]],right:[[0,.205],[.45,.235],[1,.19]],offset:.003},
+   {label:'outer knee receiver',start:.82,end:.995,left:[[0,.065],[.5,.045],[1,.08]],right:[[0,.205],[.45,.235],[1,.19]],offset:.0025,lift:[[0,.001],[.48,.006],[1,.0015]]},
    {label:'inner knee receiver',start:.86,end:.985,left:[[0,.805],[.5,.79],[1,.82]],right:[[0,.91],[.5,.94],[1,.92]],offset:.002},
   ];
   root.add(segmentedArmor(support,{name:name+' / knee bracket stack',parts:kneeParts.map(p=>({...p,thickness:.0035,material:mats.shell})),segments:[10,14]}));
+  if(type==='shin')root.add(segmentedArmor(support,{name:name+' / lateral brace stack',segments:[10,18],parts:[
+   {label:'outer shin shoulder',start:.62,end:.86,left:[[0,.115],[.45,.085],[1,.105]],right:[[0,.28],[.45,.31],[1,.255]],offset:.002,lift:[[0,0],[.35,.008],[.72,.006],[1,0]],thickness:.0038,material:mats.shell},
+   {label:'outer shin rail',start:.23,end:.68,left:[[0,.12],[.42,.09],[.72,.105],[1,.14]],right:[[0,.235],[.35,.27],[.70,.255],[1,.225]],offset:.0015,lift:[[0,0],[.28,.0055],[.55,.009],[.80,.0045],[1,0]],thickness:.0035,material:mats.shell},
+   {label:'lower outer clamp',start:.08,end:.30,left:[[0,.14],[.55,.11],[1,.13]],right:[[0,.265],[.45,.29],[1,.25]],offset:.0015,lift:[[0,0],[.55,.0065],[1,0]],thickness:.0035,material:mats.shell},
+  ]}));
  }
  const accent=[];for(let i=0;i<=24;i++){const v=.15+i/24*.65,u=.5+(type==='forearm'?-.045:.065)+.019*Math.sin(v*10),temp=new THREE.Object3D();attachToSurface(temp,support,{u,v,offset:.002});accent.push(temp.position.toArray());}
  root.add(routedCable({name:name+' / surface inlay',points:accent,radius:.0010,segments:32,ends:false,material:type==='forearm'?mats.cyan:mats.orange}));
