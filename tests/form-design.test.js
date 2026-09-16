@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { box, group, buildModel, inspect, dispose } from '../src/lib/modeling.js';
 import { pointFields, weightedTransform, reshapeAssembly } from '../src/lib/shape-deform.js';
 import { guidedBob, bobGuides } from '../src/lib/cyber/hair-design.js';
-import { limbVolume, armorLeaf, segmentedArmor, limbArmor, sculptedBoot, contouredShield } from '../src/lib/cyber/contour-armor.js';
+import { limbVolume, armorLeaf, segmentedArmor, limbArmor, archedFootSurface, sculptedBoot, contouredShield } from '../src/lib/cyber/contour-armor.js';
 import { cyberMaterials } from '../src/lib/cyber/mechanics.js';
 import { surface } from '../src/lib/forms/surface.js';
 import { measureRecipe } from '../scripts/measure-reference.mjs';
@@ -69,10 +69,18 @@ test('segmented armor shares one support while preserving authored gaps and inde
  assert.ok(shin.getObjectByName('Test shin / lateral brace stack / outer shin rail'));
  assert.deepEqual(shin.getObjectByName('Test shin / knee bracket stack').userData.construction.parts[0].lift,[[0,.001],[.48,.006],[1,.0015]]);dispose(shin);
 });
-test('boot has a closed toe bumper and shields expose resolution-independent silhouette profiles',()=>{
- const m=cyberMaterials(),boot=sculptedBoot({},m),shield=contouredShield({},m);
+test('boot composes a profiled foot support, articulated shell set and compact ankle yoke',()=>{
+ const m=cyberMaterials(),support=archedFootSurface(),boot=sculptedBoot({},m),shield=contouredShield({},m);
  const shifted=contouredShield({width:.1,widthProfile:[[0,.5],[.5,1],[1,.5]],centerProfile:[[0,.2],[1,.2]]},m);
- assert.ok(boot.getObjectByName('Toe bumper'));assert.ok(boot.getObjectByName('Toe outer petal'));assert.ok(boot.getObjectByName('Toe inner petal'));assert.ok(boot.getObjectByName('Segmented ankle cuff'));
+ for(let j=0;j<=8;j++)for(let i=0;i<=8;i++){
+  const p=support(i/8,j/8),n=surface(support).normal(i/8,j/8);assert.ok(p.every(Number.isFinite));assert.ok(n.toArray().every(Number.isFinite));assert.ok(Math.abs(n.length()-1)<1e-7);
+ }
+ assert.ok(support(.5,.3)[1]>support(.5,.95)[1]);assert.throws(()=>archedFootSurface({heel:.2,toe:.1}));
+ assert.ok(boot.getObjectByName('Articulated foot shell / outer toe blade'));
+ assert.ok(boot.getObjectByName('Articulated foot shell / outer heel quarter'));
+ assert.ok(boot.getObjectByName('Articulated foot shell / outer midfoot rail'));
+ assert.ok(boot.getObjectByName('Segmented ankle yoke'));assert.ok(boot.getObjectByName('Boot heel bearing'));
+ assert.ok(inspect(boot).triangles<26000);
  assert.equal(shield.children.length,2);assert.equal(shield.userData.construction.normalClearance,.0015);
  assert.equal(shifted.userData.construction.method,'profiled single-support layered shield');
  const baseX=shield.children[0].geometry.attributes.position.getX(0),shiftX=shifted.children[0].geometry.attributes.position.getX(0);
