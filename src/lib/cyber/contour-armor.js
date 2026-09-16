@@ -32,14 +32,14 @@ export function segmentedArmor(support,{name='Segmented armor',parts=[]}={}){
 export function limbArmor({ name, length, radii, type='thigh' },mats){
  const root=group(name),support=limbVolume({length,radii,bend:[[0,0],[.55,.006],[1,0]]});
  const front=type==='shin'?[
-  {label:'ankle blade',start:.02,end:.23,left:[[0,.37],[.18,.35],[.28,.36],[1,.38]],right:[[0,.63],[.18,.65],[.28,.64],[1,.62]],material:mats.shell},
-  {label:'calf outer leaf',start:.28,end:.76,left:[[0,.28],[.35,.22],[.57,.18],[1,.27]],right:[[0,.485],[.45,.47],[1,.49]],material:mats.shell},
-  {label:'calf inner leaf',start:.30,end:.73,left:[[0,.525],[.45,.53],[1,.51]],right:[[0,.72],[.35,.78],[.57,.82],[1,.70]],offset:.001,material:mats.shell},
+  {label:'ankle blade',start:.02,end:.255,left:[[0,.37],[.18,.35],[.28,.36],[1,.38]],right:[[0,.63],[.18,.65],[.28,.64],[1,.62]],material:mats.shell},
+  {label:'calf outer leaf',start:.27,end:.775,left:[[0,.28],[.35,.22],[.57,.18],[1,.27]],right:[[0,.485],[.45,.47],[1,.49]],material:mats.shell},
+  {label:'calf inner leaf',start:.285,end:.765,left:[[0,.525],[.45,.53],[1,.51]],right:[[0,.72],[.35,.78],[.57,.82],[1,.70]],offset:.001,material:mats.shell},
   {label:'knee flare',start:.79,end:.965,left:[[0,.34],[.78,.24],[1,.31]],right:[[0,.66],[.78,.76],[1,.69]],offset:.0015,material:mats.shell},
  ]:type==='thigh'?[
-  {label:'knee tongue',start:.035,end:.255,left:[[0,.39],[.16,.34],[.28,.33],[1,.37]],right:[[0,.61],[.16,.66],[.28,.67],[1,.63]],material:mats.shell},
-  {label:'main outer leaf',start:.31,end:.78,left:[[0,.30],[.34,.22],[.61,.20],[1,.27]],right:[[0,.485],[.42,.465],[1,.49]],material:mats.shell},
-  {label:'main inner leaf',start:.325,end:.755,left:[[0,.525],[.45,.535],[1,.515]],right:[[0,.70],[.34,.78],[.61,.80],[1,.72]],offset:.0012,material:mats.shell},
+  {label:'knee tongue',start:.035,end:.285,left:[[0,.39],[.16,.34],[.28,.33],[1,.37]],right:[[0,.61],[.16,.66],[.28,.67],[1,.63]],material:mats.shell},
+  {label:'main outer leaf',start:.30,end:.795,left:[[0,.30],[.34,.22],[.61,.20],[1,.27]],right:[[0,.485],[.42,.465],[1,.49]],material:mats.shell},
+  {label:'main inner leaf',start:.315,end:.785,left:[[0,.525],[.45,.535],[1,.515]],right:[[0,.70],[.34,.78],[.61,.80],[1,.72]],offset:.0012,material:mats.shell},
   {label:'hip mantle',start:.805,end:.985,left:[[0,.34],[.83,.17],[1,.23]],right:[[0,.66],[.83,.83],[1,.77]],offset:.002,material:mats.shell},
  ]:null;
  if(front)root.add(segmentedArmor(support,{name:name+' / articulated front',parts:front}));
@@ -55,7 +55,7 @@ export function limbArmor({ name, length, radii, type='thigh' },mats){
  }
  // A dark nested bridge under each major front gap makes segmentation read as mechanics, not missing geometry.
  if(type==='thigh'||type==='shin'){
-  const gaps=type==='thigh'?[[.255,.31],[.78,.805]]:[[.23,.28],[.76,.79]];
+  const gaps=type==='thigh'?[[.285,.30],[.795,.805]]:[[.255,.27],[.775,.79]];
   for(const [i,[start,end]] of gaps.entries())root.add(armorLeaf(surfaceLayer(support,{offset:-.002}),{name:`${name} / exposed flex bridge ${i}`,start,end,left:[[0,.38],[1,.38]],right:[[0,.62],[1,.62]],thickness:.0025,material:mats.dark}));
  }
  const accent=[];for(let i=0;i<=24;i++){const v=.15+i/24*.65,u=.5+(type==='forearm'?-.045:.065)+.019*Math.sin(v*10),temp=new THREE.Object3D();attachToSurface(temp,support,{u,v,offset:.002});accent.push(temp.position.toArray());}

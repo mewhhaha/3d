@@ -16,13 +16,15 @@ This is primary shell segmentation, not a boolean/retopology system. Gaps are au
 
 - `npm run doctor` — WebGL2 / Chromium / SwiftShader available.
 - `node --test tests/form-design.test.js tests/shape-rails.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/cyber-mechanics.test.js` — **22/22 passed**.
+- After tightening the transverse gaps from the first neutral render, `node --test tests/form-design.test.js` — **9/9 passed**.
 - `npm run build` — passed, 15 recipes built.
 - `node scripts/measure-reference.mjs models/cyber-form-study.js` — **9.3566575468 px RMS**, **17.9592707268 px maximum** over the same nine reference feature points, unchanged from the established pose alignment.
 - Isolated lower-limb export: **76,684 triangles**, GLB validator **0 errors / 0 warnings**. Informational messages concern unused UV sets and do not establish visual acceptance.
 - Neutral material/clay captures were inspected in front and three-quarter views. A temporary legacy construction using the previous continuous shells was rendered from the same component camera for direct comparison. Those temporary comparison recipes are not source changes.
+- The first segmented render left transverse shell gaps too wide. Those authored windows were tightened to roughly 4–6 mm on the physical thigh/shin lengths before the accepted checkpoint; the dark flex bridge remains visible without making the armor look disconnected.
 
 ## Visual assessment
 
-The old lower body read as four smooth ivory tubes. The new version exposes dark mechanical gaps at the upper/lower thigh and calf transitions, introduces a longitudinal split through the larger thigh/calf faces, and gives the knee/hip/ankle ends separately editable silhouettes. This is directionally closer to the supplied reference's layered mechanical leg armor.
+The old lower body read as four smooth ivory tubes. The accepted version exposes narrow dark mechanical gaps at the upper/lower thigh and calf transitions, introduces a longitudinal split through the larger thigh/calf faces, and gives the knee/hip/ankle ends separately editable silhouettes. This is directionally closer to the supplied reference's layered mechanical leg armor.
 
 The legs are still cleaner and more symmetrical than the artwork. The knee surround lacks the reference's irregular bracket stack, the outer shin remains too calm, and the boot upper/toe is still a smooth sneaker-like mass. The next lower-body pass should connect the knee port to asymmetric side brackets and reshape the boot upper/cuff before adding small surface greebles.
