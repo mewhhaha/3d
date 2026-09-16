@@ -94,3 +94,30 @@ export function thickenSurface(name, support, { thickness = .003, segments = [32
   for(let i=0;i<size*2;i++)g.attributes.normal.setXYZ(i,...normals.slice(i*3,i*3+3));
   const result=mesh(g,{name,material});result.userData.construction={method:'normal-offset parametric shell',thickness};return result;
 }
+
+/** Close a small loop with a smooth concentric dome instead of one flat triangle fan.
+ * The supplied loop defines the exact boundary; `lift` only raises the interior crown.
+ * This is a local cap primitive, not a general hole-filler or arbitrary polygon mesher. */
+export function loopCap(name, loop, { lift=.004, rings=4, material }={}) {
+  if(typeof name!=='string'||!name||!Array.isArray(loop)||loop.length<3||!Number.isFinite(lift)||lift<0||!Number.isInteger(rings)||rings<1||rings>32)throw new Error('Invalid loop cap');
+  const outer=loop.map(vec);
+  if(outer.length>3&&outer[0].distanceToSquared(outer.at(-1))<1e-18)outer.pop();
+  if(outer.length<3)throw new Error('Loop cap needs three unique points');
+  const center=outer.reduce((a,p)=>a.add(p),new THREE.Vector3()).multiplyScalar(1/outer.length),top=center.clone();top.y+=lift;
+  const positions=[],uv=[],index=[],n=outer.length;
+  for(let r=0;r<rings;r++){
+    const t=r/rings,radial=Math.cos(t*Math.PI/2),height=Math.sin(t*Math.PI/2);
+    for(let i=0;i<n;i++){
+      const p=outer[i],q=new THREE.Vector3(center.x+(p.x-center.x)*radial,p.y+(top.y-p.y)*height,center.z+(p.z-center.z)*radial);
+      positions.push(...q.toArray());const a=i/n*Math.PI*2,rr=.5*radial;uv.push(.5+Math.cos(a)*rr,.5+Math.sin(a)*rr);
+    }
+  }
+  const apex=positions.length/3;positions.push(...top.toArray());uv.push(.5,.5);
+  for(let r=0;r<rings-1;r++)for(let i=0;i<n;i++){
+    const o=r*n+i,on=r*n+(i+1)%n,inn=(r+1)*n+i,innn=(r+1)*n+(i+1)%n;
+    index.push(inn,o,on,inn,on,innn);
+  }
+  const last=(rings-1)*n;for(let i=0;i<n;i++)index.push(apex,last+i,last+(i+1)%n);
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(index);g.computeVertexNormals();
+  const result=mesh(g,{name,material});result.userData.construction={method:'concentric loop dome',rings,lift,boundaryPoints:n};return result;
+}
