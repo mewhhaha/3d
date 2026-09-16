@@ -42,3 +42,22 @@ const coloredShell = transferSurfaceAttributes(source, shell, {
 ```
 
 `transferSurfaceAttributes()` clones the target, finds the closest point on the indexed source triangle surface, and barycentrically interpolates only the named non-normalized Float32 attributes. `maxDistance` is an authoring guard against accidental projection onto remote geometry. The first version is intentionally conservative: UVs, normals, tangents, skin data and other domain-specific/discrete semantics are rejected rather than silently treated as generic floats. It is also a brute-force search, so use it as a bounded construction/data-transfer stage rather than a per-frame deformation operation. Geometry construction, attribute transfer and export semantics remain separate responsibilities.
+
+## Reuse spatial queries and constrain ambiguous transfers
+
+Closest-surface construction is useful beyond attribute transfer, so its acceleration now lives in `src/lib/triangle-spatial-index.js`. Build the index once for an immutable indexed triangle source, then reuse nearest-point queries rather than rescanning every face for every target point:
+
+```js
+import { triangleSpatialIndex } from '../src/lib/triangle-spatial-index.js';
+
+const query = triangleSpatialIndex(source, { leafSize: 8 });
+const hit = query.closestPoint(point, {
+  groupIndices: [0],
+  normal: targetNormal,
+  minNormalDot: 0.35,
+});
+```
+
+The hierarchy uses median centroid splits and AABB distance pruning. It is deterministic against the brute-force baseline, including equal-distance tie breaking. `transferSurfaceAttributes()` accepts `acceleration: 'auto' | 'brute-force' | 'bvh'`; auto keeps tiny jobs simple and switches to the hierarchy when the source-triangle × target-vertex candidate count reaches 150,000.
+
+Nearest geometry is not always the intended source. Optional `groupIndices` restrict transfer to explicit Three.js `BufferGeometry.groups`, and `minNormalDot` rejects source triangles whose geometric face normal disagrees with the target vertex normal. These are authored constraints, not automatic semantic correspondence: a group index is not a character-part ontology, and normal-facing cannot disambiguate two nearby same-facing layers. UV/corner data, skinning, discrete labels and semantic ownership still need separate transfer contracts.

@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "id": "spatial-transfer",
+  "title": "Workflow study — accelerated and constrained closest-surface transfer",
+  "module": "models/spatial-transfer-study.js",
+  "lockCamera": true,
+  "width": 560,
+  "height": 560,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"nearest","label":"Geometric nearest surface only","values":{"constrained":false},"maxTriangles":5000},
+    {"id":"constrained","label":"Group/facing constrained transfer","values":{"constrained":true},"maxTriangles":5000}
+  ]
+}
