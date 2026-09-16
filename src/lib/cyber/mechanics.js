@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { refineTriangles } from './shells.js';
 import { box, cylinder, mesh, group, material } from '../modeling.js';
+import { offsetCurvePoints } from '../curve-frame.js';
 const V = a => new THREE.Vector3(...a);
 const positive = (n, label) => { if (!Number.isFinite(n) || n <= 0) throw new Error(`${label} must be positive`); return n; };
 export function cyberMaterials({ shell = '#dbdac4', glow = 1 } = {}) {
@@ -113,10 +114,10 @@ export function routedCable({name='Cable',points,radius=.009,material:mat,segmen
 /** Bundle offsets use the route's parallel frame instead of global-axis guesses. */
 export function cableLoom({name='Luminous loom',points,colors=['pink','lime','cyan'],radius=.007,spacing=.016,segments=100,clamps=0,emissiveScale=1,opacity=1},mats) {
   if(![emissiveScale,opacity].every(Number.isFinite)||emissiveScale<0||emissiveScale>2||opacity<=0||opacity>1)throw new Error('Invalid loom look');
-  const curve=cableCurve(points),frames=curve.computeFrenetFrames(segments,false),g=group(name);
+  const curve=cableCurve(points),g=group(name);
   colors.forEach((color,k)=>{
     if(!mats[color])throw new Error('Unknown loom emitter');
-    const route=Array.from({length:segments+1},(_,i)=>curve.getPointAt(i/segments).addScaledVector(frames.normals[i],(k-(colors.length-1)/2)*spacing).toArray());
+    const route=offsetCurvePoints(curve,{segments,offset:[(k-(colors.length-1)/2)*spacing,0]});
     // Clone per loom so local bloom/alpha tuning never mutates the shared emitter palette.
     const mat=mats[color].clone();mat.name=`${mats[color].name} / ${name}`;mat.emissiveIntensity*=emissiveScale;
     if(opacity<1){mat.transparent=true;mat.opacity=opacity;mat.depthWrite=false;}

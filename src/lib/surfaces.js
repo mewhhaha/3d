@@ -1,4 +1,5 @@
 import { THREE, mesh } from './modeling.js';
+import { transportedFrames } from './curve-frame.js';
 export const DETAIL = Object.freeze({
   draft: Object.freeze({ radial: 32, rings: 32, strands: 18, textureSize: 128 }),
   studio: Object.freeze({ radial: 64, rings: 64, strands: 36, textureSize: 256 }),
@@ -112,12 +113,12 @@ export function sweep({ points, radii = 0.02, segments = 48, sides = 8, closed =
   const values = typeof radii === 'number' ? [radii, radii] : radii;
   if (!Array.isArray(values) || values.length < 2 || !values.every(r => Number.isFinite(r) && r > 0)) throw new Error('Positive radii required');
   const curve = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(...p)), closed, 'centripetal');
-  const frames = curve.computeFrenetFrames(segments, closed);
+  const frames = transportedFrames(curve,{segments,closed});
   return patch({ uSegments: sides, vSegments: segments, wrapU: true, wrapV: closed,
     sample(u, v) {
       const k = Math.min(values.length - 2, Math.floor(v*(values.length - 1))), f = v*(values.length - 1)-k;
       const r = THREE.MathUtils.lerp(values[k], values[k+1], f), i = Math.round(v*segments), a = u*Math.PI*2;
-      return curve.getPointAt(v).addScaledVector(frames.normals[i], -r*Math.cos(a)).addScaledVector(frames.binormals[i], -r*Math.sin(a)).toArray();
+      return curve.getPointAt(v).addScaledVector(frames[i].normal, -r*Math.cos(a)).addScaledVector(frames[i].binormal, -r*Math.sin(a)).toArray();
     }, ...options,
   });
 }
