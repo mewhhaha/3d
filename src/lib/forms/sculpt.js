@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { quadCage, topology, cageNormals, subdivideCage } from './cage.js';
+import { axisPlane, reflectDirection, reflectPoint, symmetryPlane } from '../symmetry.js';
 const v = p => new THREE.Vector3(...p);
 const point = p => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite);
 const checkPoint = p => { if(!point(p))throw new Error('Expected a finite three-vector'); return p.slice(); };
@@ -27,10 +28,11 @@ export function facing(direction=[0,0,1]) {
 export function intersect(...masks){masks.forEach(maskOK);return(...args)=>masks.reduce((a,m)=>a*m(...args),1);}
 export function union(...masks){masks.forEach(maskOK);return(...args)=>Math.max(0,...masks.map(m=>m(...args)));}
 export function invert(mask){maskOK(mask);return(...args)=>1-mask(...args);}
-/** Reflect a spatial mask without doubling strength on the symmetry plane. Named tags are not renamed. */
-export function mirrorMask(mask,axis='x'){
-  maskOK(mask);const k='xyz'.indexOf(axis);if(k<0||axis.length!==1)throw new Error('Mirror axis must be x/y/z');
-  return(p,n,meta)=>{const q=p.slice(),normal=n.slice();q[k]*=-1;normal[k]*=-1;return Math.max(mask(p,n,meta),mask(q,normal,meta));};
+/** Reflect a spatial mask without doubling strength on the symmetry plane.
+ * Accepts legacy 'x'/'y'/'z' or {origin,normal}; tags are deliberately not renamed. */
+export function mirrorMask(mask,plane='x'){
+  maskOK(mask);const resolved=typeof plane==='string'?axisPlane(plane):symmetryPlane(plane);
+  return(p,n,meta)=>Math.max(mask(p,n,meta),mask(reflectPoint(p,resolved),reflectDirection(n,resolved),meta));
 }
 /** Continuous polyline distance, optionally projected into a plane for surface strokes. */
 export function stroke(points,{radius=.01,plane='xyz'}={}) {

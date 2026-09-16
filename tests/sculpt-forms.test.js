@@ -1,9 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as THREE from 'three';
 import { ellipsoidCage, sculpt, ball, stroke, facing, region, intersect, union, invert, mirrorMask, pull, inflate, flatten, relax } from '../src/lib/forms/sculpt.js';
+import { mirrorPoints, mirrorSurface, reflectDirection, reflectPoint, symmetryPlane } from '../src/lib/symmetry.js';
 import { topology, atlasCage, quadCage } from '../src/lib/forms/cage.js';
 import { cageAsset } from '../src/lib/forms/cage-asset.js';
 import { dispose } from '../src/lib/modeling.js';
+import { surface } from '../src/lib/forms/surface.js';
 const seed=()=>ellipsoidCage({radii:[.04,.06,.02],level:2});
 test('compact masks are bounded, combine predictably, and do not move outside their support',()=>{
   const m=ball({radius:1});assert.equal(m([0,0,0]),1);assert.equal(m([1,0,0]),0);assert.equal(m([3,0,0]),0);
@@ -25,6 +28,18 @@ test('polyline strokes are continuous at joins, projected selection ignores dept
 test('mirror selection does not double strength on the symmetry plane',()=>{
   const m=mirrorMask(ball({at:[.01,0,0],radius:.04}));assert.equal(m([0,0,0],[0,0,1],{}),ball({at:[.01,0,0],radius:.04})([0,0,0]));
   assert.equal(m([.02,0,0],[0,0,1],{}),m([-.02,0,0],[0,0,1],{}));
+});
+test('local symmetry planes reflect positions, directions and sculpt masks away from the scene origin',()=>{
+  const plane=symmetryPlane({origin:[2,0,0],normal:[1,0,0]});
+  assert.deepEqual(reflectPoint([3,4,5],plane),[1,4,5]);assert.deepEqual(reflectDirection([1,2,0],plane),[-1,2,0]);
+  const m=mirrorMask(ball({at:[2.25,0,0],radius:.2}),plane);assert.equal(m([2.15,0,0],[0,0,1],{}),m([1.85,0,0],[0,0,1],{}));
+  assert.throws(()=>symmetryPlane({normal:[0,0,0]}),/zero/);
+});
+test('mirrored surfaces preserve authored boundary correspondence and orientation',()=>{
+  const source=(u,v)=>[1+u,v,u*.2+v*.1],plane=symmetryPlane({origin:[1,0,0],normal:[1,0,0]}),mirrored=mirrorSurface(source,plane);
+  assert.deepEqual(mirrored(0,.25),reflectPoint(source(1,.25),plane));assert.deepEqual(mirrored(1,.25),reflectPoint(source(0,.25),plane));
+  const expected=reflectDirection(surface(source).normal(.7,.25).toArray(),plane),actual=surface(mirrored).normal(.3,.25).toArray();assert.ok(new THREE.Vector3(...expected).distanceTo(new THREE.Vector3(...actual))<1e-5);
+  const pts=mirrorPoints([[1.2,0,0],[1.4,1,0]],plane,{reverse:true});assert.ok(Math.abs(pts[0][0]-.6)<1e-12);assert.deepEqual(pts[0].slice(1),[1,0]);assert.deepEqual(pts[1],[.8,0,0]);
 });
 test('flatten moves toward its plane; relax preserves open boundaries',()=>{
   const c=seed(),d=sculpt(c,flatten(facing(),{at:[0,0,.005],normal:[0,0,1],strength:.8}));
