@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "id": "boundary-profiles",
+  "title": "Workflow study — surface boundary profile trim",
+  "module": "models/boundary-profile-study.js",
+  "lockCamera": true,
+  "width": 560,
+  "height": 560,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"plain","label":"Plain solidified boundary","values":{"treatment":"Plain"},"maxTriangles":3500},
+    {"id":"trimmed","label":"Profiled boundary trim","values":{"treatment":"Trimmed"},"maxTriangles":6500}
+  ]
+}
