@@ -45,7 +45,7 @@ function mechanicalSubject() {
     { name: 'Mechanical service spot', type: 'spot', offset: [2.4, 1.5, 2.1], color: '#9fd7ff', intensity: 5.2, angle: 34, penumbra: .32, decay: 2 },
     { name: 'Mechanical rear practical', type: 'point', offset: [-.5, .65, -2.2], color: '#ff9f45', intensity: 2.6, decay: 2 },
   ] });
-  const pad = box({ name: 'Mechanical service pad', size: [1.55, .055, 1.35], radius: .04, position: [0, -.055, 0], material: material('#30363b', { roughness: .46, metalness: .42 }) });
+  const pad = box({ name: 'Mechanical service pad', size: [1.55, .055, 1.35], radius: .02, position: [0, -.055, 0], material: material('#30363b', { roughness: .46, metalness: .42 }) });
   const shot = authoredShot({ name: 'Mechanical authored shot', subject, camera, lights, environment: [pad], background: '#17202a', fog: { near: 6, far: 12 } });
   shot.userData.shotStudy = { subject: 'hard-surface survey drone', framing: inspectShotFraming(camera, subject) };
   return shot;
