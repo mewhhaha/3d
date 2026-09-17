@@ -173,6 +173,25 @@ function matrices(handle) {
   return { localToGeometry, geometryToLocal: localToGeometry.clone().invert() };
 }
 
+function deformationPlacement({ position = [0, 0, 0], rotation = [0, 0, 0], scale = [1, 1, 1] } = {}) {
+  const p = finite3(position, 'deformation placement position');
+  const r = finite3(rotation, 'deformation placement rotation');
+  const rawScale = typeof scale === 'number' ? [scale, scale, scale] : scale;
+  const s = finite3(rawScale, 'deformation placement scale');
+  if (!s.every(value => value > 0)) throw new Error('deformation placement scale must be positive');
+  return { position: p, rotation: r, scale: s };
+}
+
+function placementMatrices(placement) {
+  const normalized = deformationPlacement(placement);
+  const radians = normalized.rotation.map(THREE.MathUtils.degToRad);
+  const quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(...radians, 'XYZ'));
+  const geometryToParent = new THREE.Matrix4().compose(
+    new THREE.Vector3(...normalized.position), quaternion, new THREE.Vector3(...normalized.scale),
+  );
+  return { normalized, geometryToParent, parentToGeometry: geometryToParent.clone().invert() };
+}
+
 function normalizedAxis(y, start, end) {
   return THREE.MathUtils.clamp((y - start) / (end - start), 0, 1);
 }
@@ -300,31 +319,32 @@ function deformPoint(point, op, runtime) {
   throw new Error(`unknown geometry deformation operation '${op.kind}'`);
 }
 
-/**
- * Clone-and-deform ordinary indexed BufferGeometry using reusable local handles and point selections.
- * Operations are sequential, topology is unchanged, and ordinary UV/custom attributes remain owned by the clone.
- */
-export function deformGeometry(geometry, ...operations) {
+function deformGeometryWithPlacement(geometry, placement, operations, { parentSpace = false } = {}) {
   const sourcePosition = validateGeometry(geometry);
   const ops = operations.flat();
-  if (!ops.length) throw new Error('deformGeometry needs at least one operation');
+  if (!ops.length) throw new Error(parentSpace ? 'deformGeometryInParent needs at least one operation' : 'deformGeometry needs at least one operation');
   for (const op of ops) if (!op || !['bend', 'twist', 'taper', 'curve', 'lattice'].includes(op.kind)) throw new Error('unknown geometry deformation operation');
 
   const output = geometry.clone();
   const position = output.getAttribute('position');
+  const { normalized, geometryToParent, parentToGeometry } = placementMatrices(placement);
   let touched = 0;
 
   for (const op of ops) {
+    // Selection remains component-local even when the deformation field is evaluated in parent space.
+    // This keeps semantic face masks and authored component-local selections independent from assembly placement.
     const weights = selectionWeights(output, op.selection);
     const runtime = op.kind === 'curve' ? curveRuntime(op.guide) : null;
-    const { localToGeometry, geometryToLocal } = matrices(op.handle);
+    const { localToGeometry: localToParent, geometryToLocal: parentToLocal } = matrices(op.handle);
     for (let index = 0; index < position.count; index++) {
       const weight = weights[index];
       if (weight === 0) continue;
       const original = new THREE.Vector3().fromBufferAttribute(position, index);
-      const local = original.clone().applyMatrix4(geometryToLocal);
+      const parentPoint = original.clone().applyMatrix4(geometryToParent);
+      const local = parentPoint.applyMatrix4(parentToLocal);
       const deformedLocal = deformPoint(local, op, runtime);
-      const target = deformedLocal.applyMatrix4(localToGeometry);
+      const targetParent = deformedLocal.applyMatrix4(localToParent);
+      const target = targetParent.applyMatrix4(parentToGeometry);
       const result = original.lerp(target, weight);
       if (![result.x, result.y, result.z].every(Number.isFinite)) throw new Error('geometry deformation produced invalid coordinates');
       position.setXYZ(index, result.x, result.y, result.z);
@@ -344,7 +364,10 @@ export function deformGeometry(geometry, ...operations) {
     ...output.userData,
     geometryDeform: {
       version: 1,
-      coordinateSpace: 'geometry-local handles; axial operations use local +Y and lattice operations use a handle-local box',
+      coordinateSpace: parentSpace
+        ? 'operation handles use parent/assembly-local space; selections and returned positions remain component-local'
+        : 'geometry-local handles; axial operations use local +Y and lattice operations use a handle-local box',
+      placement: parentSpace ? normalized : undefined,
       operations: ops.map(op => op.kind),
       lattices: ops.filter(op => op.kind === 'lattice').map(op => ({ resolution: op.lattice.resolution.slice(), edits: op.lattice.edits.length, outside: op.lattice.outside })),
       touchedVertexOperations: touched,
@@ -353,8 +376,26 @@ export function deformGeometry(geometry, ...operations) {
       tangents: geometry.getAttribute('tangent') ? 'recomputed' : 'absent',
     },
   };
+  if (!parentSpace) delete output.userData.geometryDeform.placement;
   if (sourcePosition.count !== output.getAttribute('position').count || geometry.index.count !== output.index.count) {
     throw new Error('geometry deformation unexpectedly changed topology');
   }
   return output;
+}
+
+/**
+ * Clone-and-deform ordinary indexed BufferGeometry using geometry-local operation handles.
+ * Operations are sequential, topology is unchanged, and ordinary UV/custom attributes remain owned by the clone.
+ */
+export function deformGeometry(geometry, ...operations) {
+  return deformGeometryWithPlacement(geometry, {}, operations, { parentSpace: false });
+}
+
+/**
+ * Evaluate deformation handles in a shared parent/assembly-local frame while keeping one component's
+ * BufferGeometry and object transform independently owned. `placement` is the component's local-to-parent
+ * transform in meters / XYZ degrees / positive scale, matching modeling helpers. Selections remain component-local.
+ */
+export function deformGeometryInParent(geometry, placement, ...operations) {
+  return deformGeometryWithPlacement(geometry, placement, operations, { parentSpace: true });
 }

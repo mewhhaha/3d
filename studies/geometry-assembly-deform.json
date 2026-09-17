@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "geometry-assembly-deform",
+  "title": "Workflow study — shared deformation field across separate components",
+  "module": "models/geometry-assembly-deform-study.js",
+  "lockCamera": true,
+  "width": 600,
+  "height": 600,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"baseline","label":"Separately owned undeformed assemblies","values":{"organic":true,"mechanical":true,"mode":"baseline"},"maxTriangles":16000},
+    {"id":"shared","label":"One field per assembly, components remain separate","values":{"organic":true,"mechanical":true,"mode":"shared"},"maxTriangles":16000},
+    {"id":"organic","label":"Layered organic assembly","values":{"organic":true,"mechanical":false,"mode":"shared"},"maxTriangles":9000},
+    {"id":"mechanical","label":"Layered hard-surface assembly","values":{"organic":false,"mechanical":true,"mode":"shared"},"maxTriangles":9000}
+  ]
+}
