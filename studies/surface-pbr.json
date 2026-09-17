@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "surface-pbr",
+  "title": "Workflow study — chart-local PBR surface response",
+  "module": "models/surface-pbr-study.js",
+  "lockCamera": true,
+  "width": 600,
+  "height": 600,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"plain","label":"Same charted color detail with constant roughness and metalness","values":{"organic":true,"mechanical":true,"mode":"plain"},"maxTriangles":12000},
+    {"id":"pbr","label":"Chart-local scalar fields packed as glTF metallic-roughness","values":{"organic":true,"mechanical":true,"mode":"pbr"},"maxTriangles":12000},
+    {"id":"organic","label":"Organic chart-local roughness variation","values":{"organic":true,"mechanical":false,"mode":"pbr"},"maxTriangles":7000},
+    {"id":"mechanical","label":"Mechanical painted/exposed-metal response","values":{"organic":false,"mechanical":true,"mode":"pbr"},"maxTriangles":7000}
+  ]
+}

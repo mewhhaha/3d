@@ -15,7 +15,7 @@ const charted = projectFaceRegionUVs(tagged, [{
   atlas: [.05, .05, .45, .45],
   padding: .04,
 }]);
-const movedAnchor = remapUvChartAnchor'charted, anchorBoundBeforeCharting);
+const movedAnchor = remapUvChartAnchor(charted, anchorBoundBeforeCharting);
 ```
 
 The projection frame is geometry-local and explicit. Each chart is normalized from the selected face corners into its `atlas` rectangle. Unassigned faces keep their existing UVs by default. Set `{ preserveUnassigned: false }` when charts deliberately cover every face and the source has no UV map.
@@ -82,3 +82,38 @@ Layer coordinates are always in the chart's authored 0..1 local frame. Atlas tra
 The first primitive vocabulary is `fill`, `rect`, `ellipse`, and `line`, with per-layer color and opacity. `colorSpace: 'srgb'` is the default for base-color-like output; `colorSpace: 'linear'` creates no-color-space data suitable for masks or other linear channels. Output is power-of-two RGBA8 `DataTexture`, `flipY=false`, clamp wrapped, linearly filtered, and mipmapped so it follows the repository's existing DataTexture → GLB export bridge rather than introducing a custom shader dependency.
 
 Texture generation does not mutate geometry, UVs, face regions, material groups, anchors, or chart placement. It is deliberately not a 3D brush engine, font/SVG renderer, normal-map baker, channel packer, automatic decal projector, or full texture-compositing system. Use it for compact code-first markings, labels, masks and trim whose shape intent belongs in semantic chart-local space.
+
+## Author scalar PBR response without changing chart placement
+
+`chartTexture()` is for RGBA color-like detail. Material response often needs linear scalar fields instead: a wet organic marking may be smoother than the surrounding shell, while an exposed hard-surface insert may be both smoother and more metallic. `src/lib/chart-pbr.js` keeps those concerns separate:
+
+```js
+import { chartScalarTexture, packMetallicRoughness } from '../src/lib/chart-pbr.js';
+
+const roughness = chartScalarTexture(packed, {
+  background: .72,
+  layers: [
+    { chart: 'panel.service', shape: 'fill', value: .55 },
+    { chart: 'panel.service', shape: 'rect', center: [.5, .5], size: [.65, .4], value: .22 },
+  ],
+});
+const metalness = chartScalarTexture(packed, {
+  background: 0,
+  layers: [
+    { chart: 'panel.service', shape: 'fill', value: .1 },
+    { chart: 'panel.service', shape: 'rect', center: [.5, .5], size: [.65, .4], value: .9 },
+  ],
+});
+const orm = packMetallicRoughness(roughness, metalness);
+
+const panel = material('#ffffff', {
+  roughness: 1,
+  metalness: 1,
+  roughnessMap: orm,
+  metalnessMap: orm,
+});
+```
+
+Scalar layers use `value: 0..1`, not color, but otherwise reuse semantic chart names plus the same `fill`, `rect`, `ellipse`, and `line` vocabulary and chart-local coordinates. Output is linear `NoColorSpace` RGBA8 data. `packMetallicRoughness()` writes roughness to G and metalness to B, matching Three.js r186 and glTF 2.0; it rejects mismatched image dimensions or UV-transform/sampler state instead of silently choosing one source's sampling contract. The returned packed texture owns new pixel storage, so the roughness and metalness source maps remain independently editable/disposable.
+
+Texture packing does not decide the material's scalar factors: Three.js/glTF multiply texture values by `roughness` and `metalness`, so use factor `1` when the map stores absolute authored values. The helper does not synthesize normals, infer physically measured material values, bind occlusion, or create a monolithic material wrapper. Geometry, charts, scalar fields, packing, and material binding remain separate authoring stages.
