@@ -138,7 +138,7 @@ export function buildModel(model, values = {}) {
   return root;
 }
 export function inspect(root) {
-  let meshes = 0, vertices = 0, triangles = 0;
+  let meshes = 0, primitives = 0, vertices = 0, triangles = 0;
   const materials = new Set();
   root.updateMatrixWorld(true);
   root.traverse(node => {
@@ -153,13 +153,26 @@ export function inspect(root) {
     const count = index ? index.count : p.count;
     if (count % 3) throw new Error(`Incomplete triangle: ${node.name}`);
     meshes++; vertices += p.count; triangles += count / 3;
-    for (const mat of Array.isArray(node.material) ? node.material : [node.material]) materials.add(mat);
+    const nodeMaterials = Array.isArray(node.material) ? node.material : [node.material];
+    if (Array.isArray(node.material)) {
+      if (!node.geometry.groups.length) throw new Error(`Multi-material mesh has no geometry groups: ${node.name}`);
+      for (const region of node.geometry.groups) {
+        if (!Number.isInteger(region.materialIndex) || region.materialIndex < 0 || region.materialIndex >= nodeMaterials.length) {
+          throw new Error(`Invalid material group: ${node.name}`);
+        }
+        if (!Number.isInteger(region.start) || !Number.isInteger(region.count) || region.start < 0 || region.count <= 0 || region.start + region.count > count || region.count % 3) {
+          throw new Error(`Invalid material group range: ${node.name}`);
+        }
+      }
+      primitives += node.geometry.groups.length;
+    } else primitives++;
+    for (const mat of nodeMaterials) materials.add(mat);
   });
   if (!meshes || !triangles) throw new Error('Model has no mesh triangles');
   const bounds = new THREE.Box3().setFromObject(root, true);
   const size = bounds.getSize(new THREE.Vector3()).toArray();
   if (!size.every(Number.isFinite) || Math.max(...size) <= 0) throw new Error('Invalid model bounds');
-  return { meshes, vertices, triangles, materials: materials.size, dimensions: size, min: bounds.min.toArray(), max: bounds.max.toArray() };
+  return { meshes, primitives, vertices, triangles, materials: materials.size, dimensions: size, min: bounds.min.toArray(), max: bounds.max.toArray() };
 }
 export function dispose(root) {
   const geometries = new Set(), materials = new Set(), textures = new Set(), skeletons = new Set();
