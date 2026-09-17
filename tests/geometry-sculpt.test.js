@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { defineFaceRegions, faceRegionTriangles } from '../src/lib/face-regions.js';
 import {
-  radialSelection, facingSelection, faceRegionSelection,
+  radialSelection, pathSelection, framedSelection, symmetrySelection, facingSelection, faceRegionSelection,
   intersectSelections, unionSelections, invertSelection, selectionWeights,
   pullVertices, inflateVertices, smoothVertices, sculptGeometry,
 } from '../src/lib/geometry-sculpt.js';
@@ -33,6 +33,38 @@ test('geometry-local radial, facing and boolean selections resolve deterministic
   assert.equal(weights[0], 0);
   const any = selectionWeights(g, unionSelections(region, invertSelection(region)));
   assert.ok([...any].every(weight => weight >= .5 && weight <= 1));
+});
+
+
+test('pathSelection follows a 3D polyline with interpolated radius and compact falloff', () => {
+  const selection = pathSelection({
+    points: [[-1, 0, 0], [0, 0, 0], [1, .5, 0]],
+    radius: [.1, .2, .4],
+    falloff: 'linear',
+  });
+  const meta = (position) => ({ index: 0, position, normal: [0, 0, 1] });
+  assert.equal(selection(meta([-.5, 0, 0])), 1);
+  assert.ok(selection(meta([.5, .35, 0])) > 0, 'point near second segment receives influence');
+  assert.equal(selection(meta([0, .5, 0])), 0, 'remote point stays exactly zero');
+  assert.throws(() => pathSelection({ points: [[0,0,0], [0,0,0]] }), /zero-length/);
+});
+
+test('framedSelection moves reusable path intent without rewriting its points', () => {
+  const localPath = pathSelection({ points: [[-.5, 0, 0], [.5, 0, 0]], radius: .08, falloff: 'constant' });
+  const placed = framedSelection(localPath, { origin: [.4, -.2, 0], rotation: [0, 0, 90] });
+  const meta = (position) => ({ index: 0, position, normal: [0, 0, 1] });
+  assert.equal(placed(meta([.4, .15, 0])), 1, 'local X path is rotated onto geometry Y');
+  assert.equal(placed(meta([.65, -.2, 0])), 0, 'frame transform is applied before selection evaluation');
+});
+
+test('symmetrySelection mirrors one authored stroke across a local plane', () => {
+  const oneSide = pathSelection({ points: [[.5, -.6, 0], [.5, .6, 0]], radius: .12, falloff: 'constant' });
+  const bilateral = symmetrySelection(oneSide, 'x');
+  const meta = (position) => ({ index: 0, position, normal: [0, 0, 1] });
+  assert.equal(oneSide(meta([-.5, 0, 0])), 0);
+  assert.equal(bilateral(meta([.5, 0, 0])), 1);
+  assert.equal(bilateral(meta([-.5, 0, 0])), 1);
+  assert.equal(bilateral(meta([0, 0, 0])), 0);
 });
 
 test('sculptGeometry clones source, preserves topology/UV/custom attributes and named face semantics', () => {
@@ -103,7 +135,7 @@ test('geometry sculpt refuses rig and morph ownership it cannot safely rewrite',
   const all = new Float32Array(count).fill(1);
   const skinned = g.clone();
   skinned.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(count * 4), 4));
-  skinned.setAttribute('skinWeight', new THREE.Float32BufferAttribute(new Float32Array(count * 4), 4));
+  skinned.setAttrribute('skinWeight', new THREE.Float32BufferAttribute(new Float32Array(count * 4), 4));
   assert.throws(() => sculptGeometry(skinned, pullVertices(all, [0, 0, .1])), /pre-rig/);
   const morphed = g.clone();
   morphed.morphAttributes.position = [g.getAttribute('position').clone()];

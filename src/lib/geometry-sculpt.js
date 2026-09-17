@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { faceRegionVertexMask } from './face-regions.js';
+import { reflectPoint, reflectDirection } from './symmetry.js';
 
 const finite3 = (value, label) => {
   if (!Array.isArray(value) || value.length !== 3 || !value.every(Number.isFinite)) {
@@ -59,6 +60,69 @@ export function radialSelection({ center = [0, 0, 0], radius = 1, falloff = 'smo
     const d = Math.sqrt(position.reduce((sum, value, axis) => sum + ((value - c[axis]) / r[axis]) ** 2, 0));
     return falloffValue(falloff, d);
   };
+}
+
+/** Compact Euclidean falloff around an authored geometry-local polyline. */
+export function pathSelection({ points, radius = 0.1, falloff = 'smooth', closed = false } = {}) {
+  if (!Array.isArray(points) || points.length < 2) throw new Error('path selection needs at least two points');
+  const authored = points.map((point, index) => finite3(point, `path selection point ${index}`));
+  const radii = typeof radius === 'number'
+    ? authored.map(() => radius)
+    : Array.isArray(radius) && radius.length === authored.length && radius.every(Number.isFinite)
+      ? radius.slice()
+      : null;
+  if (!radii || !radii.every(value => value > 0)) throw new Error('path selection radius must be positive or one positive radius per point');
+  if (!['smooth', 'linear', 'constant'].includes(falloff)) throw new Error('path selection falloff must be smooth, linear or constant');
+  const segmentCount = authored.length - 1 + (closed ? 1 : 0);
+  const segments = Array.from({ length: segmentCount }, (_, index) => {
+    const next = (index + 1) % authored.length;
+    const line = new THREE.Line3(new THREE.Vector3(...authored[index]), new THREE.Vector3(...authored[next]));
+    if (line.distanceSq() <= Number.EPSILON) throw new Error('path selection cannot contain zero-length segments');
+    return { line, radius0: radii[index], radius1: radii[next] };
+  });
+  const closest = new THREE.Vector3();
+  return ({ position }) => {
+    const point = new THREE.Vector3(...position);
+    let best = Infinity;
+    for (const segment of segments) {
+      const t = segment.line.closestPointToPointParameter(point, true);
+      segment.line.at(t, closest);
+      const localRadius = THREE.MathUtils.lerp(segment.radius0, segment.radius1, t);
+      const normalized = point.distanceTo(closest) / localRadius;
+      if (normalized < best) best = normalized;
+    }
+    return falloffValue(falloff, best);
+  };
+}
+
+/** Evaluate any selection in an authored local frame. Rotation is XYZ degrees; scale must be positive. */
+export function framedSelection(selection, { origin = [0, 0, 0], rotation = [0, 0, 0], scale = [1, 1, 1] } = {}) {
+  const o = finite3(origin, 'selection frame origin');
+  const r = finite3(rotation, 'selection frame rotation');
+  const s = finite3(scale, 'selection frame scale');
+  if (!s.every(value => value > 0)) throw new Error('selection frame scale must be positive');
+  const radians = r.map(THREE.MathUtils.degToRad);
+  const quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(...radians, 'XYZ'));
+  const localToGeometry = new THREE.Matrix4().compose(new THREE.Vector3(...o), quaternion, new THREE.Vector3(...s));
+  const geometryToLocal = localToGeometry.clone().invert();
+  const normalMatrix = new THREE.Matrix3().getNormalMatrix(geometryToLocal);
+  return meta => {
+    const position = new THREE.Vector3(...meta.position).applyMatrix4(geometryToLocal).toArray();
+    const normal = new THREE.Vector3(...meta.normal).applyNormalMatrix(normalMatrix).normalize().toArray();
+    return selectionValue(selection, { ...meta, position, normal });
+  };
+}
+
+/** Union a selection with a reflected copy across a geometry-local axis or explicit symmetry plane. */
+export function symmetrySelection(selection, plane = 'x') {
+  return meta => Math.max(
+    selectionValue(selection, meta),
+    selectionValue(selection, {
+      ...meta,
+      position: reflectPoint(meta.position, plane),
+      normal: reflectDirection(meta.normal, plane),
+    }),
+  );
 }
 
 /** Geometry-local normal-facing selection with a soft threshold. */

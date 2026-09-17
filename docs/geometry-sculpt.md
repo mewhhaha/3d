@@ -4,28 +4,40 @@ Use `src/lib/geometry-sculpt.js` when an authored component already exists as or
 
 ```js
 import {
-  radialSelection, facingSelection, faceRegionSelection,
-  intersectSelections, pullVertices, inflateVertices, smoothVertices,
-  sculptGeometry,
+  radialSelection, pathSelection, framedSelection, symmetrySelection,
+  facingSelection, faceRegionSelection, intersectSelections,
+  pullVertices, inflateVertices, smoothVertices, sculptGeometry,
 } from '../src/lib/geometry-sculpt.js';
 
-const forehead = faceRegionSelection(head, 'creature.forehead');
-const crest = intersectSelections(
-  forehead,
-  radialSelection({ center: [0, 0.12, 0.17], radius: [0.15, 0.19, 0.13] }),
+const oneSide = pathSelection({
+  points: [[0.04, 0.10, 0], [0.09, 0.04, 0.01], [0.13, -0.06, -0.03]],
+  radius: [0.03, 0.04, 0.05],
+});
+const facialRidges = intersectSelections(
+  faceRegionSelection(head, 'creature.face'),
+  framedSelection(symmetrySelection(oneSide, 'x'), {
+    origin: [0, 0, 0.20],
+    rotation: [0, 0, -8],
+  }),
   facingSelection([0, 0, 1], { minDot: 0.08 }),
 );
-
 const edited = sculptGeometry(head,
-  inflateVertices(crest, 0.06),
-  pullVertices(crest, [0, 0.018, 0.018]),
-  smoothVertices(crest, { strength: 0.17, iterations: 2 }),
+  inflateVertices(facialRidges, 0.04),
+  smoothVertices(facialRidges, { strength: 0.12, iterations: 1 }),
 );
 ```
 
-Selections are point-domain weights in **geometry-local meters**. `radialSelection()` provides scalar or XYZ ellipsoidal support with exact zero outside its radius. `facingSelection()` evaluates current vertex normals. `faceRegionSelection()` explicitly converts existing named face-domain semantics to point weights using incident-face ownership. `intersectSelections()`, `unionSelections()` and `invertSelection()` compose those sources without exposing triangle or vertex IDs to a recipe. `selectionWeights()` can materialize any composed selection as a deterministic `Float32Array` for inspection or reuse.
+Selections are point-domain weights in **geometry-local meters**. `radialSelection()` provides scalar or XYZ ellipsoidal support with exact zero outside its radius. `pathSelection()` does the same around a reusable 3D polyline, with either one radius or a radius per authored path point; the nearest segment interpolates the endpoint radii. `facingSelection()` evaluates current vertex normals. `faceRegionSelection()` explicitly converts existing named face-domain semantics to point weights using incident-face ownership. `intersectSelections()`, `unionSelections()` and `invertSelection()` compose those sources without exposing triangle or vertex IDs to a recipe. `selectionWeights()` can materialize any composed selection as a deterministic `Float32Array` for inspection or reuse.
+
+`framedSelection()` evaluates any child selection in an independently editable local frame. The frame uses geometry-local meter translation, XYZ rotations in degrees, and positive scale, matching the repository's authoring conventions. `symmetrySelection()` unions a selection with its reflection across a local X/Y/Z axis or an explicit symmetry plane. Nesting symmetry inside a frame makes the mirror plane part of that authored selection frame instead of tying it to scene coordinates.
 
 `pullVertices()` applies one local vector; `inflateVertices()` follows the current vertex normal; `smoothVertices()` performs simultaneous one-ring averaging and pins open boundaries by default. `sculptGeometry()` evaluates operations sequentially, so later masks/normal-directed edits see the geometry produced by earlier operations. The input geometry is not mutated.
+
+## Why paths instead of many radial dabs
+
+A chain of radial masks can approximate a seam or fold, but every bend, width change, and later repositioning requires editing several unrelated centers. A path keeps that intent as one piece of construction data: edit the polyline, its point radii, or its local frame and the selection is regenerated. This is useful for creature folds, brows, ridges, hard-surface grooves, panel seams, and similar elongated edits.
+
+`pathSelection()` measures ordinary 3D Euclidean distance to the authored polyline. It is not a screen-space brush or a geodesic-on-surface solver. For curved support where a path must stay on the exact surface, author or derive appropriate 3D path samples first, then use semantic/facing masks to constrain influence.
 
 ## Ownership contract
 
@@ -37,8 +49,8 @@ Skin attributes and morph targets are rejected. Moving rest positions without an
 
 Use `forms/sculpt.js` when the component is still a shared quad cage whose tags, corner UV charts, subdivision correspondence and later bake stages are part of the design. Use `geometry-sculpt.js` when the component is already an ordinary indexed triangle mesh and the desired edit is a local topology-preserving form change. Neither API does dynamic remeshing, booleans, collision prevention, automatic rig refitting or arbitrary topology repair.
 
-The regression fixture is `models/geometry-sculpt-study.js`; `studies/geometry-sculpt.json` holds fixed cameras/lights for baseline/sculpted, organic-only and mechanical-only cases. The organic subject combines a named forehead region, ellipsoidal radial falloff and normal-facing selection. The mechanical subject uses a named service region plus nested radial fields to raise a ring and recess its center. Both demonstrate the same mask algebra without sharing proportions, topology intent or styling.
+The radial-mask regression fixture remains `models/geometry-sculpt-study.js`. `models/geometry-stroke-study.js` and `studies/geometry-stroke.json` exercise the path/frame/symmetry layer on two different subjects: one authored creature facial-ridge path is mirrored inside a local frame, while an unrelated hard-surface service panel uses a rotated local frame to route a recessed seam. Both keep the same source tessellation before and after the edit.
 
 ## Current limitations
 
-The initial selectors are geometry-local radial, facing and named-region masks. There is no screen-space brush, polyline stroke, geodesic distance, occlusion test, pressure sampling or custom falloff curve yet. Smoothing is simple one-ring Laplacian averaging, so it is mesh-density dependent and can shrink volume. Pull/inflate can create self-intersections. These limitations are explicit reasons to keep this layer compact rather than presenting it as a general sculpt application.
+The current path selector uses closest Euclidean distance to piecewise-linear 3D segments. There is no screen-space stroke capture, resampling by pressure/time, geodesic distance, surface projection, occlusion test, custom falloff curve, collision handling, or automatic path transport across topology changes. Smoothing is simple one-ring Laplacian averaging, so it is mesh-density dependent and can shrink volume. Pull/inflate can create self-intersections. These limitations are explicit reasons to keep this layer compact rather than presenting it as a general sculpt application.

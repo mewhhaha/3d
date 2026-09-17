@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "geometry-stroke",
+  "title": "Workflow study — reusable path sculpt selections",
+  "module": "models/geometry-stroke-study.js",
+  "lockCamera": true,
+  "width": 600,
+  "height": 600,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"baseline","label":"Unedited creature and service panel","values":{"organic":true,"mechanical":true,"edited":false},"maxTriangles":10000},
+    {"id":"stroked","label":"Same topology with path-driven edits","values":{"organic":true,"mechanical":true,"edited":true},"maxTriangles":10000},
+    {"id":"organic","label":"Mirrored creature facial-ridge stroke","values":{"organic":true,"mechanical":false,"edited":true},"maxTriangles":7000},
+    {"id":"mechanical","label":"Framed routed panel seam","values":{"organic":false,"mechanical":true,"edited":true},"maxTriangles":7000}
+  ]
+}
