@@ -8,12 +8,12 @@ import {radialPort,routedCable,link,bellows} from './mechanics.js';
 /** Local Y-up torso support. Ribcage, waist and pelvic ring share a bowed centerline.
  * Radius/profile data are design hypotheses, not anatomy recovered from a single view.
  */
-export function torsoSupport(){
+export function torsoSupport({pose=null}={}){
  const rx=shapeProfile([[0,.093],[.13,.151],[.27,.142],[.42,.090],[.61,.105],[.80,.160],[.92,.174],[1,.100]]);
  const rz=shapeProfile([[0,.065],[.13,.091],[.27,.087],[.42,.060],[.61,.065],[.80,.079],[.92,.071],[1,.044]]);
  const spine=shapeProfile([[0,-.014],[.22,.003],[.48,-.002],[.78,.030],[1,.002]]);
  const sway=shapeProfile([[0,0],[.25,0],[.55,-.006],[.82,-.016],[1,-.009]]);
- return (u,v)=>{const a=(u-.5)*Math.PI*2;return[Math.sin(a)*rx(v)+sway(v),.935+v*.582,Math.cos(a)*rz(v)+spine(v)];};
+ return (u,v)=>{const a=(u-.5)*Math.PI*2,p=[Math.sin(a)*rx(v)+sway(v),.935+v*.582,Math.cos(a)*rz(v)+spine(v)];return pose?pose.point(p):p;};
 }
 /** One contour drives a ceramic plate and its darker backing; support drives ports too. */
 export function contourArmor(name,support,outline,mats,{offset=.004,thickness=.004,refinement=3,rounding=.15}={}){
@@ -28,12 +28,12 @@ export function contourArmor(name,support,outline,mats,{offset=.004,thickness=.0
  root.userData.construction={method:'concave chart contour on shared body support',outline,offset,thickness};return root;
 }
 const mirror=outline=>outline.map(([u,v])=>[1-u,v]).reverse();
-/** Replacement torso only; retains the original mount and joint locations. */
-export function articulatedTorso(mats){
- const root=group('Torso'),support=torsoSupport();
+/** Torso from a shared support; an optional section pose also drives its mounted details. */
+export function articulatedTorso(mats,{pose=null}={}){
+ const root=group('Torso'),support=torsoSupport({pose}),point=p=>pose?pose.point(p):p;
  const chassis=material('#101f22',{roughness:.55,metalness:.35});chassis.name='Recessed articulated torso';
  root.add(thickenSurface('Contoured torso understructure',support,{thickness:.004,segments:[72,48],material:chassis}));
- root.add(bellows({name:'Cervical column',from:[0,1.490,-.011],to:[0,1.619,-.011],radius:.034,ribs:8},mats));
+ root.add(bellows({name:'Cervical column',from:point([0,1.490,-.011]),to:point([0,1.619,-.011]),radius:.034,ribs:8},mats));
  // Scalloped pectoral / clavicular cover: a broad upper flange, inset shoulder notch,
  // and a descending side tab rather than a swollen oval sitting on the chest.
  const chest=[[.508,.977],[.589,.983],[.706,.931],[.735,.874],[.692,.839],[.683,.792],[.711,.752],[.691,.685],[.631,.679],[.606,.739],[.548,.751],[.519,.814]];
@@ -66,12 +66,13 @@ export function articulatedTorso(mats){
  }
  const port=radialPort({name:'Sternum emitter',radius:.016,color:'amber',detail:1},mats);
  root.add(attachToSurface(port,support,{u:.5,v:.925,offset:.006}));
- root.userData.construction={method:'shared ribcage-waist-pelvis support with independently authored scalloped shells',fixedMount:true};return root;
+ root.userData.construction={method:'shared ribcage-waist-pelvis support with independently authored scalloped shells',fixedMount:true};if(pose)root.userData.construction.sectionPoses=pose.stations;return root;
 }
 
 /** Concave shoulder cowl with lower actuator clearance; port is owned by its mount. */
-export function scallopedShoulder(mats){
- const support=(u,v)=>[(u-.5)*.184,(v-.5)*.190,.026*(1-(2*u-1)**2)*Math.sin(Math.PI*v)];
+export function scallopedShoulder(mats,{compact=false}={}){
+ const width=compact?.164:.184,height=compact?.162:.190;
+ const support=(u,v)=>[(u-.5)*width,(v-.5)*height,(compact?.032:.026)*(1-(2*u-1)**2)*Math.sin(Math.PI*v)];
  const outline=[[.04,.56],[.11,.85],[.31,.98],[.62,.96],[.86,.78],[.97,.56],[.87,.27],[.79,.09],[.64,.06],[.58,.27],[.44,.30],[.40,.15],[.22,.12],[.15,.32]];
  return contourArmor('Scalloped shoulder shell',support,outline,mats,{offset:.007,thickness:.0045,rounding:.16});
 }

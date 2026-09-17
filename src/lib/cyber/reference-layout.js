@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { group, sphere, material } from '../modeling.js';
 import { referenceCamera, landmarkGuide, mountSegment } from '../reference-shot.js';
+import { applyBodyGesture } from './body-gesture.js';
 import { twoLinkPose } from '../two-link-pose.js';
 import { liftOnSphere } from '../reference-constraints.js';
 import { exoArm, exoLeg, shellTorso, reactorBackpack } from './android.js';
@@ -18,7 +19,7 @@ export const prismAnchors={
   hipFar:{pixel:[271,568],depth:-.16},kneeFar:{pixel:[295,863],depth:-.16},ankleFar:{pixel:[382,1156],depth:-.12},
   head:{pixel:[314,178],depth:-.02},reactor:{pixel:[542,344],depth:-.14},
 };
-export function prismGuide({overrides={},poseStyle='reference'}={}){
+export function prismGuide({overrides={},poseStyle='reference',gestureStyle='fixed'}={}){
  if(!['reference','relaxed'].includes(poseStyle))throw new Error('Unknown pose style');
  const g=landmarkGuide(referenceCamera({target:[0,1.03,0]}),prismAnchors,overrides);
  const solve=(child,parent,length)=>{g.points[child]=liftOnSphere(g.camera,overrides[child]?.pixel||prismAnchors[child].pixel,g.point(parent),length,{...g.image,depth:overrides[child]?.depth??prismAnchors[child].depth});};
@@ -35,20 +36,21 @@ export function prismGuide({overrides={},poseStyle='reference'}={}){
    ['hip','knee','ankle',[.43,.45],side==='Near'?-5:-16],
   ])g.points[mid+side]=twoLinkPose({root:g.point(start+side),target:g.point(end+side),pole:g.point(mid+side),lengths,swivel:turn}).joint;
  }
- return g;
+ return applyBodyGesture(g,gestureStyle);
 }
 const reset=o=>{o.removeFromParent();o.position.set(0,0,0);o.quaternion.identity();o.scale.set(1,1,1);return o;};
-function bodyFacing(g){return V(g.point('shoulderNear')).sub(V(g.point('shoulderFar'))).cross(V(g.point('chest')).sub(V(g.point('pelvis')))).normalize().toArray();}
-function bodyMount(part,g){part.position.y=-1.465;return mountSegment(part,g.point('chest'),g.point('pelvis'),{name:'BodyGesture',referenceLength:1.465-.991,width:.88,forward:bodyFacing(g)});}
+function restPoint(g,n){return g.restBodyPoints?.[n]??g.point(n);}
+function bodyFacing(g){return V(restPoint(g,'shoulderNear')).sub(V(restPoint(g,'shoulderFar'))).cross(V(restPoint(g,'chest')).sub(V(restPoint(g,'pelvis')))).normalize().toArray();}
+function bodyMount(part,g){part.position.y=-1.465;return mountSegment(part,restPoint(g,'chest'),restPoint(g,'pelvis'),{name:'BodyGesture',referenceLength:1.465-.991,width:.88,forward:bodyFacing(g)});}
 function footMount(foot,ankle,forward,yaw=0){
  const toe=foot.getObjectByName('Rounded toe armor');if(toe){toe.scale.y=.021;toe.position.y=.009;}const collar=foot.getObjectByName('Ankle ceramic collar');if(collar){collar.scale.x=.82;collar.scale.z=.72;}
  const g=group(foot.name+' planted'),f=V(forward);f.y=0;f.normalize().applyAxisAngle(new THREE.Vector3(0,1,0),D(yaw));g.position.copy(V(ankle));g.position.y=.155+.0435*1.6;g.position.addScaledVector(f,.037);
  g.rotation.y=Math.atan2(f.x,f.z);foot.scale.set(1.02,1.6,1.25);g.add(foot);return g;
 }
 /** Identical mounts drive a cheap volume study and the detailed assembly. No per-image vertex projection. */
-export function posedAndroid({stage='assembly',detail='hero',shell='#dbdac4',glow=.7,cables=true,overrides={},poseStyle='reference'}={}){
+export function posedAndroid({stage='assembly',detail='hero',shell='#dbdac4',glow=.7,cables=true,overrides={},poseStyle='reference',gestureStyle='fixed'}={}){
  if(!['gesture','masses','assembly'].includes(stage))throw new Error('Unknown construction stage');
- const g=prismGuide({overrides,poseStyle}),m=cyberMaterials({shell,glow}),root=group('Android'),forward=bodyFacing(g),level=detail==='hero'?1:0;
+ const g=prismGuide({overrides,poseStyle,gestureStyle}),m=cyberMaterials({shell,glow}),root=group('Android'),forward=bodyFacing(g),level=detail==='hero'?1:0;
  const farMat=material('#536d76',{roughness:.75}),nearMat=material('#d6c6ac',{roughness:.7});
  if(stage==='assembly')root.add(bodyMount(shellTorso({detail:level},m),g));
  else {
@@ -89,6 +91,7 @@ export function posedAndroid({stage='assembly',detail='hero',shell='#dbdac4',glo
   root.add(cableLoom({name:'Reference power loop',points:route,colors:stage==='gesture'?['cyan']:['pink','white','lime'],radius:.007,spacing:.018,segments:96},m));
  }
  root.userData.poseGuide={schema:1,anchors:g.points,depths:'Hand-authored hypotheses; single view cannot resolve depth',stage};
+ if(g.bodyGesture)root.userData.poseGuide.bodyGesture=g.bodyGesture;
  if(poseStyle!=='reference')root.userData.poseGuide.poseStyle=poseStyle;
  root.userData.design={source:'Procedural components mounted to a manually interpreted 3D pose guide',status:'composition study, not visual acceptance',rig:'static rigid assembly; no skinned humanoid'};
  if(stage==='assembly'){const q=head.quaternion.clone(),values=[0,1,2].flatMap(i=>q.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),i===1?.04:0)).toArray());root.animations=[new THREE.AnimationClip('Survey',4,[new THREE.QuaternionKeyframeTrack('HeadMount.quaternion',[0,2,4],values)])];}

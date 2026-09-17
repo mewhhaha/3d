@@ -35,13 +35,13 @@ const plates={
  upper:[[[.13,.82],[.28,.98],[.52,.96],[.66,.86],[.77,.91],[.88,.77],[.83,.47],[.76,.18],[.64,.05],[.53,.12],[.44,.22],[.30,.12],[.23,.35],[.18,.55]]],
 };
 
-export function scallopedLimb({type='thigh',side=1}={},mats){
+export function scallopedLimb({type='thigh',side=1,socketClearance=false}={},mats){
  const support=limbFormSupport({type,side}),root=group('Scalloped '+type+' armor');
  // A narrowed core shows through real cutouts without borrowing old cylinder-sized details.
  const core=(u,v)=>{const p=support(u,v);return[p[0]*.82,p[1],p[2]*.80];};
  root.add(thickenSurface(type+' shaped dark core',core,{thickness:.002,segments:[40,28],material:mats.dark}));
  if(type==='shin')root.add(sphere({name:'Knee flex core',radius:.035,segments:24,material:mats.dark}));
- for(const [i,outline] of plates[type].entries())root.add(contourArmor(type+' flowing plate '+i,support,side<0?flip(outline):outline,mats,{offset:.0035,thickness:.0035,rounding:.13,refinement:2}));
+ for(const [i,baseOutline] of plates[type].entries()){const outline=socketClearance&&type==='upper'?baseOutline.map(([u,v])=>[u,v>.70?.70+(v-.70)*.55:v]):baseOutline;root.add(contourArmor(type+' flowing plate '+i,support,side<0?flip(outline):outline,mats,{offset:.0035,thickness:.0035,rounding:.13,refinement:2}));}
  const u=side>0?.74:.26;
  if(type==='shin')root.add(attachToSurface(radialPort({name:'Calf lateral emitter',radius:.027,color:'lime',detail:1},mats),support,{u,v:.74,offset:.006}));
  if(type==='thigh')root.add(attachToSurface(radialPort({name:'Proximal thigh inset',radius:.016,color:'amber',detail:1},mats),support,{u,v:.86,offset:.006}));

@@ -148,3 +148,13 @@ The local renderer uses software WebGL and no Blender. Authored scene cameras an
 ## Next useful work
 
 Inspect the new primary shapes before adding small decoration. The remaining face is doll-like, the crown has an unwanted groove, the backpack is still cleaner and more symmetric than the reference, and the thigh/shin/boot armor is too smooth through its transitions. The main power loop has been reduced in radius, emission and opacity without moving its socket endpoints. Keep this pose and reference fixed while addressing one of the remaining primary forms, with neutral and alternative views. Never change an annotation just to improve a metric.
+
+## Connected trunk gesture and joint interfaces
+
+See [section poses](section-pose.md) for shared section transforms across a torso
+support and its proximal limb sockets. `gestureStyle: counterpose` keeps existing
+wrist/ankle targets and exact limb lengths while re-solving the joints. Optional
+`jointStyle: housed` adds separate open hip/elbow cowls and shoulder clearance.
+Both defaults remain unchanged for comparison; neither is an inferred skeleton or
+a new skin/normal-bake claim. `node scripts/review-gesture.mjs` renders the previous,
+pose-only and pose-plus-housing cases alongside an independent mechanical duct.
