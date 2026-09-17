@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "id": "shot-rig",
+  "title": "Workflow study — bounds-aware authored shots and punctual lighting",
+  "module": "models/shot-rig-study.js",
+  "lockCamera": false,
+  "width": 640,
+  "height": 640,
+  "views": ["hero"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"organic","label":"Stylized organic bust / warm key, cool fill, amber rim","values":{"subject":"organic"},"maxTriangles":12000},
+    {"id":"mechanical","label":"Survey drone / neutral key, service spot, rear practical","values":{"subject":"mechanical"},"maxTriangles":12000}
+  ]
+}
