@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "material-regions",
+  "title": "Workflow study — named face regions to material slots",
+  "module": "models/material-regions-study.js",
+  "lockCamera": true,
+  "width": 600,
+  "height": 600,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"baseline","label":"Single-material semantic geometry","values":{"organic":true,"mechanical":true,"mode":"baseline"},"maxTriangles":12000},
+    {"id":"assigned","label":"Named regions mapped to material slots","values":{"organic":true,"mechanical":true,"mode":"assigned"},"maxTriangles":12000},
+    {"id":"organic","label":"Organic semantic material fixture","values":{"organic":true,"mechanical":false,"mode":"assigned"},"maxTriangles":7000},
+    {"id":"mechanical","label":"Hard-surface semantic material fixture","values":{"organic":false,"mechanical":true,"mode":"assigned"},"maxTriangles":7000}
+  ]
+}

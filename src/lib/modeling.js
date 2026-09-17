@@ -30,7 +30,10 @@ export function transform(object, { name, position = [0, 0, 0], rotation = [0, 0
   return object;
 }
 export function mesh(geometry, { material: mat, ...options } = {}) {
-  const object = new THREE.Mesh(geometry, mat?.isMaterial ? mat : material(mat));
+  const resolveMaterial = value => value?.isMaterial ? value : material(value);
+  if (Array.isArray(mat) && !mat.length) throw new Error('mesh material array must not be empty');
+  const resolvedMaterial = Array.isArray(mat) ? mat.map(resolveMaterial) : resolveMaterial(mat);
+  const object = new THREE.Mesh(geometry, resolvedMaterial);
   object.name = options.name || geometry.type;
   object.castShadow = object.receiveShadow = true;
   return transform(object, options);
