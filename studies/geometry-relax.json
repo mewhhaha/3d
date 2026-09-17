@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "id": "geometry-relax",
+  "title": "Workflow study — shrink-resistant BufferGeometry relaxation",
+  "module": "models/geometry-relax-study.js",
+  "lockCamera": true,
+  "width": 600,
+  "height": 600,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"baseline","label":"Noisy authored surfaces","values":{"organic":true,"mechanical":true,"method":"baseline"},"maxTriangles":12000},
+    {"id":"smooth","label":"One-way Laplacian smoothing","values":{"organic":true,"mechanical":true,"method":"smooth"},"maxTriangles":12000},
+    {"id":"relax","label":"Alternating shrink-resistant relaxation","values":{"organic":true,"mechanical":true,"method":"relax"},"maxTriangles":12000},
+    {"id":"organic","label":"Organic shell relaxation","values":{"organic":true,"mechanical":false,"method":"relax"},"maxTriangles":8000},
+    {"id":"mechanical","label":"Mechanical named-region relaxation","values":{"organic":false,"mechanical":true,"method":"relax"},"maxTriangles":8000}
+  ]
+}

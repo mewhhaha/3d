@@ -139,3 +139,22 @@ attachSurfaceAnchor(module, assembly, assemblyAnchor);
 `surfaceTopologySignature()` guards bind-created anchors against accidental reuse on changed indexed topology. `remapSurfaceAnchor()` is the small constructor-owned primitive for exact target-face/corner correspondence. `remapSolidifyAnchor()` uses that contract for the one-to-one outer and inner face copies created by `solidifyGeometry()`; inner winding explicitly permutes the stored barycentric and tangent weights. `remapCompositionAnchor()` uses the deterministic vertex/face offsets created by `composeGeometries()`. Composition metadata records each part's source topology signature, and the remap requires an explicit part name because several parts may intentionally share identical topology.
 
 These remaps are exact construction provenance, not a general dependency graph or semantic remesher. Solidify rims, booleans, subdivision, decimation and unrelated reconstructions still need operation-specific provenance or an explicit nearest/rebind decision. After an anchor is remapped into a new topology, that target topology owns the anchor for subsequent evaluation.
+## Fair noisy form without forcing one-way shrinkage
+
+Topology-preserving primary-form cleanup now has two explicit choices on ordinary indexed `BufferGeometry`. Keep `smoothVertices()` when deliberate one-way Laplacian averaging is acceptable; use `relaxVertices()` when high-frequency noise should be reduced while retaining more of the authored bulk:
+
+```js
+const cleaned = sculptGeometry(source,
+  relaxVertices(mask, {
+    lambda: 0.5,
+    mu: -0.53,
+    iterations: 10,
+    preserveBoundary: true,
+  }),
+);
+```
+
+`relaxVertices()` alternates a positive one-ring averaging pass with a slightly stronger negative pass. It composes with the same radial/path/facing/face-region masks as other sculpt operations, preserves topology, and keeps open boundaries pinned by default. Existing `smoothVertices()` behavior is unchanged, so old recipes retain their authored result instead of receiving a silent algorithm substitution.
+
+This is a bounded uniform-neighborhood adaptation of Taubin-style shrink-resistant fairing, not a continuous curvature solver or an exact volume constraint. Each relaxation iteration costs two passes, tessellation still affects the result, and aggressive parameters can overshoot or self-intersect. Use controlled material/wire/silhouette comparisons when judging whether cleanup preserved the intended form.
+

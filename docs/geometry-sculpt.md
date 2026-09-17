@@ -6,7 +6,7 @@ Use `src/lib/geometry-sculpt.js` when an authored component already exists as or
 import {
   radialSelection, pathSelection, framedSelection, symmetrySelection,
   facingSelection, faceRegionSelection, intersectSelections,
-  pullVertices, inflateVertices, smoothVertices, sculptGeometry,
+  pullVertices, inflateVertices, smoothVertices, relaxVertices, sculptGeometry,
 } from '../src/lib/geometry-sculpt.js';
 import { projectSurfacePath, surfacePathSelection } from '../src/lib/surface-stroke.js';
 
@@ -32,7 +32,7 @@ Selections are point-domain weights in **geometry-local meters**. `radialSelecti
 
 `framedSelection()` evaluates any child selection in an independently editable local frame. The frame uses geometry-local meter translation, XYZ rotations in degrees, and positive scale, matching the repository's authoring conventions. `symmetrySelection()` unions a selection with its reflection across a local X/Y/Z axis or an explicit symmetry plane. Nesting symmetry inside a frame makes the mirror plane part of that authored selection frame instead of tying it to scene coordinates.
 
-`pullVertices()` applies one local vector; `inflateVertices()` follows the current vertex normal; `smoothVertices()` performs simultaneous one-ring averaging and pins open boundaries by default. `sculptGeometry()` evaluates operations sequentially, so later masks/normal-directed edits see the geometry produced by earlier operations. The input geometry is not mutated.
+`pullVertices()` applies one local vector; `inflateVertices()` follows the current vertex normal; `smoothVertices()` performs simultaneous one-ring averaging and pins open boundaries by default. `relaxVertices()` is the shrink-resistant alternative for fairing noisy primary form: each iteration applies a positive uniform one-ring Laplacian pass followed by a slightly stronger negative pass (`lambda: 0.5`, `mu: -0.53` by default), following the bounded two-step pattern described by Taubin. It uses the same selection and boundary contract, but an iteration costs two mesh passes and it is not a volume guarantee. `sculptGeometry()` evaluates operations sequentially, so later masks/normal-directed edits see the geometry produced by earlier operations. The input geometry is not mutated.
 
 ## Project authored strokes onto a support and measure distance on the mesh
 
@@ -76,4 +76,4 @@ The radial-mask regression fixture remains `models/geometry-sculpt-study.js`. `m
 
 ## Current limitations
 
-The current path selector uses closest Euclidean distance to piecewise-linear 3D segments. There is no screen-space stroke capture, pressure/time sampling, continuous triangle-interior geodesic solve, occlusion test, custom falloff curve, collision handling, or automatic projected-path remap across topology-changing operations. `projectSurfacePath()`/`surfacePathSelection()` provide bounded projection plus edge-distance propagation for same-topology indexed supports. Smoothing is simple one-ring Laplacian averaging, so it is mesh-density dependent and can shrink volume. Pull/inflate can create self-intersections. These limitations are explicit reasons to keep this layer compact rather than presenting it as a general sculpt application.
+The current path selector uses closest Euclidean distance to piecewise-linear 3D segments. There is no screen-space stroke capture, pressure/time sampling, continuous triangle-interior geodesic solve, occlusion test, custom falloff curve, collision handling, or automatic projected-path remap across topology-changing operations. `projectSurfacePath()`/`surfacePathSelection()` provide bounded projection plus edge-distance propagation for same-topology indexed supports. Both `smoothVertices()` and `relaxVertices()` use uniform one-ring neighborhoods, so their result is mesh-density/valence dependent; relaxation resists one-way shrinkage but is not an exact volume-preserving or curvature-flow solver. Pull/inflate/relax can still create self-intersections when pushed aggressively. These limitations are explicit reasons to keep this layer compact rather than presenting it as a general sculpt application.

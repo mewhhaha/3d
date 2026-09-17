@@ -5,7 +5,7 @@ import { defineFaceRegions, faceRegionTriangles } from '../src/lib/face-regions.
 import {
   radialSelection, pathSelection, framedSelection, symmetrySelection, facingSelection, faceRegionSelection,
   intersectSelections, unionSelections, invertSelection, selectionWeights,
-  pullVertices, inflateVertices, smoothVertices, sculptGeometry,
+  pullVertices, inflateVertices, smoothVertices, relaxVertices, sculptGeometry,
 } from '../src/lib/geometry-sculpt.js';
 import { projectSurfacePath, surfacePathSelection } from '../src/lib/surface-stroke.js';
 
@@ -172,6 +172,52 @@ test('smooth preserves open boundaries when requested and moves selected interio
     near(q.getX(index), before[index*3]); near(q.getY(index), before[index*3+1]); near(q.getZ(index), before[index*3+2]);
   }
   assert.ok(q.getZ(12) < .8);
+});
+
+
+test('relaxVertices reduces deterministic surface noise while resisting Laplacian shrinkage', () => {
+  const g = new THREE.SphereGeometry(1, 32, 20);
+  const p = g.getAttribute('position');
+  for (let i = 0; i < p.count; i++) {
+    const point = new THREE.Vector3().fromBufferAttribute(p, i);
+    const direction = point.clone().normalize();
+    const noise = .08 * Math.sin(point.x * 13 + point.y * 7) + .05 * Math.cos(point.z * 17 - point.x * 5);
+    point.addScaledVector(direction, noise);
+    p.setXYZ(i, point.x, point.y, point.z);
+  }
+  p.needsUpdate = true;
+  g.computeVertexNormals();
+  const all = new Float32Array(p.count).fill(1);
+  const radii = geometry => {
+    const position = geometry.getAttribute('position');
+    const values = Array.from({ length: position.count }, (_, i) => Math.hypot(position.getX(i), position.getY(i), position.getZ(i)));
+    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+    const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
+    return { mean, deviation: Math.sqrt(variance) };
+  };
+  const before = radii(g);
+  const smooth = radii(sculptGeometry(g, smoothVertices(all, { strength: .35, iterations: 6 })));
+  const relaxed = radii(sculptGeometry(g, relaxVertices(all, { lambda: .5, mu: -.53, iterations: 10 })));
+  assert.ok(relaxed.deviation < before.deviation, 'alternating fairing reduces radial noise');
+  assert.ok(relaxed.deviation <= smooth.deviation * 1.02, 'relaxation reaches comparable noise reduction to the one-way smooth fixture');
+  assert.ok(Math.abs(relaxed.mean - before.mean) < Math.abs(smooth.mean - before.mean) * .15,
+    'alternating negative pass retains the original mean radius far better than one-way smoothing');
+});
+
+test('relaxVertices preserves requested open boundaries and validates stable filter coefficients', () => {
+  const g = grid();
+  const p = g.getAttribute('position');
+  p.setZ(12, .8); p.needsUpdate = true; g.computeVertexNormals();
+  const before = Array.from(p.array);
+  const all = new Float32Array(p.count).fill(1);
+  const edited = sculptGeometry(g, relaxVertices(all, { lambda: .45, mu: -.5, iterations: 2, preserveBoundary: true }));
+  const q = edited.getAttribute('position');
+  for (const index of [0,1,2,3,4,5,9,10,14,15,19,20,21,22,23,24]) {
+    near(q.getX(index), before[index*3]); near(q.getY(index), before[index*3+1]); near(q.getZ(index), before[index*3+2]);
+  }
+  assert.ok(q.getZ(12) < .8);
+  assert.throws(() => relaxVertices(all, { lambda: .5, mu: -.4 }), /negative pass magnitude/);
+  assert.throws(() => relaxVertices(all, { lambda: 0, mu: -.53 }), /lambda/);
 });
 
 test('geometry sculpt refuses rig and morph ownership it cannot safely rewrite', () => {

@@ -189,6 +189,15 @@ export function smoothVertices(selection, { strength = 0.35, iterations = 2, pre
   return operation('smooth', selection, { strength, iterations, preserveBoundary: Boolean(preserveBoundary) });
 }
 
+/** Alternating one-ring Laplacian fairing with a negative pass to resist shrinkage. */
+export function relaxVertices(selection, { lambda = 0.5, mu = -0.53, iterations = 2, preserveBoundary = true } = {}) {
+  if (!Number.isFinite(lambda) || lambda <= 0 || lambda > 1) throw new Error('relax lambda must be in (0, 1]');
+  if (!Number.isFinite(mu) || mu >= 0 || mu < -1) throw new Error('relax mu must be in [-1, 0)');
+  if (-mu <= lambda) throw new Error('relax requires the negative pass magnitude to exceed lambda');
+  if (!Number.isInteger(iterations) || iterations < 1 || iterations > 100) throw new Error('relax iterations must be 1..100');
+  return operation('relax', selection, { lambda, mu, iterations, preserveBoundary: Boolean(preserveBoundary) });
+}
+
 function adjacency(geometry, vertexCount) {
   const neighbors = Array.from({ length: vertexCount }, () => new Set());
   const edgeCounts = new Map();
@@ -222,45 +231,55 @@ export function sculptGeometry(geometry, ...operations) {
   const sourcePosition = validateGeometry(geometry);
   const ops = operations.flat();
   if (!ops.length) throw new Error('sculptGeometry needs at least one operation');
-  for (const op of ops) if (!op || !['pull', 'inflate', 'smooth'].includes(op.kind)) throw new Error('unknown geometry sculpt operation');
+  for (const op of ops) if (!op || !['pull', 'inflate', 'smooth', 'relax'].includes(op.kind)) throw new Error('unknown geometry sculpt operation');
 
   const output = geometry.clone();
   const position = output.getAttribute('position');
   const graph = adjacency(output, position.count);
   let touched = 0;
 
-  for (const op of ops) {
-    const iterations = op.kind === 'smooth' ? op.iterations : 1;
-    for (let step = 0; step < iterations; step++) {
-      output.computeVertexNormals();
-      const normal = output.getAttribute('normal');
-      const before = Array.from({ length: position.count }, (_, index) => [position.getX(index), position.getY(index), position.getZ(index)]);
-      const after = before.map(point => point.slice());
-      for (let index = 0; index < position.count; index++) {
-        const meta = {
-          index,
-          position: before[index].slice(),
-          normal: [normal.getX(index), normal.getY(index), normal.getZ(index)],
-        };
-        const weight = selectionValue(op.selection, meta);
-        if (weight === 0 || (op.kind === 'smooth' && op.preserveBoundary && graph.boundary[index])) continue;
-        let delta;
-        if (op.kind === 'pull') delta = op.offset;
-        else if (op.kind === 'inflate') delta = meta.normal.map(value => value * op.distance);
-        else {
-          const neighbors = [...graph.neighbors[index]];
-          if (!neighbors.length) continue;
-          delta = before[index].map((value, axis) => {
-            const average = neighbors.reduce((sum, neighbor) => sum + before[neighbor][axis], 0) / neighbors.length;
-            return (average - value) * op.strength;
-          });
-        }
-        after[index] = before[index].map((value, axis) => value + weight * delta[axis]);
-        if (!after[index].every(Number.isFinite)) throw new Error('geometry sculpt produced invalid coordinates');
-        touched++;
+  const applyPass = (op, laplacianFactor = null) => {
+    output.computeVertexNormals();
+    const normal = output.getAttribute('normal');
+    const before = Array.from({ length: position.count }, (_, index) => [position.getX(index), position.getY(index), position.getZ(index)]);
+    const after = before.map(point => point.slice());
+    for (let index = 0; index < position.count; index++) {
+      const meta = {
+        index,
+        position: before[index].slice(),
+        normal: [normal.getX(index), normal.getY(index), normal.getZ(index)],
+      };
+      const weight = selectionValue(op.selection, meta);
+      if (weight === 0 || ((op.kind === 'smooth' || op.kind === 'relax') && op.preserveBoundary && graph.boundary[index])) continue;
+      let delta;
+      if (op.kind === 'pull') delta = op.offset;
+      else if (op.kind === 'inflate') delta = meta.normal.map(value => value * op.distance);
+      else {
+        const neighbors = [...graph.neighbors[index]];
+        if (!neighbors.length) continue;
+        const factor = laplacianFactor ?? op.strength;
+        delta = before[index].map((value, axis) => {
+          const average = neighbors.reduce((sum, neighbor) => sum + before[neighbor][axis], 0) / neighbors.length;
+          return (average - value) * factor;
+        });
       }
-      writePositions(position, after);
+      after[index] = before[index].map((value, axis) => value + weight * delta[axis]);
+      if (!after[index].every(Number.isFinite)) throw new Error('geometry sculpt produced invalid coordinates');
+      touched++;
     }
+    writePositions(position, after);
+  };
+
+  for (const op of ops) {
+    if (op.kind === 'relax') {
+      for (let step = 0; step < op.iterations; step++) {
+        applyPass(op, op.lambda);
+        applyPass(op, op.mu);
+      }
+      continue;
+    }
+    const iterations = op.kind === 'smooth' ? op.iterations : 1;
+    for (let step = 0; step < iterations; step++) applyPass(op);
   }
 
   output.computeVertexNormals();
