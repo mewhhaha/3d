@@ -12,12 +12,15 @@ on:
       - scripts/measure-sculpt.mjs
       - src/render-stage.js
       - src/lib/forms/**
+      - src/lib/shot-rig.js
       - src/lib/export-assets.js
       - models/sculpt-ear.js
+      - models/shot-rig-study.js
       - studies/**
       - tests/local-render.test.js
       - tests/sculpt-forms.test.js
       - tests/study.test.js
+      - tests/shot-rig.test.js
       - package*.json
   pull_request:
 permissions:
@@ -39,12 +42,14 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run prepare:tangents
       - name: Sculpt, study and local runtime unit tests
-        run: node --test tests/local-render.test.js tests/sculpt-forms.test.js tests/study.test.js
+        run: node --test tests/local-render.test.js tests/sculpt-forms.test.js tests/study.test.js tests/shot-rig.test.js
       - run: npx playwright-core install --with-deps chromium
       - name: In-memory WebGL, dependency freshness and export isolation
         run: npm run test:render
       - name: Locked-camera high, low, baked and blockout comparisons
         run: npm run study -- studies/auricle.json
+      - name: Authored shot and punctual-light workflow study
+        run: npm run study -- studies/shot-rig.json
       - name: Independent high-to-low normal measurement
         run: npm run measure:sculpt
       - uses: actions/upload-artifact@v4
