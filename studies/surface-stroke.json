@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "id": "surface-stroke",
+  "title": "Workflow study — projected surface strokes",
+  "module": "models/surface-stroke-study.js",
+  "lockCamera": true,
+  "width": 600,
+  "height": 600,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"baseline","label":"Unedited curved and layered supports","values":{"organic":true,"mechanical":true,"mode":"baseline"},"maxTriangles":12000},
+    {"id":"euclidean","label":"Ordinary 3D path falloff","values":{"organic":true,"mechanical":true,"mode":"euclidean"},"maxTriangles":12000},
+    {"id":"surface","label":"Projected edge-distance surface stroke","values":{"organic":true,"mechanical":true,"mode":"surface"},"maxTriangles":12000},
+    {"id":"organic","label":"Organic curved-surface stroke","values":{"organic":true,"mechanical":false,"mode":"surface"},"maxTriangles":7000},
+    {"id":"mechanical","label":"Layer-aware service seam","values":{"organic":false,"mechanical":true,"mode":"surface"},"maxTriangles":7000}
+  ]
+}
