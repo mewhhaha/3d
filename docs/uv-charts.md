@@ -15,7 +15,7 @@ const charted = projectFaceRegionUVs(tagged, [{
   atlas: [.05, .05, .45, .45],
   padding: .04,
 }]);
-const movedAnchor = remapUvChartAnchor(charted, anchorBoundBeforeCharting);
+const movedAnchor = remapUvChartAnchor'charted, anchorBoundBeforeCharting);
 ```
 
 The projection frame is geometry-local and explicit. Each chart is normalized from the selected face corners into its `atlas` rectangle. Unassigned faces keep their existing UVs by default. Set `{ preserveUnassigned: false }` when charts deliberately cover every face and the source has no UV map.
@@ -58,3 +58,27 @@ const after = inspectUvCharts(packed);
 Packing does not move 3D vertices, reorder faces, change named face regions, or reinterpret material groups. The projector now always splits chart ownership even when two chart corners happen to have numerically identical UV values, so later atlas edits cannot accidentally modify a neighboring chart or an unassigned source face. Existing persistent anchors remapped through the projection remain valid after packing because packing is UV-only and keeps the charted indexed topology unchanged.
 
 This is deliberately not a general polygon-nesting or unwrap solver. The packer uses authored chart rectangles rather than exact concave island outlines, so it may waste atlas area compared with a production packer. It does not minimize distortion, infer seams, merge mirrored islands, pack UDIMs, enforce pixel-rounded gutters, or reason about mip bleed. `inspectUvCharts()` exposes planar-projection distortion; it does not repair it.
+
+## Paint portable detail in chart-local coordinates
+
+Once charts have been projected and optionally packed, `chartTexture()` can rasterize small procedural markings into an ordinary exportable RGBA8 `DataTexture` without coupling texture authoring to final atlas coordinates:
+
+```js
+import { chartTexture } from '../src/lib/chart-textures.js';
+
+const map = chartTexture(packed, {
+  size: 256,
+  background: '#ffffff',
+  layers: [
+    { chart: 'panel.service', shape: 'fill', color: '#d9ddda' },
+    { chart: 'panel.service', shape: 'rect', center: [.5, .5], size: [.7, .5], color: '#4e595e' },
+    { chart: 'panel.service', shape: 'line', from: [.25, .3], to: [.75, .7], width: .08, color: '#e0a33b' },
+  ],
+});
+```
+
+Layer coordinates are always in the chart's authored 0..1 local frame. Atlas translation, scale, and cardinal rotation remain separate placement decisions; `chartTexture()` reads the current chart metadata and compensates for pack rotation while rasterizing. When a projected chart exactly matches one named face region, `chartTexture()` resolves that semantic region name back to the chart from the stored face ranges. Numeric chart indices remain available for composite/low-level cases whose chart does not have one exact semantic-region identity. This deliberately avoids adding a second chart-naming system to projection metadata.
+
+The first primitive vocabulary is `fill`, `rect`, `ellipse`, and `line`, with per-layer color and opacity. `colorSpace: 'srgb'` is the default for base-color-like output; `colorSpace: 'linear'` creates no-color-space data suitable for masks or other linear channels. Output is power-of-two RGBA8 `DataTexture`, `flipY=false`, clamp wrapped, linearly filtered, and mipmapped so it follows the repository's existing DataTexture → GLB export bridge rather than introducing a custom shader dependency.
+
+Texture generation does not mutate geometry, UVs, face regions, material groups, anchors, or chart placement. It is deliberately not a 3D brush engine, font/SVG renderer, normal-map baker, channel packer, automatic decal projector, or full texture-compositing system. Use it for compact code-first markings, labels, masks and trim whose shape intent belongs in semantic chart-local space.

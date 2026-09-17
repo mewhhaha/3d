@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "surface-detail",
+  "title": "Workflow study — procedural surface detail on semantic UV charts",
+  "module": "models/surface-detail-study.js",
+  "lockCamera": true,
+  "width": 600,
+  "height": 600,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"plain","label":"Packed semantic charts with plain authored color","values":{"organic":true,"mechanical":true,"mode":"plain"},"maxTriangles":12000},
+    {"id":"detailed","label":"Chart-local procedural markings and panel graphics","values":{"organic":true,"mechanical":true,"mode":"detailed"},"maxTriangles":12000},
+    {"id":"organic","label":"Organic chart-local asymmetric marking fixture","values":{"organic":true,"mechanical":false,"mode":"detailed"},"maxTriangles":7000},
+    {"id":"mechanical","label":"Mechanical chart-local label and trim fixture","values":{"organic":false,"mechanical":true,"mode":"detailed"},"maxTriangles":7000}
+  ]
+}
