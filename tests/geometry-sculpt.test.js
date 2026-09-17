@@ -7,6 +7,7 @@ import {
   intersectSelections, unionSelections, invertSelection, selectionWeights,
   pullVertices, inflateVertices, smoothVertices, sculptGeometry,
 } from '../src/lib/geometry-sculpt.js';
+import { projectSurfacePath, surfacePathSelection } from '../src/lib/surface-stroke.js';
 
 function grid() {
   const g = new THREE.PlaneGeometry(2, 2, 4, 4);
@@ -47,6 +48,50 @@ test('pathSelection follows a 3D polyline with interpolated radius and compact f
   assert.ok(selection(meta([.5, .35, 0])) > 0, 'point near second segment receives influence');
   assert.equal(selection(meta([0, .5, 0])), 0, 'remote point stays exactly zero');
   assert.throws(() => pathSelection({ points: [[0,0,0], [0,0,0]] }), /zero-length/);
+});
+
+test('surfacePathSelection follows mesh edge distance instead of bleeding to a nearby disconnected layer', () => {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+    -1,-1,0, 1,-1,0, -1,1,0, 1,1,0,
+    -1,-1,-.03, 1,-1,-.03, -1,1,-.03, 1,1,-.03,
+  ], 3));
+  geometry.setIndex([0,1,2, 2,1,3, 4,6,5, 6,7,5]);
+  geometry.computeVertexNormals();
+  defineFaceRegions(geometry, {
+    'layer.front': ({ centroid }) => centroid.z > -.01,
+    'layer.back': ({ centroid }) => centroid.z < -.02,
+  }, { clone: false });
+  const authored = [[-1, -1, .01], [1, -1, .01]];
+  const euclidean = selectionWeights(geometry, pathSelection({ points: authored, radius: .08, falloff: 'constant' }));
+  const projected = projectSurfacePath(geometry, {
+    points: authored, sampleSpacing: .15, maxDistance: .05, regionNames: 'layer.front',
+  });
+  const surface = surfacePathSelection(geometry, projected, { radius: .8, falloff: 'constant', regionNames: 'layer.front' });
+  assert.ok(projected.samples.length > 4);
+  assert.ok([...euclidean.slice(4)].some(weight => weight > 0), 'ordinary 3D path reaches the nearby backing layer');
+  assert.ok([...surface.slice(0, 4)].some(weight => weight > 0), 'front layer receives surface influence');
+  assert.ok([...surface.slice(4)].every(weight => weight === 0), 'disconnected backing layer receives no geodesic influence');
+});
+
+test('projected surface paths retain barycentric support through same-topology form edits', () => {
+  const geometry = new THREE.PlaneGeometry(2, 2, 8, 8);
+  geometry.computeVertexNormals();
+  const projected = projectSurfacePath(geometry, {
+    points: [[-.6, 0, .2], [.6, 0, .2]], sampleSpacing: .12, maxDistance: .3,
+  });
+  const deformed = geometry.clone();
+  const p = deformed.getAttribute('position');
+  for (let i = 0; i < p.count; i++) p.setZ(i, .25 * Math.cos(p.getX(i) * 1.4) * Math.cos(p.getY(i)));
+  p.needsUpdate = true; deformed.computeVertexNormals();
+  const weights = surfacePathSelection(deformed, projected, { radius: .3 });
+  assert.ok([...weights].filter(weight => weight > 0).length > 8);
+  const reordered = deformed.clone();
+  const index = reordered.index.array.slice();
+  const sampledOffset = projected.samples[0].triangleIndex * 3;
+  [index[sampledOffset], index[sampledOffset + 1]] = [index[sampledOffset + 1], index[sampledOffset]];
+  reordered.setIndex(new THREE.BufferAttribute(index, 1));
+  assert.throws(() => surfacePathSelection(reordered, projected, { radius: .3 }), /topology changed/);
 });
 
 test('framedSelection moves reusable path intent without rewriting its points', () => {
@@ -135,7 +180,7 @@ test('geometry sculpt refuses rig and morph ownership it cannot safely rewrite',
   const all = new Float32Array(count).fill(1);
   const skinned = g.clone();
   skinned.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(count * 4), 4));
-  skinned.setAttrribute('skinWeight', new THREE.Float32BufferAttribute(new Float32Array(count * 4), 4));
+  skinned.setAttribute('skinWeight', new THREE.Float32BufferAttribute(new Float32Array(count * 4), 4));
   assert.throws(() => sculptGeometry(skinned, pullVertices(all, [0, 0, .1])), /pre-rig/);
   const morphed = g.clone();
   morphed.morphAttributes.position = [g.getAttribute('position').clone()];
