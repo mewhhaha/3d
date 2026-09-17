@@ -42,6 +42,53 @@ export function deformationHandle({
   });
 }
 
+/**
+ * JSON-safe regular free-form deformation lattice in a reusable handle-local box.
+ * The undeformed grid is implicit; edits store only sparse control-point offsets.
+ */
+export function deformationLattice({
+  handle = deformationHandle(), xRange = [-0.5, 0.5], zRange = [-0.5, 0.5],
+  resolution = [2, 2, 2], edits = [],
+} = {}) {
+  const normalizedHandle = deformationHandle(handle);
+  const range = (value, label) => {
+    if (!Array.isArray(value) || value.length !== 2 || !value.every(Number.isFinite) || value[0] >= value[1]) {
+      throw new Error(`${label} must be [start, end] with start < end`);
+    }
+    return value.slice();
+  };
+  const xr = range(xRange, 'deformation lattice xRange');
+  const zr = range(zRange, 'deformation lattice zRange');
+  if (!Array.isArray(resolution) || resolution.length !== 3
+      || !resolution.every(value => Number.isInteger(value) && value >= 2 && value <= 8)) {
+    throw new Error('deformation lattice resolution must contain three integers in 2..8');
+  }
+  if (!Array.isArray(edits) || edits.length > 512) throw new Error('deformation lattice edits must be an array of at most 512 entries');
+  const cleanEdits = edits.map((edit, index) => {
+    if (!edit || !Array.isArray(edit.point) || edit.point.length !== 3
+        || !edit.point.every(Number.isInteger)) {
+      throw new Error(`deformation lattice edit ${index} needs integer point [i, j, k]`);
+    }
+    edit.point.forEach((coordinate, axis) => {
+      if (coordinate < 0 || coordinate >= resolution[axis]) {
+        throw new Error(`deformation lattice edit ${index} point is outside resolution`);
+      }
+    });
+    return Object.freeze({
+      point: Object.freeze(edit.point.slice()),
+      offset: Object.freeze(finite3(edit.offset ?? [0, 0, 0], `deformation lattice edit ${index} offset`)),
+    });
+  });
+  return Object.freeze({
+    kind: 'deformation-lattice',
+    handle: normalizedHandle,
+    xRange: Object.freeze(xr),
+    zRange: Object.freeze(zr),
+    resolution: Object.freeze(resolution.slice()),
+    edits: Object.freeze(cleanEdits),
+    outside: 'identity',
+  });
+}
 
 /**
  * JSON-safe guide for broad deformation along an authored handle-local centerline.
@@ -102,12 +149,19 @@ export function taperVertices(selection, { factor = -0.25, handle = deformationH
   return handleOperation('taper', selection, { factor, handle });
 }
 
-
 /** Carry the handle-local X/Z cross-section along an authored curve using transported frames. */
 export function curveVertices(selection, { guide, handle = deformationHandle() } = {}) {
   if (!guide?.points) throw new Error('curve deformation needs a deformation curve guide');
   const normalizedGuide = deformationCurve(guide.points, guide);
   return handleOperation('curve', selection, { guide: normalizedGuide, handle });
+}
+
+/** Warp a selected region through a sparse regular free-form deformation lattice. */
+export function latticeVertices(selection, { lattice } = {}) {
+  validateSelection(selection, 'lattice');
+  if (!lattice) throw new Error('lattice deformation needs a deformation lattice');
+  const normalizedLattice = deformationLattice(lattice);
+  return Object.freeze({ kind: 'lattice', selection, lattice: normalizedLattice, handle: normalizedLattice.handle });
 }
 
 function matrices(handle) {
@@ -160,7 +214,6 @@ function taperPoint(point, handle, factor) {
   return new THREE.Vector3(point.x * crossScale, point.y, point.z * crossScale);
 }
 
-
 function curveRuntime(guide) {
   const points = guide.points.map(point => new THREE.Vector3(...point));
   const curve = points.length === 2
@@ -193,15 +246,54 @@ function curvePoint(point, handle, runtime) {
   const frame = sampledCurveFrame(runtime, t);
   if (point.y < start) frame.origin.addScaledVector(frame.tangent, point.y - start);
   else if (point.y > end) frame.origin.addScaledVector(frame.tangent, point.y - end);
-  // curve-frame uses +X=normal, +Y=binormal, +Z=tangent. Source deformation uses +Y axial,
-  // so source +Z maps to -binormal to preserve a right-handed X/Y/Z cross-section on a straight +Y guide.
   return frame.origin.clone()
     .addScaledVector(frame.normal, point.x)
     .addScaledVector(frame.binormal, -point.z);
 }
 
+function binomial(n, k) {
+  let result = 1;
+  for (let i = 1; i <= k; i++) result = result * (n - (k - i)) / i;
+  return result;
+}
+
+function bernsteinBasis(count, t) {
+  const degree = count - 1;
+  return Array.from({ length: count }, (_, index) => (
+    binomial(degree, index) * (t ** index) * ((1 - t) ** (degree - index))
+  ));
+}
+
+function latticePoint(point, lattice) {
+  const [x0, x1] = lattice.xRange;
+  const [y0, y1] = lattice.handle.range;
+  const [z0, z1] = lattice.zRange;
+  const u = (point.x - x0) / (x1 - x0);
+  const v = (point.y - y0) / (y1 - y0);
+  const w = (point.z - z0) / (z1 - z0);
+  const epsilon = 1e-12;
+  if (u < -epsilon || u > 1 + epsilon || v < -epsilon || v > 1 + epsilon || w < -epsilon || w > 1 + epsilon) {
+    return point.clone();
+  }
+  if (!lattice.edits.length) return point.clone();
+  const uu = THREE.MathUtils.clamp(u, 0, 1), vv = THREE.MathUtils.clamp(v, 0, 1), ww = THREE.MathUtils.clamp(w, 0, 1);
+  const bx = bernsteinBasis(lattice.resolution[0], uu);
+  const by = bernsteinBasis(lattice.resolution[1], vv);
+  const bz = bernsteinBasis(lattice.resolution[2], ww);
+  let dx = 0, dy = 0, dz = 0;
+  for (const edit of lattice.edits) {
+    const weight = bx[edit.point[0]] * by[edit.point[1]] * bz[edit.point[2]];
+    if (weight === 0) continue;
+    dx += edit.offset[0] * weight;
+    dy += edit.offset[1] * weight;
+    dz += edit.offset[2] * weight;
+  }
+  return new THREE.Vector3(point.x + dx, point.y + dy, point.z + dz);
+}
+
 function deformPoint(point, op, runtime) {
   if (op.kind === 'curve') return curvePoint(point, op.handle, runtime);
+  if (op.kind === 'lattice') return latticePoint(point, op.lattice);
   if (op.kind === 'bend') return bendPoint(point, op.handle, op.angle);
   if (op.kind === 'twist') return twistPoint(point, op.handle, op.angle);
   if (op.kind === 'taper') return taperPoint(point, op.handle, op.factor);
@@ -216,7 +308,7 @@ export function deformGeometry(geometry, ...operations) {
   const sourcePosition = validateGeometry(geometry);
   const ops = operations.flat();
   if (!ops.length) throw new Error('deformGeometry needs at least one operation');
-  for (const op of ops) if (!op || !['bend', 'twist', 'taper', 'curve'].includes(op.kind)) throw new Error('unknown geometry deformation operation');
+  for (const op of ops) if (!op || !['bend', 'twist', 'taper', 'curve', 'lattice'].includes(op.kind)) throw new Error('unknown geometry deformation operation');
 
   const output = geometry.clone();
   const position = output.getAttribute('position');
@@ -252,8 +344,9 @@ export function deformGeometry(geometry, ...operations) {
     ...output.userData,
     geometryDeform: {
       version: 1,
-      coordinateSpace: 'geometry-local handles with local +Y deformation axis',
+      coordinateSpace: 'geometry-local handles; axial operations use local +Y and lattice operations use a handle-local box',
       operations: ops.map(op => op.kind),
+      lattices: ops.filter(op => op.kind === 'lattice').map(op => ({ resolution: op.lattice.resolution.slice(), edits: op.lattice.edits.length, outside: op.lattice.outside })),
       touchedVertexOperations: touched,
       topologyPreserved: true,
       normals: 'recomputed',
