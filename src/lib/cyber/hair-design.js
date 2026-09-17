@@ -1,14 +1,23 @@
 import * as THREE from 'three';
 import { compactGeometry } from '../compact-geometry.js';
 import { group, material } from '../modeling.js';
-import { guideCurve, railSurface, compileSurface, loopCap } from '../shape-rails.js';
+import { guideCurve, railSurface, compileSurface, loopCap, shapeProfile } from '../shape-rails.js';
 
 import { cacheSurface } from '../surface-cache.js';
 import { partitionSurface, matchBoundary, surfaceEdge, edgeDerivative } from '../surface-boundary.js';
 import { prismHairGuides, prismFringeGuides } from './hair-guides.js';
 /** Flow along a crown-to-cut guide. The cut, scalp volume and fibers are separate. */
-export function bobGuides({guides=prismHairGuides, fringeGuides=prismFringeGuides, join=true}={}) {
- const rails=Object.values(guides).map(points=>guideCurve(points));
+export function bobGuides({guides=prismHairGuides, fringeGuides=prismFringeGuides, join=true, crownRoundness=1}={}) {
+ if(!Number.isFinite(crownRoundness)||crownRoundness<0||crownRoundness>1)throw new Error('Crown roundness must be in [0, 1]');
+ // Shape the rear guide rails before lofting/partitioning, so width changes blend
+ // across the crown rather than introducing a narrow post-loft ridge. Cuts and
+ // scalp roots remain pinned; this profile is independent of mesh resolution.
+ const fullness=shapeProfile([[0,0],[.30,1],[.65,.80],[1,0]]);
+ const rearGuides=new Set(['temple','rear','back']);
+ const rails=Object.entries(guides).map(([name,points])=>{
+  const guide=guideCurve(points);
+  return rearGuides.has(name)?v=>{const p=guide(v);return[p[0]*(1+.45*crownRoundness*fullness(v)),p[1],p[2]];}:guide;
+ });
  if(!join){const curtain=railSurface(rails),fringe=railSurface(fringeGuides.map(points=>guideCurve(points)));return{curtain,fringe:(u,v)=>fringe(1-u,v)};}
  const fraction=.47,oldCurtain=cacheSurface(railSurface(rails),{segments:[192,192]});
  const front=fringeGuides.slice(1,-1).map(points=>guideCurve(points));
@@ -51,5 +60,5 @@ export function guidedBob({ mode='cage', textureSize=512, ...shape }={}) {
  // concentric rings. This avoids changing the curtain/fringe support or its normal bake.
  const ring=Array.from({length:64},(_,i)=>guides.curtain(i/63,0));
  root.add(loopCap('Crown closure',ring,{lift:.010,rings:5,material:material('#82a5a0',{roughness:.6,side:THREE.DoubleSide})}));
- root.userData.groom={method:'periodic crown-to-cut support, partitioned into matching charts; no reference projection',mode};return root;
+ root.userData.groom={crownRoundness:shape.crownRoundness??1,method:'periodic crown-to-cut support, partitioned into matching charts; no reference projection',mode};return root;
 }

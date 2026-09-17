@@ -6,7 +6,7 @@ import { portraitFields } from './head-form.js';
 import { posedAndroid } from './reference-layout.js';
 import { guidedBob } from './hair-design.js';
 /** Preserve guide/camera and replace only named components. Baseline stays available. */
-export function refinedAndroid({ stage='assembly', hairMode='cage', ...options }={}){
+export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, ...options }={}){
  const root=posedAndroid({stage,...options});
  if(stage==='assembly'){
   const materials=cyberMaterials({glow:.7});
@@ -71,7 +71,7 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', ...options }
 
   const old=root.getObjectByName('Prismatic bob'),parent=old.parent;old.removeFromParent();
   old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});
-  parent.add(guidedBob({mode:hairMode}));
+  parent.add(guidedBob({mode:hairMode,crownRoundness}));
   const face=parent.getObjectByName('Portrait'),reshaped=reshapeAssembly(face,portraitFields);face.removeFromParent();parent.add(reshaped);
   const ears=[];reshaped.traverse(o=>{if(o.name==='Ear attachment')ears.push(o);});for(const ear of ears){ear.removeFromParent();ear.geometry.dispose();}
   const replacing=[];root.traverse(o=>{if(['Thigh enclosing panels','Shin enclosing panels','Forearm wrapped armor','Upper arm wrapped armor'].includes(o.name))replacing.push(o);});
