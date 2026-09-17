@@ -130,6 +130,7 @@ async function capture(options = {}) {
   let helper;
   try {
     if (pass !== 'material') {
+      root.traverse(o=>{if(o.userData.illustrationOutline){visibility.push([o,o.visible]);o.visible=false;}});
       scene.fog=null;
       if (look) {
         root.traverse(o=>{if(o.userData.environment){visibility.push([o,o.visible]);o.visible=false;}});

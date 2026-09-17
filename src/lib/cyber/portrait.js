@@ -20,22 +20,27 @@ function faceRadius(y,axis){
  const before=profile[Math.max(0,k-1)],after=profile[Math.min(profile.length-1,k+2)],h=b[0]-a[0],m0=(b[axis]-before[axis])/(b[0]-before[0]),m1=(after[axis]-a[axis])/(after[0]-a[0]);
  return (2*t**3-3*t*t+1)*a[axis]+(t**3-2*t*t+t)*h*m0+(-2*t**3+3*t*t)*b[axis]+(t**3-t*t)*h*m1;
 }
-function faceRelief(x,y,front){
- return front*(.008*gauss(x,y,0,-.020,.008,.012)+.005*gauss(x,y,0,.001,.010,.037)
+function faceRelief(x,y,front,definition=0){
+ const rounded=front*(.008*gauss(x,y,0,-.020,.008,.012)+.005*gauss(x,y,0,.001,.010,.037)
   +.004*gauss(x,y,-.051,-.029,.025,.022)+.004*gauss(x,y,.051,-.029,.025,.022)
   -.003*gauss(x,y,-.039,.027,.028,.016)-.003*gauss(x,y,.039,.027,.028,.016)
   +.003*gauss(x,y,0,-.055,.026,.018));
+ const planes=front*(.0042*gauss(x,y,0,-.018,.007,.013)+.0028*gauss(x,y,0,.006,.009,.032)
+  +.005*(gauss(x,y,-.053,-.019,.030,.028)+gauss(x,y,.053,-.019,.030,.028))
+  -.0038*(gauss(x,y,-.030,.011,.026,.014)+gauss(x,y,.039,.030,.026,.014))
+  +.0016*gauss(x,y,0,-.047,.027,.014));
+ return mix(rounded,planes,definition);
 }
 /** Front facial chart in meters, shared by the skull and all facial attachments. */
-export function facialChart(x,y){
+export function facialChart(x,y,{definition=0}={}){
  const rx=faceRadius(y,1),rz=faceRadius(y,2);
  if(Math.abs(x)>=rx)throw new Error('Facial chart is outside the front hemisphere');
  const c=Math.sqrt(1-(x/rx)**2);
- return [x,y,c*rz-.006+faceRelief(x,y,c**8)];
+ return [x,y,c*rz-.006+faceRelief(x,y,c**8,definition)];
 }
-function faceSurface(u,v){
+function faceSurface(u,v,definition=0){
  const theta=(u-.5)*Math.PI*2,y=mix(-.112,.145,v),x=Math.sin(theta)*faceRadius(y,1),c=Math.cos(theta);
- return[x,y,c*faceRadius(y,2)-.006+faceRelief(x,y,Math.max(0,c)**8)];
+ return[x,y,c*faceRadius(y,2)-.006+faceRelief(x,y,Math.max(0,c)**8,definition)];
 }
 function forwardPatch(name,surface,options){
  const result=patch(name,surface,options),idx=result.geometry.index.array;
@@ -62,34 +67,41 @@ function surfaceDisc(name,radius,center,surface,mat){
  for(let i=0;i<p.count;i++){const q=surface(center[0]+p.getX(i),center[1]+p.getY(i));p.setXYZ(i,...q);}
  g.computeVertexNormals();return mesh(g,{name,material:mat});
 }
-export function animePortrait({name='Portrait',eyeColor='#ef4fca',detail=1}={},mats){
+export function animePortrait({name='Portrait',eyeColor='#ef4fca',detail=1,definition=0}={},mats){
+ if(!Number.isFinite(definition)||definition<0||definition>1)throw new Error('Portrait definition must be 0..1');
+ const chart=(x,y)=>facialChart(x,y,{definition});
  const root=group(name),skin=mats.skin.clone();skin.color.set('#edc5ad');skin.name='Soft warm portrait';
- const face=forwardPatch('Face / continuous jaw cheeks and nose',faceSurface,{u:detail?96:48,v:detail?72:36,material:skin});root.add(face);
+ const face=forwardPatch('Face / continuous jaw cheeks and nose',(u,v)=>faceSurface(u,v,definition),{u:detail?96:48,v:detail?72:36,material:skin});root.add(face);
  const sclera=material('#e7d9cd',{roughness:.5});sclera.name='Eye sclera';
  const iris=irisMaterial(eyeColor),lip=material('#9f6864',{roughness:.65});lip.name='Lip tint';
- const facialInk=surfaceLayer(facialChart,{offset:.00055});
+ const facialInk=surfaceLayer(chart,{offset:.00055});
  for(const side of[-1,1]){
-   const eye=group(side<0?'Eye.R':'Eye.L'),cx=side*.039,cy=.027,cant=side*.12;
-   const base=(x,y)=>facialChart(cx+x*Math.cos(cant)-y*Math.sin(cant),cy+x*Math.sin(cant)+y*Math.cos(cant));
+   const eye=group(side<0?'Eye.R':'Eye.L'),cx=side*(.039-.003*definition)+.006*definition,cy=.027-(side<0?.016*definition:0),cant=side*(.12+.05*definition);
+   const base=(x,y)=>chart(cx+x*Math.cos(cant)-y*Math.sin(cant),cy+x*Math.sin(cant)+y*Math.cos(cant));
    const eyeSurface=surfaceLayer(base,{offset:.0009,relief:(x,y)=>.002*Math.max(0,1-(x/.0255)**2)*Math.max(0,1-(y/.013)**2)});
-   const almond=(u,v)=>{const x=(u-.5)*.051,h=Math.sin(u*Math.PI)**.80;return eyeSurface(x,mix(-.010*h,.012*h,v));};
+   const upper=.012+.003*definition,lower=.010+.0015*definition;
+   const almond=(u,v)=>{const x=(u-.5)*.051,h=Math.sin(u*Math.PI)**.80;return eyeSurface(x,mix(-lower*h,upper*h,v));};
    eye.add(forwardPatch('Conforming almond sclera',almond,{u:32,v:12,material:sclera}));
-   eye.add(surfaceDisc('Surface iris',.0096,[-side*.001,0],surfaceLayer(eyeSurface,{offset:.00016}),iris));
-   eye.add(surfaceDisc('Surface pupil',.0037,[-side*.001,0],surfaceLayer(eyeSurface,{offset:.00030}),mats.ink));
+   eye.add(surfaceDisc('Surface iris',.0096+.002*definition,[-side*.001,0],surfaceLayer(eyeSurface,{offset:.00016}),iris));
+   eye.add(surfaceDisc('Surface pupil',.0037+.0005*definition,[-side*.001,0],surfaceLayer(eyeSurface,{offset:.00030}),mats.ink));
    const highlight=sphere({name:'Corneal glint',radius:.0017,scale:[1,1,.35],segments:12,material:mats.white});
    eye.add(attachToSurface(highlight,eyeSurface,{u:-.003,v:.0038,offset:.0006}));
    for(const sign of[-1,1]){
-    const points=Array.from({length:17},(_,i)=>{const u=i/16;return[(u-.5)*.051,sign*(sign>0?.012:.010)*Math.sin(u*Math.PI)**.8];});
-    eye.add(featureCurve(sign>0?'Upper eyeliner':'Lower lash line',points,surfaceLayer(eyeSurface,{offset:.0002}),sign>0?.0011:.00045,mats.ink));
+    const points=Array.from({length:17},(_,i)=>{const u=i/16;return[(u-.5)*.051,sign*(sign>0?upper:lower)*Math.sin(u*Math.PI)**.8];});
+    eye.add(featureCurve(sign>0?'Upper eyeliner':'Lower lash line',points,surfaceLayer(eyeSurface,{offset:.0002}),sign>0?.0011+.0002*definition:.00045-.00022*definition,mats.ink));
    }
    eye.add(featureCurve('Outer lash wing',[[side*.021,.005],[side*.026,.007],[side*.029,.011]],surfaceLayer(base,{offset:.0012}),.0007,mats.ink));
+   if(definition>0){
+    const lid=(u,v)=>{const x=(u-.5)*.051,h=Math.sin(u*Math.PI)**.8;return surfaceLayer(base,{offset:.0008,relief:()=>.001*definition*Math.sin(v*Math.PI)})(x,upper*h+v*.003*h);};
+    eye.add(forwardPatch('Sculpted upper lid rim',lid,{u:32,v:4,material:skin}));
+   }
    root.add(eye);
    root.add(featureCurve('Eyebrow',[[side*.019,.053],[side*.036,.059],[side*.058,.054]],facialInk,.0013,mats.ink));
-   root.add(featureCurve('Nostril detail',[[side*.004,-.028],[side*.006,-.029],[side*.008,-.028]],facialInk,.00035,lip));
+   if(definition<.5||side<0)root.add(featureCurve('Nostril detail',[[side*.004,-.028],[side*.006,-.029],[side*.008,-.028]],facialInk,.00035,lip));
    root.add(sphere({name:'Ear attachment',radius:.024,position:[side*.083,-.008,-.005],scale:[.40,1,.48],segments:24,material:skin}));
  }
- root.add(featureCurve('Mouth line',[[-.014,-.056],[0,-.058],[.014,-.055]],facialInk,.00055,lip));
- root.add(featureCurve('Lower lip',[[-.010,-.060],[0,-.062],[.010,-.059]],facialInk,.00065,lip));
+ root.add(featureCurve('Mouth line',[[-.014,-.056+.012*definition],[0,-.058+.012*definition],[.014,-.055+.016*definition]],facialInk,.00055-.00015*definition,lip));
+ if(definition<.5)root.add(featureCurve('Lower lip',[[-.010,-.060],[0,-.062],[.010,-.059]],facialInk,.00065,lip));
  return root;
 }
 function hairMap(){

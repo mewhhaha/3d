@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { hydrateTwoTone } from './illustration-material.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -7,6 +8,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 /** Restore explicit light targets after ObjectLoader's generic graph transfer. */
 export function hydrateScene(root) {
   root.traverse(node => {
+    if(node.isMesh)for(const mat of Array.isArray(node.material)?node.material:[node.material])hydrateTwoTone(mat);
     if (node.isDirectionalLight || node.isSpotLight) {
       const target = node.children.find(child => child.userData.lightTarget);
       if (target) node.target = target;

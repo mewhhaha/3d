@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
     paths:
+      - src/lib/illustration*.js
+      - scripts/review-illustration.mjs
+      - tests/illustration.test.js
       - src/lib/shape-*.js
       - src/lib/surface-boundary.js
       - src/lib/surface-cache.js
@@ -47,13 +50,17 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run prepare:tangents
       - name: Curve, layering, immutable sculpt, pose and region-mask tests
-        run: node --test tests/shape-rails.test.js tests/form-design.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/surface-boundary.test.js tests/surface-cache.test.js tests/contour-volume.test.js
+        run: node --test tests/illustration.test.js tests/shape-rails.test.js tests/form-design.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/surface-boundary.test.js tests/surface-cache.test.js tests/contour-volume.test.js
       - run: npx playwright-core install --with-deps chromium
       - name: Local-equivalent renders, exports, visible masks and normal transfer
         run: node scripts/review-forms.mjs
+      - name: Illustrated head, PBR fallback and mechanical reuse
+        run: node scripts/review-illustration.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: guided-form-review
-          path: renders/form-review/
+          path: |
+            renders/form-review/
+            renders/illustration-review/
           if-no-files-found: error

@@ -1,224 +1,31 @@
 # Automated refinement progress
 
-## 2026-09-16 — reusable triangle spatial query and constrained transfer
+## 2026-09-17 — illustrated head, bounded shading normals and portable ink
 
-Base remote revision: `394e8841e7609ab3478122bad7cef0765b8ad328`.
-Implementation revision: `d1f812eefbd60f0db28e7bcb369660426003638b`.
-Capability: accelerate repeated closest-triangle queries with a reusable AABB hierarchy and let authors constrain ambiguous proximity transfer by explicit source groups or target/source normal agreement.
+Base main verified through connected GitHub: `86f3a2c7ddac5c4874d86bc8e95650dc8375b125`. Exact source and locked dependencies recovered from authoring-kit run `35237778146`, artifact `10503857036`. The containing commit identifies this implementation checkpoint. Prior local-only scene experiments were not on main and included missing limbs; they are not promoted. Absence of local `.git` was not a valid blocker to connected GitHub writes.
 
-### Accepted changes
+Capability: geometry-local normal direction with existing selection masks and an angle cap; separately owned reversed-winding ink hull; optional serializable two-tone WebGL look with explicit standard-PBR GLB fallback. Two actual users: a revised anime head and an unrelated service pod. The active `cyber-form-study` has an opt-in `headStyle: illustrated`, keeping `legacy` and all pose/camera/body/annotation defaults intact.
 
-- Added `triangleSpatialIndex()` as a general indexed-triangle nearest-point layer with deterministic tie breaking, barycentric output, face normals, source indices and query diagnostics.
-- Extended `transferSurfaceAttributes()` with `auto | brute-force | bvh` acceleration, explicit source `groupIndices`, and optional `minNormalDot` filtering against target vertex normals. Tiny transfers preserve the brute-force path; larger jobs can reuse the spatial hierarchy.
-- Added a compact workflow study with two independent ambiguity cases: layered organic sheets use an explicit source group, while a hard-surface service skin rejects a nearer opposite-facing backing sheet. Geometry stays fixed between study cases.
-- No cyber-android reference geometry or annotations changed in this pass.
+The illustrated head has a new rounded cross-section crown, separate geometric fringe and curtain cuts, reduced nasal bulb, cheek/socket relief, attached upper lids, revised far-eye placement and a small lifted mouth. No reference projection or generated concept image is used. The reuploaded 768x1376 reference is visually available, but its encoded SHA-256 is `8c4d3c151bfc2b1edc784391660e5c2f693b436a4ebbff5218c7198d3ac2c88f`, not the historical original-file hash. No public annotation or hash expectation is changed; no reference raster enters Git.
 
-### Evidence
+Research and ownership contracts: `docs/research/illustration-normal-direction.md`, `docs/illustration.md`. Readable Blender normal-edit documentation informed bounded normal control; the official ASW announcement was accessible but the linked instructional PDF was not. Do not claim the Xrd talk was watched or this is its shader.
 
-- `npm run doctor` — Three.js r186, Chromium 144.0.7559.96, WebGL2, SwiftShader.
-- Focused geometry suite — **24/24 passed**; recipe/discovery/determinism checks — **2/2 passed**.
-- `npm run build` — passed with **23 recipes**.
-- `npm run study -- studies/spatial-transfer.json renders/run15-spatial-transfer` — passed, **2 cases / 24 locked-camera images**, identical **1,592 triangles** and silhouette IoU **1.0** in front/three-quarter/side; material differences isolate the mapping constraint. Both study GLBs validate with **0 errors / 0 warnings**.
-- Isolated constrained renders: organic **560 triangles**, mechanical **1,032 triangles**; both isolated GLBs validate with **0 errors / 0 warnings**.
-- Local post-warmup median benchmark: 7,560 candidate pairs brute **1.00 ms** / BVH **1.12 ms**; 33,696 pairs **1.89 / 1.74 ms**; 299,880 pairs **10.72 / 3.99 ms**; 1,218,000 pairs **37.22 / 6.92 ms**; 4,660,880 pairs **144.15 / 18.27 ms**. Environment-specific; not a general performance guarantee.
-- A repository-wide `npm test` attempt reached test **81** with no failures before the bounded 180-second timeout; this is **not** a full-suite pass.
+Local checks: doctor passed (Node22 / Three186 / Chromium144 / SwiftShader); final expanded focus **46/46**; build 44 recipes. The added mechanical fixture exposed a too-large slot bevel, then a nonindexed rounded-box input; both were corrected using a valid bevel and existing `compactGeometry`, not weakened contracts. The bounded full suite reached 160 passing tests with no failures before the 180-second timeout; no complete full-suite pass is claimed. The final review command and exact results are recorded in its artifact `renders/illustration-review/review.json`. Review includes locked before/after head and full scene, clay/wire/silhouette, PBR fallback, prop fixture, exported GLB validation and actual high-to-low hair measurement. Failed/interrupted larger-map trials remain under trial directories and are not accepted output.
 
-### Visual assessment
+Visual assessment: the old raised crown plug and oversized foreground slab are gone, both eyes read, and the nose no longer receives patchwork toon bands. The head is still a stylized draft: hidden-side/underside surfaces, crown-to-curtain transition, cut silhouette and facial likeness remain approximate. Body armor/boots/reactor are unchanged and still much too regular. A passed geometry/export check is not likeness acceptance. New variant stays explicit rather than silently replacing accepted legacy baselines.
 
-The nearest-only organic fixture visibly switches from the intended green/gold sheet to the nearby purple/blue layer across part of the card; the group-constrained result stays on the authored upper layer. The nearest-only mechanical panel samples the closer magenta backing surface; the normal-facing result restores the intended cyan-to-orange front field. Clay, wire and silhouette remain unchanged, confirming this pass changes correspondence rather than shape.
+Next target: validate the bob side/underside, then the torso/pelvis and major armor contours against the supplied view. Do not add decorative density to conceal those differences. Complete final-SHA CI inspection separately; the pre-existing full-gallery Pages failure is not certified fixed by this head pass.
 
-### Limitations / next target
 
-The index snapshots source triangles and must be rebuilt after source positions change. Median splits are intentionally simple; there is no dynamic refit, ray casting, overlap query, semantic part graph, projection direction or same-facing multilayer disambiguation. The next general workflow priority should move from proximity to **authored correspondence domains**: reusable source-region predicates / stable semantic tags that survive composition, so topology transfer and attachments can target named construction regions without depending on raw group numbers.
 
-## 2026-09-16 — domed crown closure and raised shin-brace pass
+### Completed local review
 
-Base remote revision: `cae4a1a5d35f13f3e648fdf4f82e450e3e840b44`.
-Active recipe: `models/cyber-form-study.js`.
+`node scripts/review-illustration.mjs` completed: **8 cases / 34 renders** and six exported GLBs, all **0 errors / 0 warnings** (validator infos retained). Revised head: **49,904 triangles / 26,378 vertices**. Revised full scene: **548,936 triangles / 581,051 vertices**. The mechanical fixture is **1,176 triangles** before and **1,764** after adding the explicit geometric ink shell.
 
-### Accepted changes
+Reference-alignment RMS changes **9.35666 -> 7.86107 px**, maximum stays **17.95927 px**; coarse hair-envelope IoU changes **0.910741 -> 0.913672**. These manual authoring annotations are not held-out likeness metrics.
 
-- Added reusable `loopCap()` construction in `src/lib/shape-rails.js`. It preserves an authored loop boundary exactly while replacing a single flat triangle fan with a concentric multi-ring dome. It is intentionally a small-loop cap primitive, not a general polygon hole filler.
-- Replaced only the bob's crown closure with `loopCap()`. The curtain/fringe supports, their low/high meshes, pose, camera, reference annotations and hair cut remain unchanged, avoiding the normal-transfer regression seen in the previous crown-support contraction trial.
-- Extended `armorLeaf()` / `segmentedArmor()` with a longitudinal `lift` profile. Raised armor can now vary its support-normal clearance along the limb while retaining shared shape, boundaries and tessellation.
-- Used that lift on the asymmetric knee ears/receivers and added three larger connected outer-shin masses: an upper shoulder plate, long lateral rail and lower clamp. They remain bands on the shared shin support rather than detached world-space greebles.
+New hair high/low/baked triangles: **130,368 / 14,656 / 14,656**. Position/normal/UV/tangent/index buffers are identical between low and baked. Independent 4096-sample normal errors, mean / p95 / max degrees: crown **0.19765 / 0.30470 / 0.40317**; curtain **0.18067 / 0.29783 / 0.32681**; fringe **0.17243 / 0.27717 / 0.32606**. These are new support surfaces, not a claim that legacy geometry is unchanged; normal maps cannot recover silhouette relief. The legacy fringe tail remains a separate unresolved baseline result.
 
-### Evidence
+Source fingerprint: `8c3ea1e7162ff4b54f8c5e0a9d5b1770fe904a15d4c0236efa42bd9a00f826cf`. Full actual reports, comparisons and rejected experiments live under `renders/illustration-review/` and the trial directories, not in source history.
 
-- Visual comparison used the previously saved private checkpoint containing the supplied reference; no public reference annotation was changed.
-- `npm run doctor` — WebGL2 / Chromium / SwiftShader available.
-- `node --test tests/shape-rails.test.js tests/form-design.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/cyber-mechanics.test.js tests/contour-volume.test.js tests/render-batch.test.js` — **32/32 passed**.
-- `npm run build` — passed, **15 recipes** built.
-- `node scripts/measure-reference.mjs models/cyber-form-study.js` — **9.3566575468 px RMS**, **17.9592707268 px maximum**, unchanged from the accepted pose.
-- Independent hair normal transfer remains effectively unchanged because the support is unchanged: curtain baked mean/p95/max **0.197 / 0.362 / 2.258 degrees**; fringe **0.271 / 0.613 / 8.768 degrees**. The fringe maximum still exceeds the five-degree editorial target and remains flagged.
-- Final fixed-camera cage hero: **533,056 triangles**. `renders/run6-final/cyber-form-study.glb` validates with **0 errors / 0 warnings**.
-- Head material/clay before/after captures are in `renders/run6-head-before/` and `renders/run6-head-after/`. Isolated shin before/after captures are in `renders/run6-shin-before/` and `renders/run6-shin-after2/`.
-
-### Visual assessment
-
-The crown closure no longer reads as the same sharp single-fan patch, and the change does not compromise the accepted hair normal transfer. The larger problem remains the broad planar crown support around that closure, so this is only a local improvement rather than a solved head silhouette. The shin now has a raised lateral stack instead of only shallow side strips, improving close-up mechanical layering, but the full hero still looks cleaner and less irregular than the reference.
-
-### Next target
-
-Keep pose, camera and annotations fixed. The next high-impact pass should change the crown/head primary cross-section without altering the accepted baked-support error tail, or strengthen the boot/ankle silhouette with a small number of larger connected shell forms. Avoid small greebles until those masses read correctly.
-
-## 2026-09-16 — local-pivot portrait proportion pass
-
-Base remote revision: `a318c99701a3c0618c4b50eaeec907a41f3a2ccf`.
-Active recipe: `models/cyber-form-study.js`.
-
-### Accepted changes
-
-- Extended `weightedTransform()` with an optional local `pivot`. Broad form scales can now occur around an authored construction point instead of the scene origin, while retaining the existing scalar weight and offset semantics.
-- Used the pivoted field on the portrait lower face to shorten the overly pointed chin without materially dragging the mouth or eye band. The field starts below the mouth and reaches full strength only at the chin tip.
-- Kept the existing hair support, reference annotations, pose, camera and limb dimensions unchanged.
-
-### Rejected experiment
-
-- Tested a pre-tessellation crown contraction intended to round the broad top opening. Neutral renders were only marginally better and independent normal-transfer checks regressed badly: fringe baked maximum error rose from the prior single-digit tail to more than 18 degrees (and stronger variants reached higher). The trial was discarded rather than trading a small silhouette change for a worse low/baked representation.
-
-### Evidence
-
-- The exact original raster is still not present as a standalone file in this workspace; visual comparison used the previously saved private comparison derived from the supplied original. Public annotations were not changed.
-- `npm run doctor` — WebGL2 / Chromium / SwiftShader available.
-- `node --test tests/shape-rails.test.js tests/form-design.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/cyber-mechanics.test.js tests/contour-volume.test.js tests/render-batch.test.js` — **31/31 passed**.
-- `npm run build` — passed, 15 recipes built.
-- `node scripts/measure-reference.mjs models/cyber-form-study.js` — **9.3566575468 px RMS**, **17.9592707268 px maximum**, unchanged from the accepted pose.
-- Head review: front, side and three-quarter material/clay renders completed at 600x700.
-- Full fixed-camera cage hero completed at 640x1147 with **527,552 triangles**. An earlier baked+GLB attempt hit a Chromium page-closed termination and was not counted as validation.
-
-### Visual assessment
-
-The chin no longer ends in the previous needle-like point, so the face reads closer to the reference's shorter lower-face proportion while preserving the established look-back pose. The hair crown remains too angular/planar and the facial topology is still simplified; the eye and lip surfaces remain separate attachments rather than integrated facial topology.
-
-### Next target
-
-Keep the pose/camera/reference fixed. Revisit the crown through a support change that does not create a normal-bake tail regression, or strengthen one of the remaining large silhouette masses (outer shin/knee stack) before adding small decorative parts.
-
-## 2026-09-16 — knee / boot articulation and representation-budget pass
-
-Base remote revision: `5eef4900b717278b349100b6510f1b40c4008e75`.
-Active recipe: `models/cyber-form-study.js`.
-
-### Accepted changes
-
-- Made `armorLeaf()` and `segmentedArmor()` tessellation an explicit construction option instead of a hidden fixed `[18,32]` grid. Segment counts now live with the representation, while the shared support and authored boundary curves continue to define shape. Individual leaves may override the set default.
-- Retessellated thigh/shin shells to `[12,20]`, small flex bridges to `[10,12]`, and knee bracket patches to `[10,14]`. This restores scene budget headroom without changing the accepted pose, camera, limb dimensions or annotated feature targets.
-- Added asymmetric inner/outer knee ears and receivers on the same thigh/shin supports. They interrupt the smooth circular-joint transition without introducing detached world-space coordinate tables.
-- Reworked the boot upper into separate outer/inner toe petals with a dark center channel, asymmetric instep leaves, and unequal ankle-cuff windows. The closed toe bumper and section-lofted sole remain independent parts.
-- Hardened the finite render batch against one observed Chromium failure mode: only a `Target page/context/browser has been closed`-class termination receives one fresh-session retry. Ordinary render, geometry, validation and budget failures are never retried.
-
-### Evidence
-
-- The exact original raster was not available as a standalone local file in this run. Visual inspection used the previously saved private reference comparison derived from the supplied original; public reference annotations were left unchanged.
-- `npm run doctor` — WebGL2 / Chromium / SwiftShader available.
-- `node --test tests/form-design.test.js tests/shape-rails.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/cyber-mechanics.test.js tests/contour-volume.test.js tests/render-batch.test.js` — **31/31 passed**.
-- `npm run build` — passed, 15 recipes built.
-- `node scripts/measure-reference.mjs models/cyber-form-study.js` — **9.3566575468 px RMS**, **17.9592707268 px maximum** over the same nine observed feature points, unchanged from the accepted pose.
-- Final cage/baked assembly: **527,552 triangles**, down from the preceding CI review's **601,312**. High evaluated hair assembly: **650,432 triangles**. These are below the unchanged form-study limits of 600,000 low/baked and 750,000 high; the limits were not raised.
-- Final full-scene cage GLB from `renders/run4-hero-final/` validates with **0 errors / 0 warnings**. The isolated boot renders at **21,324 triangles**.
-- The preceding commit's form-study CI had 33/33 targeted tests pass but then failed because low/baked/survey exceeded 600,000 triangles and one high render lost its Chromium page. This pass addresses both causes directly rather than relaxing acceptance criteria.
-- `npm run review:forms` — **passed end to end** after the changes. All four fixed-camera variants passed their unchanged budgets and GLB validation, clean preview/export isolation passed, full hero/depth/head/boot captures completed, region-mask/reference diagnostics completed, surface/cache checks passed, and all three standalone hair exports validated.
-
-### Visual assessment
-
-The knee transition now has separate asymmetric clamp-like masses around the circular bearing instead of only a smooth shell ending at a glowing disk. The boot has a visible dark center channel and independent toe/instep/cuff plates, reducing the single-piece sneaker reading. The fixed-camera hero still shows a much cleaner lower body than the reference: outer-shin layering is sparse, knee brackets are subtler than the artwork's dense stack, and the boot sole/toe silhouette remains too regular.
-
-The head/hair crown and simplified face remain larger full-character likeness errors than any lower-leg micro-detail. No small greeble pass should precede those primary forms.
-
-### Next target
-
-Keep the pose, camera and annotations fixed. Either strengthen the outer-shin/knee silhouette with a few larger connected bracket forms, or return to the crown/head cross-section. Prefer a small number of structural volumes over decorative density.
-
-## 2026-09-16 — shoulder / reactor carrier pass
-
-Base remote revision: `5fdb4bddb051ca8f2018c1c0dd52a48a9d27eee1`.
-Active recipe: `models/cyber-form-study.js`.
-
-### Accepted changes
-
-- Added `radialArray()` to the cyber mechanics vocabulary. It places owned modules in a stable local annular frame and exposes radial/tangent directions without baking placement into each child mesh.
-- Added a nested structural carrier around the existing main backpack reactor: independent inner/outer rings, six radial braces, and twelve alternating carrier lugs all compose in the reactor's existing local frame. The pre-existing cooling cartridges are retained rather than replaced.
-- Recessed the spherical shoulder joint cores and enlarged/profiled the ceramic shoulder cowls, preserving the shoulder centers and arm mounts while making the shell rather than the black ball define more of the outer shoulder silhouette.
-- Added per-loom `emissiveScale` and `opacity` controls. Each loom clones its emitter materials so look-development changes remain local. The reference power loop now uses four thinner, closer, partially transparent strands with lower emission instead of three broad opaque tubes.
-
-### Evidence
-
-- Original reference recovered from the prior private checkpoint and hash-checked: `127f0f4216b12e279f01c77206720feb4e76ab989b7ed92576505faa4f329218`.
-- `npm run doctor` — WebGL2 / Chromium / SwiftShader available.
-- Targeted geometry/mechanics suite: `node --test tests/cyber-mechanics.test.js tests/form-design.test.js tests/shape-rails.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/contour-volume.test.js` — **26/26 passed**.
-- `npm run build` — passed, 15 recipes built.
-- `node scripts/measure-reference.mjs models/cyber-form-study.js` — 9 feature points, **9.3566575468 px RMS**, **17.9592707268 px maximum**, unchanged from the preceding pose alignment.
-- Cage-hair scene export after this pass validates with **0 GLB errors and 0 warnings**. Informational unused-UV messages remain.
-- Fixed-camera hero comparison: `renders/automation-backpack-before/hero-material.png` versus `renders/automation-backpack-final/hero-material.png`. Reactor material/clay close-ups are in `renders/automation-shoulder-after/`.
-
-### Visual assessment
-
-The main reactor no longer reads as a single clean neon disk floating inside a sparse hoop: the carrier rings, braces and lugs give it a larger mechanical mass closer to the supplied artwork. The shoulder shell covers more of the joint and the black spherical core is less dominant. The hanging power loop is no longer blown out into three three thick opaque strokes; its four colored cores remain individually visible through overlapping sections.
-
-The pack is still much cleaner and more radially symmetric than the reference, which has more irregular manifolds, hose crossings and asymmetric brackets. The head/hair crown remains angular, the face is simplified, and the thigh/shin/boot armor is still smoother and less layered than the reference. No pose, camera, reference annotation or limb-length change was made.
-
-### Next target
-
-Keep pose, camera and annotations fixed. Refine the pelvis-to-thigh and knee-to-boot armor transitions, or return to the head/hair crown if those primary silhouettes dominate the next fixed-camera comparison. Prefer a few connected layered shells and exposed chassis paths over decorative surface noise.
-
-## 2026-09-16 — torso silhouette pass
-
-Base remote revision: `2e5a30a88fcb46bce0a7eb1004ba145e34cc3928`.
-Active recipe: `models/cyber-form-study.js`.
-
-### Accepted changes
-
-- Extended `contouredShield()` with resolution-independent `widthProfile` and `centerProfile` curves. Both the dark substrate and ceramic face continue to derive from one support, so silhouette edits do not duplicate layer coordinates.
-- Replaced the round pectoral shields with narrower, flatter leaf profiles biased away from the sternum. Shoulder and clavicle shields also use explicit longitudinal profiles instead of the same generic oval.
-- Narrowed only the unscored thoracic/abdominal understructure behind those shells; pose anchors, limb lengths, camera, reference annotations and named scored feature origins are unchanged.
-
-### Evidence
-
-- `npm run doctor` — WebGL2 / Chromium / SwiftShader available.
-- Targeted geometry suite: `node --test tests/form-design.test.js tests/shape-rails.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/contour-volume.test.js` — **22/22 passed**.
-- `npm run build` — passed, 15 recipes built.
-- Full `npm test` was attempted within the bounded run and reached test 70 with no failures before the command timeout; this is **not** recorded as a repository-wide pass.
-- `node scripts/measure-reference.mjs models/cyber-form-study.js` — 9 feature points, **9.3566575468 px RMS**, **17.9592707268 px maximum**, unchanged from the preceding pose alignment.
-- Fixed-camera local comparison renders: `renders/automation-torso-before/` and `renders/automation-torso-after/` contain front/side/three-quarter material and clay captures; `renders/automation-hero-torso/hero-material.png` is the full hero after the accepted edit.
-
-### Visual assessment
-
-The upper torso now exposes the narrow black mechanical core and rib structure instead of reading as two large ivory domes. In material and clay three-quarter views the ceramic chest leaves occupy less projected area and sit flatter, which is closer to the supplied reference's segmented chest treatment. The shoulders remain too smooth and spherical, the backpack is still much less mechanically dense than the reference, and the large luminous loop remains too opaque/bright. The head/hair crown and simplified face also remain visible likeness errors.
-
-### Next target
-
-Keep pose, camera and annotations fixed. Refine the shoulder/backpack mass relationship and reactor support structure, or reduce the luminous loop's visual weight while preserving its socket endpoints. Do not compensate by adding random greebles; establish the large mechanical forms first.
-
-## 2026-09-16 — portrait primary-form pass
-
-Base remote revision: `76b110c7ca5f820994e2873eb51170be6adb62c9`.
-Active recipe: `models/cyber-form-study.js`.
-
-### Accepted changes
-
-- Added `weightedTransform()` to `src/lib/shape-deform.js`: a resolution-independent scalar-field blend for local scale/offset edits. It rejects invalid weights and leaves source points untouched.
-- Replaced the portrait's earlier asymmetric lower-face pull with symmetric, broad jaw/cheek transforms. The concealed scalp reduction and small nose-plane correction remain local mesh edits; named feature origins, pose, camera and reference annotations are unchanged.
-- Rejected an experimental crown-cap rewrite after neutral/material renders showed a new visible top ridge; it is not part of this checkpoint.
-
-### Evidence
-
-- `npm run doctor`: WebGL2 / Chromium / SwiftShader available.
-- Targeted geometry suite: `node --test tests/form-design.test.js tests/shape-rails.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/contour-volume.test.js` — **22/22 passed**.
-- `npm run build` — passed, 15 recipes built.
-- Full `npm test` was attempted twice but did not complete within the bounded local execution window; both attempts reached test 83 with no failures before timeout. This is not recorded as a repository-wide pass.
-- `node scripts/measure-reference.mjs models/cyber-form-study.js` — **9.3566575468 px RMS**, **17.9592707268 px maximum**, unchanged.
-- Fixed-camera portrait material/clay front, side and three-quarter renders completed. Full hero material render completed with the locked reference camera.
-- Cage hero GLB validates with **0 errors / 0 warnings**.
-
-### Visual assessment
-
-The lower face is shorter and more symmetric, with less of the long pulled wedge that made the previous head read unlike the reference. The jaw remains simplified and the separate eye/lip attachments still need stronger integration. The crown/hair mass remains a larger silhouette error than facial micro-detail.
-
-### Rejected experiment
-
-A crown-cap trial replaced the upper closing faces with a rounder cap while retaining the hair boundary. It created a new raised seam/ridge in front and side clay views, so it was discarded rather than committed.
-
-### Next target
-
-Keep the accepted pose/camera/reference measurements fixed. The next structural pass should address the broad crown/hair cross-section without perturbing normal-transfer quality, or improve the outer shin/knee silhouette if that reads as the larger full-figure defect.
+Earlier journal entries are preserved verbatim in [the pre-illustration archive](checkpoints/automation-progress-through-86f3a2c.md).

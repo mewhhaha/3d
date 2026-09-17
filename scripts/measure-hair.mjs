@@ -6,10 +6,10 @@ import { guidedBob } from '../src/lib/cyber/hair-design.js';
 import { inspect, dispose } from '../src/lib/modeling.js';
 import { measureBake } from '../src/lib/forms/bake-quality.js';
 import { rgbaPng } from './raster-mask.mjs';
-export async function measureHair(out='renders/hair-transfer'){
- await mkdir(out,{recursive:true});const high=guidedBob({mode:'sculpt'}),low=guidedBob({mode:'cage'}),baked=guidedBob({mode:'baked'});
+export async function measureHair(out='renders/hair-transfer',{builder=guidedBob,names=['Guided curtain','Guided fringe']}={}){
+ await mkdir(out,{recursive:true});const high=builder({mode:'sculpt'}),low=builder({mode:'cage'}),baked=builder({mode:'baked'});
  const report={schema:1,triangles:{high:inspect(high).triangles,low:inspect(low).triangles,baked:inspect(baked).triangles},scope:'Hair component only; not the complete character',charts:{}};
- try{for(const name of ['Guided curtain','Guided fringe']){
+ try{for(const name of names){
   const h=high.getObjectByName(name),l=low.getObjectByName(name),b=baked.getObjectByName(name);
   for(const key of ['position','normal','uv','tangent'])assert.deepEqual(l.geometry.attributes[key].array,b.geometry.attributes[key].array,`${name} ${key}`);
   const expanded=h.geometry.index?h.geometry.toNonIndexed():h.geometry;

@@ -1,3 +1,4 @@
+import { illustratedHead } from './illustrated-head.js';
 import { limbArmor, sculptedBoot, contouredShield } from './contour-armor.js';
 import { cyberMaterials, ring, radialArray, link, cableLoom } from './mechanics.js';
 import { box, group } from '../modeling.js';
@@ -6,7 +7,8 @@ import { portraitFields } from './head-form.js';
 import { posedAndroid } from './reference-layout.js';
 import { guidedBob } from './hair-design.js';
 /** Preserve guide/camera and replace only named components. Baseline stays available. */
-export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, ...options }={}){
+export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', ...options }={}){
+ if(!['legacy','illustrated'].includes(headStyle))throw new Error('Unknown head style');
  const root=posedAndroid({stage,...options});
  if(stage==='assembly'){
   const materials=cyberMaterials({glow:.7});
@@ -69,11 +71,17 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundne
    }
   }
 
+  if(headStyle==='illustrated'){
+   const mount=root.getObjectByName('HeadMount');
+   for(const name of ['Prismatic bob','Portrait']){const o=mount.getObjectByName(name);o.removeFromParent();o.traverse(m=>{if(m.isMesh)m.geometry.dispose();});}
+   mount.add(illustratedHead({hairMode},materials));
+  }else{
   const old=root.getObjectByName('Prismatic bob'),parent=old.parent;old.removeFromParent();
   old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});
   parent.add(guidedBob({mode:hairMode,crownRoundness}));
   const face=parent.getObjectByName('Portrait'),reshaped=reshapeAssembly(face,portraitFields);face.removeFromParent();parent.add(reshaped);
   const ears=[];reshaped.traverse(o=>{if(o.name==='Ear attachment')ears.push(o);});for(const ear of ears){ear.removeFromParent();ear.geometry.dispose();}
+  }
   const replacing=[];root.traverse(o=>{if(['Thigh enclosing panels','Shin enclosing panels','Forearm wrapped armor','Upper arm wrapped armor'].includes(o.name))replacing.push(o);});
   for(const old of replacing){const parent=old.parent,name=old.name;old.removeFromParent();old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});
    const shin=name.startsWith('Shin'),fore=name.startsWith('Forearm'),upper=name.startsWith('Upper');

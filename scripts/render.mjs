@@ -25,7 +25,7 @@ const modules = {
   modeling:'src/lib/modeling.js', rigging:'src/lib/rigging.js',
   lighting:'src/lib/studio-lighting.js', exporter:'src/lib/export-assets.js',
   canonical:'src/lib/canonical-glb.js', tangents:'src/lib/tangent-frame.js',
-  look:'src/lib/scene-look.js',
+  look:'src/lib/scene-look.js', illustration:'src/lib/illustration-material.js',
   'three/addons/postprocessing/BokehPass.js':'node_modules/three/examples/jsm/postprocessing/BokehPass.js',
   'three/addons/shaders/BokehShader.js':'node_modules/three/examples/jsm/shaders/BokehShader.js',
   'three/addons/postprocessing/EffectComposer.js':'node_modules/three/examples/jsm/postprocessing/EffectComposer.js',
