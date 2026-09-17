@@ -1,5 +1,17 @@
 # Automated refinement progress
 
+## 2026-09-17 — shared ribcage/waist/pelvis and concave surface contours
+
+Implementation: `7db634b94d0e92541115157a8a51f280cae7ee24`, based on `64d3589806e2fcf6a0d43166ddad87e03ac936b5` recovered from its exact offline kit. The tested Git tree was matched byte-for-byte to the published tree. Previous main's full Pages build/native jobs/deployment are now verified successful, superseding the earlier pending/failure status. This pass retains the illustrated head and adds explicit `bodyStyle: articulated` beside the unchanged legacy default.
+
+New reusable `surfaceContourGeometry`: simple concave UV outline -> shared-edge refinement -> curved support, then existing `solidifyGeometry` for thickness/rims. Real users: the torso/shoulder shell set and an unrelated notched curved hatch. Shape, topology resolution, thickness, attachments and materials remain separate. No copied assets or reference projection.
+
+Actual local checks: doctor; **35/35** focused tests; build **44 recipes**; targeted `cyber-form-study` metadata/default/determinism/parameter extrema **1/1** in 66.7 seconds; final review **5 cases / 33 renders**; three GLBs **0 errors / 0 warnings**. Full `npm test` was bounded at 180 seconds and exited 124 after 160 passing subtests / zero reported failures; not a complete full-suite pass. Head/camera/limb/reactor world transforms and manually annotated points remain unchanged, RMS **7.861070027 px** / max **17.959270727 px**. Source fingerprint `aa7b8dcc7a4ac7f4a5e316f55752015120a13fb49e763a713efc7f619761eddc`.
+
+Accepted the shared curved trunk and scalloped armor; rejected a stronger chest projection that occluded the far shoulder. The retained support shift is about half as strong. Black trunk, pelvis, limbs and boots still need substantial definition; no final likeness claim. No new hair normal-bake claim (hair is unchanged). Details, sources, artifacts, limitations and next concrete target: [torso checkpoint](checkpoints/2026-09-17-prism-torso.md); API contract: [surface contours](surface-contours.md). Generated evidence remains in `renders/torso-review/`, not source history.
+
+CI: implementation workflow `35259243588` completed successfully, including the existing form/normal-transfer checks, illustrated-head/PBR fallback review, and new torso/hatch render-export review. Artifact `10513846650` (`guided-form-review`) contains the output. Final deployment/native Blender appearance are not claimed by this component CI. The documentation-only journal follow-up has its own Pages run; check that SHA separately.
+
 ## 2026-09-17 — illustrated head, bounded shading normals and portable ink
 
 Base main verified through connected GitHub: `86f3a2c7ddac5c4874d86bc8e95650dc8375b125`. Exact source and locked dependencies recovered from authoring-kit run `35237778146`, artifact `10503857036`. The containing commit identifies this implementation checkpoint. Prior local-only scene experiments were not on main and included missing limbs; they are not promoted. Absence of local `.git` was not a valid blocker to connected GitHub writes.
