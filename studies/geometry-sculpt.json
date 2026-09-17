@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "geometry-sculpt",
+  "title": "Workflow study — composable BufferGeometry sculpt masks",
+  "module": "models/geometry-sculpt-study.js",
+  "lockCamera": true,
+  "width": 600,
+  "height": 600,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"baseline","label":"Unedited creature and service panel","values":{"organic":true,"mechanical":true,"edited":false},"maxTriangles":10000},
+    {"id":"sculpted","label":"Same topology with composable brush edits","values":{"organic":true,"mechanical":true,"edited":true},"maxTriangles":10000},
+    {"id":"organic","label":"Organic radial/facing/region sculpt","values":{"organic":true,"mechanical":false,"edited":true},"maxTriangles":7000},
+    {"id":"mechanical","label":"Mechanical named-region ring sculpt","values":{"organic":false,"mechanical":true,"edited":true},"maxTriangles":7000}
+  ]
+}
