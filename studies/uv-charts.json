@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "uv-charts",
+  "title": "Workflow study — semantic UV chart projection and seam splitting",
+  "module": "models/uv-chart-study.js",
+  "lockCamera": true,
+  "width": 600,
+  "height": 600,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"baseline","label":"Existing source UVs","values":{"organic":true,"mechanical":true,"mode":"baseline"},"maxTriangles":12000},
+    {"id":"charted","label":"Named regions projected to planar charts","values":{"organic":true,"mechanical":true,"mode":"charted"},"maxTriangles":12000},
+    {"id":"organic","label":"Organic curved face chart","values":{"organic":true,"mechanical":false,"mode":"charted"},"maxTriangles":7000},
+    {"id":"mechanical","label":"Hard-surface service panel chart","values":{"organic":false,"mechanical":true,"mode":"charted"},"maxTriangles":7000}
+  ]
+}
