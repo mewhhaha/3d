@@ -1,3 +1,4 @@
+import { articulatedTorso, scallopedShoulder } from './torso-form.js';
 import { illustratedHead } from './illustrated-head.js';
 import { limbArmor, sculptedBoot, contouredShield } from './contour-armor.js';
 import { cyberMaterials, ring, radialArray, link, cableLoom } from './mechanics.js';
@@ -7,8 +8,9 @@ import { portraitFields } from './head-form.js';
 import { posedAndroid } from './reference-layout.js';
 import { guidedBob } from './hair-design.js';
 /** Preserve guide/camera and replace only named components. Baseline stays available. */
-export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', ...options }={}){
+export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', bodyStyle='legacy', ...options }={}){
  if(!['legacy','illustrated'].includes(headStyle))throw new Error('Unknown head style');
+ if(!['legacy','articulated'].includes(bodyStyle))throw new Error('Unknown body style');
  const root=posedAndroid({stage,...options});
  if(stage==='assembly'){
   const materials=cyberMaterials({glow:.7});
@@ -47,6 +49,14 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundne
   // Reveal the intended mechanical waist/chest structure behind the smaller ceramic leaves.
   // These are unscored internal masses; the reference guide and named feature origins stay fixed.
   for(const name of ['Thoracic understructure','Abdominal chassis']){const o=root.getObjectByName(name);if(o){o.scale.x*=name.startsWith('Thoracic')?.82:.90;o.scale.z*=.92;}}
+
+  if(bodyStyle==='articulated'){
+   const old=root.getObjectByName('Torso'),next=articulatedTorso(materials);
+   next.position.copy(old.position);next.quaternion.copy(old.quaternion);next.scale.copy(old.scale);
+   old.parent.add(next);old.removeFromParent();old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});
+   const cowls=[];root.traverse(o=>{if(o.name==='Scalloped shoulder shell')cowls.push(o);if(o.name==='Hip articulation')o.scale.multiplyScalar(.86);});
+   for(const cowl of cowls){const replacement=scallopedShoulder(materials);replacement.position.copy(cowl.position);replacement.quaternion.copy(cowl.quaternion);replacement.scale.copy(cowl.scale);cowl.parent.add(replacement);cowl.removeFromParent();cowl.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
+  }
 
   // Build the large reactor as a nested carrier rather than adding unrelated surface greebles.
   // The carrier lives in the existing reactor's local frame, so pose and mounting stay untouched.
