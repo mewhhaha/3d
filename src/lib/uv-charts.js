@@ -33,19 +33,33 @@ function frame(spec, label) {
   return { origin, u, v };
 }
 
-function atlas(value, label) {
+function rectangle(value, label, { unit = false } = {}) {
   const a = value ?? [0, 0, 1, 1];
   if (!Array.isArray(a) || a.length !== 4 || !a.every(Number.isFinite) || a[2] <= a[0] || a[3] <= a[1]) {
-    throw new Error(`${label} atlas must be [u0, v0, u1, v1] with positive area`);
+    throw new Error(`${label} must be [u0, v0, u1, v1] with positive area`);
   }
-  if (a.some(n => n < 0 || n > 1)) throw new Error(`${label} atlas must stay inside 0..1`);
-  return a;
+  if (unit && a.some(n => n < 0 || n > 1)) throw new Error(`${label} must stay inside 0..1`);
+  return [...a];
+}
+
+function atlas(value, label) {
+  return rectangle(value, `${label} atlas`, { unit: true });
 }
 
 function chartFaces(geometry, spec, label) {
   const regions = spec.region ?? spec.regions;
   if (regions == null) throw new Error(`${label} needs region or regions`);
   return faceRegionTriangles(geometry, regions, { match: spec.match ?? 'any' });
+}
+
+function compressFaces(faces) {
+  const ranges = [];
+  for (const face of faces) {
+    const last = ranges.at(-1);
+    if (last && last[1] === face) last[1] = face + 1;
+    else ranges.push([face, face + 1]);
+  }
+  return ranges;
 }
 
 function copyAttribute(attribute, sourceVertices) {
@@ -62,16 +76,12 @@ function copyAttribute(attribute, sourceVertices) {
   return output;
 }
 
-function keyFor(sourceVertex, uv) {
-  // Projection arithmetic is deterministic for one build. Quantizing only coalesces numerically identical seam corners.
-  return `${sourceVertex}:${uv[0].toFixed(12)}:${uv[1].toFixed(12)}`;
+function keyFor(sourceVertex, uv, domain) {
+  // Chart identity is part of the seam key so independently editable islands never accidentally
+  // share a target UV vertex merely because two authored rectangles currently touch or overlap.
+  return `${domain}:${sourceVertex}:${uv[0].toFixed(12)}:${uv[1].toFixed(12)}`;
 }
 
-/**
- * Project named semantic face regions into explicit planar UV chart rectangles.
- * Face order and 3D corner positions remain unchanged; vertices are duplicated only when a source
- * vertex needs more than one face-corner UV. The returned metadata records exact source provenance.
- */
 export function projectFaceRegionUVs(geometry, charts, { preserveUnassigned = true } = {}) {
   const { position, triangleCount } = validateGeometry(geometry);
   if (!Array.isArray(charts) || !charts.length) throw new Error('projectFaceRegionUVs needs at least one chart');
@@ -107,7 +117,14 @@ export function projectFaceRegionUVs(geometry, charts, { preserveUnassigned = tr
       const su = (u - minU) / (maxU - minU), sv = (v - minV) / (maxV - minV);
       cornerUV.set(face * 3 + corner, [u0 + insetU + su * (u1 - u0 - 2 * insetU), v0 + insetV + sv * (v1 - v0 - 2 * insetV)]);
     }
-    return { faces, frame: { origin: f.origin.toArray(), uAxis: f.u.toArray(), vAxis: f.v.toArray() }, atlas: [...tile], padding, cornerUV };
+    return {
+      faces,
+      faceRanges: compressFaces(faces),
+      frame: { origin: f.origin.toArray(), uAxis: f.u.toArray(), vAxis: f.v.toArray() },
+      atlas: [...tile],
+      padding,
+      cornerUV,
+    };
   });
 
   if (!preserveUnassigned && owner.some(value => value < 0)) throw new Error('UV charts do not cover every triangle');
@@ -122,7 +139,7 @@ export function projectFaceRegionUVs(geometry, charts, { preserveUnassigned = tr
     const uv = chartIndex >= 0
       ? normalized[chartIndex].cornerUV.get(offset)
       : [sourceUV.getX(sourceVertex), sourceUV.getY(sourceVertex)];
-    const key = keyFor(sourceVertex, uv);
+    const key = keyFor(sourceVertex, uv, chartIndex >= 0 ? `chart-${chartIndex}` : 'source');
     let target = cache.get(key);
     if (target == null) {
       target = sourceVertices.length; cache.set(key, target); sourceVertices.push(sourceVertex); outputUV.push(...uv);
@@ -152,7 +169,7 @@ export function projectFaceRegionUVs(geometry, charts, { preserveUnassigned = tr
       faceOrder: 'preserved',
       sourceVertices,
       cornerToVertex: Array.from(cornerToVertex),
-      charts: normalized.map(({ cornerUV, ...item }) => ({ ...item, faceCount: item.faces.length, faces: undefined })),
+      charts: normalized.map(({ cornerUV, faces, ...item }) => ({ ...item, faceCount: faces.length })),
     },
   };
   return output;

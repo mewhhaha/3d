@@ -76,3 +76,74 @@ test('overlapping charts, partial no-UV coverage, morph ownership and degenerate
   assert.throws(() => projectFaceRegionUVs(morph, [{ region: 'panel.decal' }]), /morph-target transfer/);
   source.dispose(); noUv.dispose(); morph.dispose();
 });
+
+import { inspectUvCharts, packUvCharts } from '../src/lib/uv-atlas.js';
+
+function twoChartPanel() {
+  const geometry = new THREE.PlaneGeometry(2, 1, 8, 4);
+  return defineFaceRegions(geometry, {
+    'panel.leftChart': ({ centroid }) => centroid.x < -.2,
+    'panel.rightChart': ({ centroid }) => centroid.x > .2 && Math.abs(centroid.y) < .38,
+  }, { clone: false });
+}
+
+test('chart inspection reports real cross-chart overlap and deterministic packing removes it without changing 3D corners', () => {
+  const source = twoChartPanel();
+  const projected = projectFaceRegionUVs(source, [
+    { region: 'panel.leftChart', atlas: [.08, .08, .58, .48], padding: .04 },
+    { region: 'panel.rightChart', atlas: [.34, .20, .88, .62], padding: .04 },
+  ]);
+  const beforeCorners = faceCornerPositions(projected);
+  const before = inspectUvCharts(projected);
+  assert.equal(before.chartCount, 2);
+  assert.ok(before.overlapPairCount > 0, 'the deliberately overlapping source rectangles should be diagnosed');
+  assert.ok(before.charts.every(chart => chart.degenerateUvFaces === 0));
+
+  const packed = packUvCharts(projected, { margin: .025, rotate: true, density: 'equalize' });
+  const packedAgain = packUvCharts(projected, { margin: .025, rotate: true, density: 'equalize' });
+  const after = inspectUvCharts(packed);
+  assert.equal(after.overlapPairCount, 0);
+  assert.deepEqual(after.outsideUnitCharts, []);
+  assert.deepEqual(faceCornerPositions(packed), beforeCorners);
+  assert.deepEqual([...packed.attributes.uv.array], [...packedAgain.attributes.uv.array], 'packing must be deterministic');
+  assert.notDeepEqual([...packed.attributes.uv.array], [...projected.attributes.uv.array]);
+  assert.ok(Math.abs(after.charts[0].texelDensity / after.charts[1].texelDensity - 1) < 1e-5, 'explicit equal-density mode should normalize chart texel density');
+  assert.ok(packed.userData.uvCharts.pack.occupancy > 0 && packed.userData.uvCharts.pack.occupancy < 1);
+  assert.equal(source.attributes.position.count, 45, 'source topology must remain owned by the caller');
+  source.dispose(); projected.dispose(); packed.dispose(); packedAgain.dispose();
+});
+
+test('packing preserves remapped surface anchors and respects a custom atlas target', () => {
+  const source = twoChartPanel();
+  const anchor = bindSurfaceAnchor(source, { near: [-.65, .05, .2], tangentHint: [1, 0, 0] });
+  const projected = projectFaceRegionUVs(source, [
+    { region: 'panel.leftChart', atlas: [.05, .05, .45, .50], padding: .03 },
+    { region: 'panel.rightChart', atlas: [.22, .12, .72, .58], padding: .03 },
+  ]);
+  const projectedAnchor = remapUvChartAnchor(projected, anchor);
+  const before = resolveSurfaceAnchor(projected, projectedAnchor);
+  const packed = packUvCharts(projected, { target: [.1, .15, .9, .85], margin: .02, rotate: false });
+  const after = resolveSurfaceAnchor(packed, projectedAnchor);
+  assert.ok(before.frame.origin.distanceTo(after.frame.origin) < 1e-8);
+  assert.ok(before.frame.normal.distanceTo(after.frame.normal) < 1e-8);
+  const report = inspectUvCharts(packed);
+  for (const chart of report.charts) {
+    assert.ok(chart.atlas[0] >= .1 - 1e-8 && chart.atlas[1] >= .15 - 1e-8);
+    assert.ok(chart.atlas[2] <= .9 + 1e-8 && chart.atlas[3] <= .85 + 1e-8);
+  }
+  source.dispose(); projected.dispose(); packed.dispose();
+});
+
+test('packing rejects stale chart provenance, invalid modes and impossible margins', () => {
+  const source = twoChartPanel();
+  const projected = projectFaceRegionUVs(source, [
+    { region: 'panel.leftChart', atlas: [.05, .05, .45, .45] },
+    { region: 'panel.rightChart', atlas: [.2, .2, .7, .7] },
+  ]);
+  assert.throws(() => packUvCharts(projected, { density: 'magic' }), /density/);
+  assert.throws(() => packUvCharts(projected, { margin: .51 }), /margin/);
+  const stale = projected.clone();
+  stale.userData = { ...projected.userData, uvCharts: { ...projected.userData.uvCharts, charts: projected.userData.uvCharts.charts.map(chart => ({ ...chart, faceRanges: undefined })) } };
+  assert.throws(() => inspectUvCharts(stale), /face provenance/);
+  source.dispose(); projected.dispose(); stale.dispose();
+});
