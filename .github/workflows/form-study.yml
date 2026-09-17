@@ -7,6 +7,11 @@ on:
       - src/lib/illustration*.js
       - scripts/review-illustration.mjs
       - tests/illustration.test.js
+      - src/lib/two-link-pose.js
+      - tests/two-link-pose.test.js
+      - tests/prism-limbs.test.js
+      - scripts/review-limbs.mjs
+      - studies/two-link-boom.js
       - src/lib/shape-*.js
       - src/lib/surface-contour.js
       - tests/surface-contour.test.js
@@ -55,7 +60,7 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run prepare:tangents
       - name: Curve, layering, immutable sculpt, pose and region-mask tests
-        run: node --test tests/surface-contour.test.js tests/prism-torso.test.js tests/illustration.test.js tests/shape-rails.test.js tests/form-design.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/surface-boundary.test.js tests/surface-cache.test.js tests/contour-volume.test.js
+        run: node --test tests/two-link-pose.test.js tests/prism-limbs.test.js tests/surface-contour.test.js tests/prism-torso.test.js tests/illustration.test.js tests/shape-rails.test.js tests/form-design.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/surface-boundary.test.js tests/surface-cache.test.js tests/contour-volume.test.js
       - run: npx playwright-core install --with-deps chromium
       - name: Local-equivalent renders, exports, visible masks and normal transfer
         run: node scripts/review-forms.mjs
@@ -63,6 +68,8 @@ jobs:
         run: node scripts/review-illustration.mjs
       - name: Contoured torso and independent service hatch
         run: node scripts/review-torso.mjs
+      - name: Connected limb poses, scalloped shells and independent boom
+        run: node scripts/review-limbs.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -71,4 +78,5 @@ jobs:
             renders/form-review/
             renders/illustration-review/
             renders/torso-review/
+            renders/limb-review/
           if-no-files-found: error

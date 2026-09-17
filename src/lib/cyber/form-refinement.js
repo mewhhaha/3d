@@ -1,3 +1,4 @@
+import { scallopedLimb, articulatedBoot } from './limb-form.js';
 import { articulatedTorso, scallopedShoulder } from './torso-form.js';
 import { illustratedHead } from './illustrated-head.js';
 import { limbArmor, sculptedBoot, contouredShield } from './contour-armor.js';
@@ -8,9 +9,10 @@ import { portraitFields } from './head-form.js';
 import { posedAndroid } from './reference-layout.js';
 import { guidedBob } from './hair-design.js';
 /** Preserve guide/camera and replace only named components. Baseline stays available. */
-export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', bodyStyle='legacy', ...options }={}){
+export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', bodyStyle='legacy', limbStyle='legacy', ...options }={}){
  if(!['legacy','illustrated'].includes(headStyle))throw new Error('Unknown head style');
  if(!['legacy','articulated'].includes(bodyStyle))throw new Error('Unknown body style');
+ if(!['legacy','scalloped'].includes(limbStyle))throw new Error('Unknown limb style');
  const root=posedAndroid({stage,...options});
  if(stage==='assembly'){
   const materials=cyberMaterials({glow:.7});
@@ -97,10 +99,15 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundne
    const shin=name.startsWith('Shin'),fore=name.startsWith('Forearm'),upper=name.startsWith('Upper');
    const length=shin?.329:fore?.225:upper?.242:.428;
    const radii=shin?[[0,.048,.048],[.25,.065,.056],[.49,.048,.05],[.80,.028,.031],[1,.027,.03]]:fore?[[0,.035,.037],[.26,.047,.049],[.65,.035,.037],[1,.023,.025]]:upper?[[0,.040,.043],[.25,.045,.047],[.6,.037,.037],[1,.03,.033]]:[[0,.073,.08],[.22,.088,.081],[.52,.075,.073],[.79,.056,.06],[1,.045,.048]];
-   parent.add(limbArmor({name:'Contoured '+name,length,radii,type:shin?'shin':fore?'forearm':upper?'upper':'thigh'},materials));
+   const type=shin?'shin':fore?'forearm':upper?'upper':'thigh';
+   if(limbStyle==='scalloped'){
+    const remove=shin?['Tibia chassis','Shin neon inset','Shin longitudinal seam','Calf external piston','Surface-mounted details']:fore?['Forearm exposed core','Cyan forearm inlay','Forearm vent','Surface-mounted details']:upper?['Upper arm actuator','Triceps piston']:['Femur armature','Thigh panel seam','Thigh inset','Surface-mounted details'];
+    for(const child of [...parent.children])if(remove.includes(child.name)){child.removeFromParent();child.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
+    parent.add(scallopedLimb({type,side:parent.name.endsWith('L')?1:-1},materials));
+   }else parent.add(limbArmor({name:'Contoured '+name,length,radii,type},materials));
   }
   const boots=[];root.traverse(o=>{if(o.name==='Boot.L'||o.name==='Boot.R')boots.push(o);});
-  for(const old of boots){const boot=sculptedBoot({side:old.name.endsWith('L')?1:-1},materials);boot.position.copy(old.position);boot.quaternion.copy(old.quaternion);boot.scale.copy(old.scale);old.parent.add(boot);old.removeFromParent();old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
+  for(const old of boots){const boot=(limbStyle==='scalloped'?articulatedBoot:sculptedBoot)({side:old.name.endsWith('L')?1:-1},materials);boot.position.copy(old.position);boot.quaternion.copy(old.quaternion);boot.scale.copy(old.scale);old.parent.add(boot);old.removeFromParent();old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
  }
  return root;
 }
