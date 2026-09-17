@@ -54,3 +54,39 @@ Before this layer, changing a straight limb-like primitive into a deliberate arc
 ## Current limitations
 
 This is a compact analytic deformation layer, not Blender Simple Deform, FFD, a lattice cage, elasticity or collision-aware bending. V1 has one local axis (+Y), no Stretch mode, no per-axis taper locks, no exact volume preservation, and no automatic self-intersection prevention. Strong bends can still fold coarse meshes; the result depends on source tessellation. Fractional selection weights interpolate point positions rather than solving a physically smooth transition. Normals are recomputed from triangles instead of using an analytic deformation Jacobian. Rig/morph refitting and topology-changing remap remain separate explicit stages.
+
+## Curve-guided broad deformation
+
+Use `deformationCurve()` plus `curveVertices()` when one circular bend is not enough. The guide is JSON-safe construction data: a small list of control points in **handle-local meters**, an explicit initial `up` vector, Catmull-Rom interpolation type/tension, and a bounded transported-frame sampling resolution. The source mesh still uses handle-local +Y as its authoring axis.
+
+```js
+import {
+  deformationHandle, deformationCurve,
+  taperVertices, twistVertices, curveVertices, deformGeometry,
+} from '../src/lib/geometry-deform.js';
+
+const handle = deformationHandle({ range: [-0.45, 0.45] });
+const guide = deformationCurve([
+  [0, -0.45, 0],
+  [0.14, -0.22, 0.02],
+  [-0.10, 0.02, 0.09],
+  [0.12, 0.25, -0.01],
+  [0.04, 0.45, 0.07],
+], { up: [1, 0, 0], segments: 128 });
+
+const routed = deformGeometry(source,
+  taperVertices(selection, { handle, factor: -0.3 }),
+  twistVertices(selection, { handle, angle: 20 }),
+  curveVertices(selection, { handle, guide }),
+);
+```
+
+The guide maps `handle.range[0]..handle.range[1]` to equal-distance positions along the centerline. The current handle-local X/Z cross-section is carried by the repository's rotation-minimizing transported frames. For a straight +Y guide with the default +X `up`, the mapping is position-identical. Points beyond either axial endpoint continue along that endpoint's transported tangent, so a bounded guide does not introduce a positional break.
+
+This is intentionally a deformation of **existing geometry**, not a new sweep constructor. A tube/strap/appendage can retain its UVs, custom attributes, face-region identity and tessellation while its primary flow changes from straight to an S-curve or routed path. `profile-sweep.js` remains the better tool when the desired output should be newly generated from a profile and centerline.
+
+Operation order remains meaningful. Taper or twist before `curveVertices()` changes the source cross-section before it is transported. A later sculpt/relax pass can clean local form without making the centerline part of the brush semantics.
+
+`deformationCurve()` currently uses Three.js `LineCurve3` for two points and `CatmullRomCurve3` for longer guides. Transported frames are sampled at a declared finite `segments` count, then interpolated; this avoids Frenet-frame flips near low curvature but is still a discrete approximation. The guide does not carry per-control-point radius/tilt yet, does not preserve source axial arc length automatically when guide length differs from the handle range, and does not solve collision or self-intersection.
+
+`studies/geometry-curve-deform.json` reuses `models/geometry-deform-study.js` for two materially different checks: an organic appendage follows a non-circular S-guide, and an unrelated service member routes through a 3D hard-surface path while its semantic flex selection and independent mounting foot remain intact.

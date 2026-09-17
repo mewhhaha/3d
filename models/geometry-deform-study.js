@@ -3,7 +3,7 @@ import { defineModel, group, material, mesh, box, cylinder, torus, sphere } from
 import { defineFaceRegions } from '../src/lib/face-regions.js';
 import { faceRegionSelection } from '../src/lib/geometry-sculpt.js';
 import {
-  deformationHandle, bendVertices, twistVertices, taperVertices, deformGeometry,
+  deformationHandle, deformationCurve, bendVertices, twistVertices, taperVertices, curveVertices, deformGeometry,
 } from '../src/lib/geometry-deform.js';
 
 function organicGeometry(mode) {
@@ -12,12 +12,23 @@ function organicGeometry(mode) {
   if (mode === 'baseline') return geometry;
   const all = new Float32Array(geometry.getAttribute('position').count).fill(1);
   const handle = deformationHandle({ origin: [0, 0, 0], range: [-.44, .44] });
-  const edited = deformGeometry(
-    geometry,
-    taperVertices(all, { handle, factor: -.44 }),
-    bendVertices(all, { handle, angle: 76 }),
-    twistVertices(all, { handle, angle: 38 }),
-  );
+  const operations = mode === 'curve'
+    ? [
+        taperVertices(all, { handle, factor: -.38 }),
+        twistVertices(all, { handle, angle: 24 }),
+        curveVertices(all, {
+          handle,
+          guide: deformationCurve([
+            [0, -.44, 0], [.16, -.24, .02], [-.11, -.02, .09], [.14, .22, -.015], [.04, .44, .07],
+          ], { up: [1, 0, 0], segments: 128 }),
+        }),
+      ]
+    : [
+        taperVertices(all, { handle, factor: -.44 }),
+        bendVertices(all, { handle, angle: 76 }),
+        twistVertices(all, { handle, angle: 38 }),
+      ];
+  const edited = deformGeometry(geometry, operations);
   geometry.dispose();
   return edited;
 }
@@ -45,12 +56,23 @@ function mechanicalGeometry(mode) {
   if (mode === 'baseline') return geometry;
   const selection = faceRegionSelection(geometry, 'bracket.flex');
   const handle = deformationHandle({ origin: [0, -.03, 0], rotation: [0, 0, -7], range: [-.36, .39] });
-  const edited = deformGeometry(
-    geometry,
-    bendVertices(selection, { handle, angle: -58 }),
-    twistVertices(selection, { handle, angle: -32 }),
-    taperVertices(selection, { handle, factor: -.16 }),
-  );
+  const operations = mode === 'curve'
+    ? [
+        taperVertices(selection, { handle, factor: -.12 }),
+        twistVertices(selection, { handle, angle: -18 }),
+        curveVertices(selection, {
+          handle,
+          guide: deformationCurve([
+            [0, -.36, 0], [.03, -.20, .015], [.14, -.03, .05], [.03, .16, .10], [.16, .39, .055],
+          ], { up: [1, 0, 0], segments: 128 }),
+        }),
+      ]
+    : [
+        bendVertices(selection, { handle, angle: -58 }),
+        twistVertices(selection, { handle, angle: -32 }),
+        taperVertices(selection, { handle, factor: -.16 }),
+      ];
+  const edited = deformGeometry(geometry, operations);
   geometry.dispose();
   return edited;
 }
@@ -74,11 +96,11 @@ function mechanicalExample(materials, mode) {
 export default defineModel({
   id: 'geometry-deform-study',
   title: 'Workflow lab / local deformation handles',
-  description: 'Reuse one geometry-local axial handle to bend, twist and taper ordinary indexed BufferGeometry without topology changes.',
+  description: 'Reuse local handles and authored centerlines to bend, twist, taper or route ordinary indexed BufferGeometry without topology changes.',
   parameters: {
     organic: { type: 'boolean', default: true },
     mechanical: { type: 'boolean', default: true },
-    mode: { type: 'select', options: ['baseline', 'deformed'], default: 'deformed' },
+    mode: { type: 'select', options: ['baseline', 'deformed', 'curve'], default: 'deformed' },
   },
   build(p) {
     const materials = {
@@ -95,7 +117,7 @@ export default defineModel({
     if (!children.length) children.push(sphere({ radius: .02, material: materials.frame }));
     const root = group('Local deformation handle workflow', children);
     root.userData.workflow = {
-      sequence: 'indexed mesh -> reusable local +Y handle -> independent selection -> bend/twist/taper -> render/export',
+      sequence: 'indexed mesh -> local +Y handle + optional curve guide -> independent selection -> broad deformation -> render/export',
       coordinateSpace: 'geometry-local meters; handle rotations use XYZ degrees',
       purpose: 'broad primary-form edits without chains of hand-authored vertex pulls',
       mode: p.mode,

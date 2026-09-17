@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { defineFaceRegions, faceRegionTriangles } from '../src/lib/face-regions.js';
 import { radialSelection, faceRegionSelection, intersectSelections } from '../src/lib/geometry-sculpt.js';
 import {
-  deformationHandle, bendVertices, twistVertices, taperVertices, deformGeometry,
+  deformationHandle, deformationCurve, bendVertices, twistVertices, taperVertices, curveVertices, deformGeometry,
 } from '../src/lib/geometry-deform.js';
 
 const near = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} != ${b}`);
@@ -121,4 +121,54 @@ test('deformation rejects rig and morph ownership rather than silently invalidat
   const morphed = new THREE.BoxGeometry(1, 1, 1);
   morphed.morphAttributes.position = [morphed.getAttribute('position').clone()];
   assert.throws(() => deformGeometry(morphed, twistVertices(new Float32Array(morphed.getAttribute('position').count).fill(1))), /morph targets/);
+});
+
+
+test('deformationCurve is JSON-safe and rejects degenerate construction data', () => {
+  const guide = deformationCurve([[0, -1, 0], [0.2, 0, 0.1], [0, 1, 0]], { segments: 32 });
+  assert.equal(guide.kind, 'deformation-curve');
+  assert.deepEqual(JSON.parse(JSON.stringify(guide)).points[1], [0.2, 0, 0.1]);
+  assert.throws(() => deformationCurve([[0, 0, 0]]), /2\.\.128/);
+  assert.throws(() => deformationCurve([[0, 0, 0], [0, 0, 0]]), /distinct/);
+  assert.throws(() => deformationCurve([[0, 0, 0], [0, 1, 0]], { up: [0, 0, 0] }), /non-zero/);
+});
+
+test('straight curve deformation is identity in the default +Y handle frame', () => {
+  const geometry = new THREE.BoxGeometry(.4, 2.4, .6, 2, 6, 2);
+  const all = new Float32Array(geometry.getAttribute('position').count).fill(1);
+  const guide = deformationCurve([[0, -1, 0], [0, 1, 0]], { segments: 16 });
+  const edited = deformGeometry(geometry, curveVertices(all, {
+    guide, handle: deformationHandle({ range: [-1, 1] }),
+  }));
+  const before = geometry.getAttribute('position');
+  const after = edited.getAttribute('position');
+  for (let i = 0; i < before.count; i++) {
+    near(after.getX(i), before.getX(i), 2e-6);
+    near(after.getY(i), before.getY(i), 2e-6);
+    near(after.getZ(i), before.getZ(i), 2e-6);
+  }
+});
+
+test('curve deformation carries cross-sections through an S guide and extends beyond endpoints', () => {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+    0,-1.4,0, 0,-1,0, 0,0,0, 0,1,0, 0,1.4,0, .2,0,0,
+  ], 3));
+  geometry.setIndex([0,1,5, 1,2,5, 2,3,5, 3,4,5]);
+  const all = new Float32Array(6).fill(1);
+  const guide = deformationCurve([[0,-1,0], [.45,-.45,.05], [-.28,.18,.18], [.35,1,.1]], { segments: 128 });
+  const edited = deformGeometry(geometry, curveVertices(all, { guide, handle: deformationHandle({ range: [-1, 1] }) }));
+  const p = edited.getAttribute('position');
+  const start = new THREE.Vector3(p.getX(1), p.getY(1), p.getZ(1));
+  const end = new THREE.Vector3(p.getX(3), p.getY(3), p.getZ(3));
+  near(start.distanceTo(new THREE.Vector3(0,-1,0)), 0, 2e-5);
+  near(end.distanceTo(new THREE.Vector3(.35,1,.1)), 0, 2e-5);
+  const mid = new THREE.Vector3(p.getX(2), p.getY(2), p.getZ(2));
+  assert.ok(Math.abs(mid.x) > .05 || Math.abs(mid.z) > .05, 'centerline follows non-circular guide');
+  const cross = new THREE.Vector3(p.getX(5), p.getY(5), p.getZ(5));
+  near(cross.distanceTo(mid), .2, 3e-3);
+  const beforeStart = new THREE.Vector3(p.getX(0), p.getY(0), p.getZ(0));
+  const afterEnd = new THREE.Vector3(p.getX(4), p.getY(4), p.getZ(4));
+  near(beforeStart.distanceTo(start), .4, 3e-3);
+  near(afterEnd.distanceTo(end), .4, 3e-3);
 });

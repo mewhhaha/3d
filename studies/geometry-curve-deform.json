@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "geometry-curve-deform",
+  "title": "Workflow study — curve-guided broad deformation",
+  "module": "models/geometry-deform-study.js",
+  "lockCamera": true,
+  "width": 600,
+  "height": 600,
+  "views": ["front", "threequarter", "side"],
+  "passes": ["material", "clay", "wire", "silhouette"],
+  "cases": [
+    {"id":"baseline","label":"Straight authored forms","values":{"organic":true,"mechanical":true,"mode":"baseline"},"maxTriangles":12000},
+    {"id":"curve","label":"Curve-guided broad deformation","values":{"organic":true,"mechanical":true,"mode":"curve"},"maxTriangles":12000},
+    {"id":"organic","label":"Organic S-curve appendage","values":{"organic":true,"mechanical":false,"mode":"curve"},"maxTriangles":7000},
+    {"id":"mechanical","label":"Routed hard-surface member","values":{"organic":false,"mechanical":true,"mode":"curve"},"maxTriangles":7000}
+  ]
+}

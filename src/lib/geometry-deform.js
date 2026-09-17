@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { selectionWeights } from './geometry-sculpt.js';
+import { transportedFrames } from './curve-frame.js';
 
 const finite3 = (value, label) => {
   if (!Array.isArray(value) || value.length !== 3 || !value.every(Number.isFinite)) {
@@ -41,6 +42,35 @@ export function deformationHandle({
   });
 }
 
+
+/**
+ * JSON-safe guide for broad deformation along an authored handle-local centerline.
+ * Points are handle-local meters. `up` seeds transported cross-section orientation.
+ */
+export function deformationCurve(points, {
+  up = [1, 0, 0], curveType = 'centripetal', tension = 0.5, segments = 96,
+} = {}) {
+  if (!Array.isArray(points) || points.length < 2 || points.length > 128) {
+    throw new Error('deformation curve needs 2..128 control points');
+  }
+  const cleanPoints = points.map((point, index) => finite3(point, `deformation curve point ${index}`));
+  for (let index = 1; index < cleanPoints.length; index++) {
+    const a = cleanPoints[index - 1], b = cleanPoints[index];
+    const distanceSq = (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+    if (distanceSq < 1e-18) throw new Error('deformation curve consecutive points must be distinct');
+  }
+  const cleanUp = finite3(up, 'deformation curve up');
+  if (cleanUp[0] ** 2 + cleanUp[1] ** 2 + cleanUp[2] ** 2 < 1e-18) throw new Error('deformation curve up must be non-zero');
+  if (!['centripetal', 'chordal', 'catmullrom'].includes(curveType)) throw new Error('unsupported deformation curve type');
+  if (!Number.isFinite(tension) || tension < 0 || tension > 1) throw new Error('deformation curve tension must be in [0, 1]');
+  if (!Number.isInteger(segments) || segments < 8 || segments > 512) throw new Error('deformation curve segments must be an integer in 8..512');
+  return Object.freeze({
+    kind: 'deformation-curve',
+    points: Object.freeze(cleanPoints.map(point => Object.freeze(point))),
+    up: Object.freeze(cleanUp), curveType, tension, segments,
+  });
+}
+
 function validateSelection(selection, label) {
   if (typeof selection !== 'function' && !ArrayBuffer.isView(selection) && !Array.isArray(selection)) {
     throw new Error(`${label} needs a selection`);
@@ -70,6 +100,14 @@ export function twistVertices(selection, { angle = 45, handle = deformationHandl
 export function taperVertices(selection, { factor = -0.25, handle = deformationHandle() } = {}) {
   if (!Number.isFinite(factor) || factor <= -1 || factor > 8) throw new Error('taper factor must be in (-1, 8]');
   return handleOperation('taper', selection, { factor, handle });
+}
+
+
+/** Carry the handle-local X/Z cross-section along an authored curve using transported frames. */
+export function curveVertices(selection, { guide, handle = deformationHandle() } = {}) {
+  if (!guide?.points) throw new Error('curve deformation needs a deformation curve guide');
+  const normalizedGuide = deformationCurve(guide.points, guide);
+  return handleOperation('curve', selection, { guide: normalizedGuide, handle });
 }
 
 function matrices(handle) {
@@ -122,7 +160,48 @@ function taperPoint(point, handle, factor) {
   return new THREE.Vector3(point.x * crossScale, point.y, point.z * crossScale);
 }
 
-function deformPoint(point, op) {
+
+function curveRuntime(guide) {
+  const points = guide.points.map(point => new THREE.Vector3(...point));
+  const curve = points.length === 2
+    ? new THREE.LineCurve3(points[0], points[1])
+    : new THREE.CatmullRomCurve3(points, false, guide.curveType, guide.tension);
+  curve.arcLengthDivisions = Math.max(200, guide.segments * 4);
+  curve.updateArcLengths();
+  const frames = transportedFrames(curve, { segments: guide.segments, up: guide.up });
+  return { curve, frames, segments: guide.segments };
+}
+
+function sampledCurveFrame(runtime, t) {
+  const u = THREE.MathUtils.clamp(t, 0, 1);
+  const scaled = u * runtime.segments;
+  const index = Math.min(runtime.segments - 1, Math.floor(scaled));
+  const alpha = u >= 1 ? 1 : scaled - index;
+  const a = runtime.frames[index], b = runtime.frames[index + 1];
+  const quaternion = a.quaternion.clone().slerp(b.quaternion, alpha).normalize();
+  return {
+    origin: runtime.curve.getPointAt(u, new THREE.Vector3()),
+    normal: new THREE.Vector3(1, 0, 0).applyQuaternion(quaternion).normalize(),
+    binormal: new THREE.Vector3(0, 1, 0).applyQuaternion(quaternion).normalize(),
+    tangent: new THREE.Vector3(0, 0, 1).applyQuaternion(quaternion).normalize(),
+  };
+}
+
+function curvePoint(point, handle, runtime) {
+  const [start, end] = handle.range;
+  const t = normalizedAxis(point.y, start, end);
+  const frame = sampledCurveFrame(runtime, t);
+  if (point.y < start) frame.origin.addScaledVector(frame.tangent, point.y - start);
+  else if (point.y > end) frame.origin.addScaledVector(frame.tangent, point.y - end);
+  // curve-frame uses +X=normal, +Y=binormal, +Z=tangent. Source deformation uses +Y axial,
+  // so source +Z maps to -binormal to preserve a right-handed X/Y/Z cross-section on a straight +Y guide.
+  return frame.origin.clone()
+    .addScaledVector(frame.normal, point.x)
+    .addScaledVector(frame.binormal, -point.z);
+}
+
+function deformPoint(point, op, runtime) {
+  if (op.kind === 'curve') return curvePoint(point, op.handle, runtime);
   if (op.kind === 'bend') return bendPoint(point, op.handle, op.angle);
   if (op.kind === 'twist') return twistPoint(point, op.handle, op.angle);
   if (op.kind === 'taper') return taperPoint(point, op.handle, op.factor);
@@ -137,7 +216,7 @@ export function deformGeometry(geometry, ...operations) {
   const sourcePosition = validateGeometry(geometry);
   const ops = operations.flat();
   if (!ops.length) throw new Error('deformGeometry needs at least one operation');
-  for (const op of ops) if (!op || !['bend', 'twist', 'taper'].includes(op.kind)) throw new Error('unknown geometry deformation operation');
+  for (const op of ops) if (!op || !['bend', 'twist', 'taper', 'curve'].includes(op.kind)) throw new Error('unknown geometry deformation operation');
 
   const output = geometry.clone();
   const position = output.getAttribute('position');
@@ -145,13 +224,14 @@ export function deformGeometry(geometry, ...operations) {
 
   for (const op of ops) {
     const weights = selectionWeights(output, op.selection);
+    const runtime = op.kind === 'curve' ? curveRuntime(op.guide) : null;
     const { localToGeometry, geometryToLocal } = matrices(op.handle);
     for (let index = 0; index < position.count; index++) {
       const weight = weights[index];
       if (weight === 0) continue;
       const original = new THREE.Vector3().fromBufferAttribute(position, index);
       const local = original.clone().applyMatrix4(geometryToLocal);
-      const deformedLocal = deformPoint(local, op);
+      const deformedLocal = deformPoint(local, op, runtime);
       const target = deformedLocal.applyMatrix4(localToGeometry);
       const result = original.lerp(target, weight);
       if (![result.x, result.y, result.z].every(Number.isFinite)) throw new Error('geometry deformation produced invalid coordinates');
