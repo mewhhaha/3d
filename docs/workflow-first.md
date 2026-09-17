@@ -158,3 +158,24 @@ const cleaned = sculptGeometry(source,
 
 This is a bounded uniform-neighborhood adaptation of Taubin-style shrink-resistant fairing, not a continuous curvature solver or an exact volume constraint. Each relaxation iteration costs two passes, tessellation still affects the result, and aggressive parameters can overshoot or self-intersect. Use controlled material/wire/silhouette comparisons when judging whether cleanup preserved the intended form.
 
+## Deform a layered assembly without merging ownership
+
+Broad-form edits often need one spatial field across several separately authored parts. `deformGeometryInParent()` evaluates the existing deformation operations in an explicit parent/assembly-local frame while leaving each result in its original component-local coordinates:
+
+```js
+const cage = deformationLattice({
+  handle: deformationHandle({ range: [-0.3, 0.3] }),
+  xRange: [-0.5, 0.5], zRange: [-0.35, 0.35], resolution: [3, 3, 3],
+  edits: [{ point: [2, 2, 1], offset: [0.08, 0.05, 0.02] }],
+});
+const shapedShell = deformGeometryInParent(
+  shell, shellPlacement, latticeVertices(() => 1, { lattice: cage }),
+);
+const shapedTrim = deformGeometryInParent(
+  trim, trimPlacement, latticeVertices(() => 1, { lattice: cage }),
+);
+```
+
+The component placement uses the same meters / XYZ-degree rotation / positive-scale convention as modeling helpers. Field handles use the chosen parent space; selections stay component-local, so a named face region can limit one part without changing how the common cage is positioned. Geometry, materials, names and object transforms therefore stay independently editable and exportable instead of being merged simply to obtain one coordinate frame.
+
+This is an explicit construction-space operation, not a scene dependency graph or a live modifier. Nested transforms must be accumulated by the caller, field membership is opt-in per component, and rig/morph refitting remains a separate ownership stage. Use it when several neighboring parts should follow one broad volume edit; keep ordinary `deformGeometry()` for a self-contained mesh whose handles are naturally geometry-local.

@@ -90,3 +90,46 @@ Operation order remains meaningful. Taper or twist before `curveVertices()` chan
 `deformationCurve()` currently uses Three.js `LineCurve3` for two points and `CatmullRomCurve3` for longer guides. Transported frames are sampled at a declared finite `segments` count, then interpolated; this avoids Frenet-frame flips near low curvature but is still a discrete approximation. The guide does not carry per-control-point radius/tilt yet, does not preserve source axial arc length automatically when guide length differs from the handle range, and does not solve collision or self-intersection.
 
 `studies/geometry-curve-deform.json` reuses `models/geometry-deform-study.js` for two materially different checks: an organic appendage follows a non-circular S-guide, and an unrelated service member routes through a 3D hard-surface path while its semantic flex selection and independent mounting foot remain intact.
+
+## Share one deformation field across separately owned parts
+
+`deformGeometry()` interprets every operation handle in that geometry's local coordinates. That is correct for a self-contained mesh, but it is awkward for a layered assembly: evaluating the same lattice separately in the shell-local, trim-local and inset-local spaces does **not** describe one spatial cage.
+
+Use `deformGeometryInParent()` when the field belongs to the assembly instead. Pass the same placement data used by the component object. Operation handles are then evaluated in the component's parent/assembly-local coordinates, while selections remain component-local and the returned positions remain in the component's own local coordinates:
+
+```js
+import {
+  deformationHandle, deformationLattice, latticeVertices,
+  deformGeometryInParent,
+} from '../src/lib/geometry-deform.js';
+
+const cage = deformationLattice({
+  handle: deformationHandle({ range: [-0.3, 0.3] }),
+  xRange: [-0.5, 0.5], zRange: [-0.35, 0.35], resolution: [3, 3, 3],
+  edits: [{ point: [2, 2, 1], offset: [0.08, 0.05, 0.02] }],
+});
+const shellPlacement = { position: [0, 0, 0], rotation: [0, 8, 0], scale: [1, 1, 1] };
+const trimPlacement = { position: [0, 0.12, 0.14], rotation: [5, -3, 0], scale: [1, 1, 1] };
+const all = () => 1;
+
+const shapedShell = deformGeometryInParent(
+  shellGeometry, shellPlacement, latticeVertices(all, { lattice: cage }),
+);
+const shapedTrim = deformGeometryInParent(
+  trimGeometry, trimPlacement, latticeVertices(all, { lattice: cage }),
+);
+
+// Keep the same independent object transforms/materials when assembling the result.
+root.add(mesh(shapedShell, { ...shellPlacement, material: shellMaterial }));
+root.add(mesh(shapedTrim, { ...trimPlacement, material: trimMaterial }));
+```
+
+The placement contract matches the modeling helpers: translation in meters, XYZ rotation in degrees, and positive scalar/vector scale. The function conceptually maps each current component-local vertex into the parent space, evaluates the ordinary handle/lattice there, then maps the result back into component-local coordinates before writing the cloned `BufferGeometry`. It therefore does not bake the object transform into the geometry or require a merge.
+
+Selections deliberately stay component-local. A named face region or local radial mask can still choose only the flexible part of one component, while the deformation field itself is shared spatially with neighboring parts. Callers may reuse the same lattice/curve/handle construction data with different per-component selections.
+
+A regression test proves the coordinate contract by comparing two paths: (1) deform two transformed components independently with one parent-space lattice and then compose them, versus (2) compose the undeformed components first and apply the same lattice to the merged parent-space geometry. With whole-component weights their positions agree within floating-point tolerance, while the separate path retains independent geometry buffers and material/object ownership.
+
+`models/geometry-assembly-deform-study.js` and `studies/geometry-assembly-deform.json` exercise this on a layered organic mass (skin, crest and collar) and an unrelated hard-surface housing (shell, rail and service inset). Rigid socket/mounting parts are intentionally excluded, demonstrating that field membership remains an authoring decision rather than an automatic scene-graph effect.
+
+This is a **single parent-space** contract, not a full scene dependency graph. Nested hierarchies require the caller to provide the component transform relative to the chosen deformation parent. The helper does not traverse `Object3D` trees, mutate object transforms, infer which siblings belong to the field, transport rigs/morphs, or export a runtime lattice modifier. Non-uniform positive component scales are supported through the explicit placement transform; zero/reflected scales are rejected.
