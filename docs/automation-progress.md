@@ -1,5 +1,32 @@
 # Automated refinement progress
 
+## 2026-09-18 — connected hands and cutaway ceramic contours
+
+Verified base main **ea8140309c5e176c111382f36d332766aa6f04df**, successful
+Guided Form and full Pages workflows, and exact offline source/locked dependencies.
+The containing commit adds reusable `rigidChain` (local -Y links, parent-relative
+XYZ-degree rotations) used by mechanical digits and an unrelated opposed-jaw gripper.
+Optional `handStyle: relaxed` adds arced knuckles/individual curl; independent
+`panelStyle: cutaway` splits chest cover and opens a proximal thigh recess. Existing
+pose, lengths, wrist/palm emitter, head, feet, camera and all defaults remain fixed.
+
+Local: doctor; **7/7** new focused and **32/32** expanded tests; targeted recipe
+**1/1**; build **44 recipes**; **10 cases / 50 renders / 3 GLBs, zero errors and
+warnings**. Full `npm test` reached **165 passing subtests** before its 180 s bound
+(exit 124), not a complete local suite. Computational source fingerprint
+`41f29155c8855518f8302ed99324c05b18e87a12103a1797360f3ce0ff280058`
+(223 files), identical throughout final review. Scene **687,828 triangles**;
+landmarks unchanged at **9.8003 px RMS / 25.9151 px max**.
+
+Actual material/clay/side views show a cupped, less regular hand silhouette and
+real chest/thigh openings. This is local modeling progress, not solved likeness.
+A shallow hidden notch and an interrupted reused-browser review were rejected;
+final review uses existing isolated browsers with no error suppression.
+Research, checks, limits, reference provenance and artifact paths:
+[hands checkpoint](checkpoints/2026-09-18-prism-hands.md).
+Next: boot/ankle/lower-shin construction, preserving planted contact. New-commit CI
+and Pages pending at checkpoint; separate from the successful local checks.
+
 ## 2026-09-18 — humanoid mass groups beneath mechanical armor
 
 Base main **35bdce30e1a07cc70ba357a9f2dde9fd924df8f9** and its successful CI/Pages

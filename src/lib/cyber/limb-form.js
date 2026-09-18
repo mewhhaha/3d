@@ -38,19 +38,24 @@ const plates={
  upper:[[[.13,.82],[.28,.98],[.52,.96],[.66,.86],[.77,.91],[.88,.77],[.83,.47],[.76,.18],[.64,.05],[.53,.12],[.44,.22],[.30,.12],[.23,.35],[.18,.55]]],
 };
 
-export function scallopedLimb({type='thigh',side=1,socketClearance=false,massStyle='profiled'}={},mats){
+export function scallopedLimb({type='thigh',side=1,socketClearance=false,massStyle='profiled',panelStyle='broad'}={},mats){
+ if(!['broad','cutaway'].includes(panelStyle))throw new Error('Invalid panel style');
  const support=limbFormSupport({type,side,massStyle}),root=group('Scalloped '+type+' armor');
  // A narrowed core shows through real cutouts without borrowing old cylinder-sized details.
  const core=(u,v)=>{const p=support(u,v);return[p[0]*.82,p[1],p[2]*.80];};
  root.add(thickenSurface(type+' shaped dark core',core,{thickness:.002,segments:[40,28],material:mats.dark}));
  if(type==='shin')root.add(sphere({name:'Knee flex core',radius:.035,segments:24,material:mats.dark}));
- for(const [i,baseOutline] of plates[type].entries()){const outline=socketClearance&&type==='upper'?baseOutline.map(([u,v])=>[u,v>.70?.70+(v-.70)*.55:v]):baseOutline;root.add(contourArmor(type+' flowing plate '+i,support,side<0?flip(outline):outline,mats,{offset:.0035,thickness:.0035,rounding:.13,refinement:2}));}
+ const outlines=panelStyle==='cutaway'&&type==='thigh'?[
+  [[.49,.91],[.59,.975],[.66,.963],[.665,.76],[.67,.60],[.70,.51],[.765,.52],[.785,.66],[.81,.80],[.86,.91],[.94,.88],[.95,.56],[.91,.30],[.86,.15],[.81,.05],[.74,.045],[.70,.14],[.62,.18],[.59,.065],[.51,.10],[.48,.43]],
+  [[.08,.87],[.18,.94],[.34,.89],[.425,.93],[.436,.72],[.40,.52],[.435,.40],[.42,.24],[.39,.09],[.31,.06],[.29,.17],[.20,.21],[.14,.13],[.09,.37]],
+ ]:plates[type];
+ for(const [i,baseOutline] of outlines.entries()){ const outline=socketClearance&&type==='upper'?baseOutline.map(([u,v])=>[u,v>.70?.70+(v-.70)*.55:v]):baseOutline;root.add(contourArmor(type+' flowing plate '+i,support,side<0?flip(outline):outline,mats,{offset:.0035,thickness:.0035,rounding:.13,refinement:2}));}
  const u=side>0?.74:.26;
  if(type==='shin')root.add(attachToSurface(radialPort({name:'Calf lateral emitter',radius:.027,color:'lime',detail:1},mats),support,{u,v:.74,offset:.006}));
  if(type==='thigh')root.add(attachToSurface(radialPort({name:'Proximal thigh inset',radius:.016,color:'amber',detail:1},mats),support,{u,v:.86,offset:.006}));
  const coords=[[u,.20],[u+.025,.30],[u+.018,.49],[u+.05,.57],[u+.047,.67]];
  root.add(routedCable({name:type+' curved enamel seam',points:surfacePath(support,coords,{offset:.008}),radius:.0009,segments:30,ends:false,material:mats.orange}));
- root.userData.construction={method:'shared profiled volume with concave plates and surface-mounted hardware',type,side,massStyle};return root;
+ root.userData.construction={method:'shared profiled volume with concave plates and surface-mounted hardware',type,side,massStyle,panelStyle};return root;
 }
 
 /** Independent boot upper, sloped instep and ankle guards on a planted sole.

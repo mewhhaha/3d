@@ -32,7 +32,8 @@ export function contourArmor(name,support,outline,mats,{offset=.004,thickness=.0
 }
 const mirror=outline=>outline.map(([u,v])=>[1-u,v]).reverse();
 /** Torso from a shared support; an optional section pose also drives its mounted details. */
-export function articulatedTorso(mats,{pose=null,massStyle='profiled'}={}){
+export function articulatedTorso(mats,{pose=null,massStyle='profiled',panelStyle='broad'}={}){
+ if(!['broad','cutaway'].includes(panelStyle))throw new Error('Invalid panel style');
  const root=group('Torso'),support=torsoSupport({pose,massStyle}),point=p=>pose?pose.point(p):p;
  const chassis=material('#101f22',{roughness:.55,metalness:.35});chassis.name='Recessed articulated torso';
  root.add(thickenSurface('Contoured torso understructure',support,{thickness:.004,segments:[72,48],material:chassis}));
@@ -44,7 +45,12 @@ export function articulatedTorso(mats,{pose=null,massStyle='profiled'}={}){
  const apron=[[.511,.211],[.550,.235],[.624,.221],[.647,.160],[.608,.124],[.584,.058],[.529,.017],[.511,.052]];
  for(const side of [-1,1]){
   const chart=side>0?x=>x:mirror;
-  root.add(contourArmor('Scalloped rib cover '+side,support,chart(chest),mats,{offset:.007,thickness:.0045}));
+  if(panelStyle==='cutaway'){
+   const collar=[[.509,.964],[.589,.975],[.704,.930],[.727,.881],[.686,.868],[.638,.905],[.564,.906],[.520,.884]];
+   const cover=[[.515,.859],[.561,.883],[.633,.883],[.677,.849],[.664,.805],[.698,.755],[.677,.691],[.635,.686],[.611,.750],[.574,.770],[.552,.821],[.521,.809]];
+   root.add(contourArmor('Scalloped rib cover '+side,support,chart(cover),mats,{offset:.007,thickness:.0045}));
+   root.add(contourArmor('Clavicular sweep '+side,support,chart(collar),mats,{offset:.009,thickness:.004}));
+  }else root.add(contourArmor('Scalloped rib cover '+side,support,chart(chest),mats,{offset:.007,thickness:.0045}));
   root.add(contourArmor('Swept iliac rim '+side,support,chart(iliac),mats,{offset:.009,thickness:.005}));
   root.add(contourArmor('Split pelvic apron '+side,support,chart(apron),mats,{offset:.005,thickness:.004}));
   const uu=u=>side>0?u:1-u;
@@ -69,7 +75,7 @@ export function articulatedTorso(mats,{pose=null,massStyle='profiled'}={}){
  }
  const port=radialPort({name:'Sternum emitter',radius:.016,color:'amber',detail:1},mats);
  root.add(attachToSurface(port,support,{u:.5,v:.925,offset:.006}));
- root.userData.construction={method:'shared ribcage-waist-pelvis support with independently authored scalloped shells',fixedMount:true,massStyle};if(pose)root.userData.construction.sectionPoses=pose.stations;return root;
+ root.userData.construction={method:'shared ribcage-waist-pelvis support with independently authored scalloped shells',fixedMount:true,massStyle,panelStyle};if(pose)root.userData.construction.sectionPoses=pose.stations;return root;
 }
 
 /** Concave shoulder cowl with lower actuator clearance; port is owned by its mount. */

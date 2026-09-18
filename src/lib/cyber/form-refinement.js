@@ -1,3 +1,4 @@
+import {articulatedHand} from './hand-form.js';
 import {jointSocketShell} from './joint-housings.js';
 import {torsoGesture} from './body-gesture.js';
 import { scallopedLimb, articulatedBoot, deltoidMantle } from './limb-form.js';
@@ -11,12 +12,14 @@ import { portraitFields } from './head-form.js';
 import { posedAndroid } from './reference-layout.js';
 import { guidedBob } from './hair-design.js';
 /** Preserve guide/camera and replace only named components. Baseline stays available. */
-export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', bodyStyle='legacy', limbStyle='legacy', gestureStyle='fixed', jointStyle='open', massStyle='profiled', ...options }={}){
+export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', bodyStyle='legacy', limbStyle='legacy', gestureStyle='fixed', jointStyle='open', massStyle='profiled', handStyle='legacy', panelStyle='broad', ...options }={}){
  if(!['profiled','sculpted'].includes(massStyle))throw new Error('Unknown mass style');
  if(!['open','housed'].includes(jointStyle))throw new Error('Unknown joint style');
  if(!['legacy','illustrated'].includes(headStyle))throw new Error('Unknown head style');
  if(!['legacy','articulated'].includes(bodyStyle))throw new Error('Unknown body style');
  if(!['legacy','scalloped'].includes(limbStyle))throw new Error('Unknown limb style');
+ if(!['legacy','relaxed'].includes(handStyle))throw new Error('Unknown hand style');
+ if(!['broad','cutaway'].includes(panelStyle))throw new Error('Unknown panel style');
  const root=posedAndroid({stage,gestureStyle,...options});
  const bodyPose=gestureStyle==='fixed'?null:torsoGesture(gestureStyle);
  if(stage==='assembly'){
@@ -58,7 +61,7 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundne
   for(const name of ['Thoracic understructure','Abdominal chassis']){const o=root.getObjectByName(name);if(o){o.scale.x*=name.startsWith('Thoracic')?.82:.90;o.scale.z*=.92;}}
 
   if(bodyStyle==='articulated'){
-   const old=root.getObjectByName('Torso'),next=articulatedTorso(materials,{pose:bodyPose,massStyle});
+   const old=root.getObjectByName('Torso'),next=articulatedTorso(materials,{pose:bodyPose,massStyle,panelStyle});
    next.position.copy(old.position);next.quaternion.copy(old.quaternion);next.scale.copy(old.scale);
    old.parent.add(next);old.removeFromParent();old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});
    const cowls=[];root.traverse(o=>{if(o.name==='Scalloped shoulder shell')cowls.push(o);if(o.name==='Hip articulation')o.scale.multiplyScalar(.86);});
@@ -110,7 +113,7 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundne
    if(limbStyle==='scalloped'){
     const remove=shin?['Tibia chassis','Shin neon inset','Shin longitudinal seam','Calf external piston','Surface-mounted details']:fore?['Forearm exposed core','Cyan forearm inlay','Forearm vent','Surface-mounted details']:upper?['Upper arm actuator','Triceps piston']:['Femur armature','Thigh panel seam','Thigh inset','Surface-mounted details'];
     for(const child of [...parent.children])if(remove.includes(child.name)){child.removeFromParent();child.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
-    parent.add(scallopedLimb({type,side:parent.name.endsWith('L')?1:-1,socketClearance:jointStyle==='housed',massStyle},materials));
+    parent.add(scallopedLimb({type,side:parent.name.endsWith('L')?1:-1,socketClearance:jointStyle==='housed',massStyle,panelStyle},materials));
    }else parent.add(limbArmor({name:'Contoured '+name,length,radii,type},materials));
   }
   if(massStyle==='sculpted'&&limbStyle==='scalloped'){
@@ -121,6 +124,11 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundne
     root.getObjectByName('Hip.'+suffix).add(jointSocketShell({name:'Iliac socket '+suffix,radius:.071,side},materials));
     root.getObjectByName('Elbow.'+suffix).add(jointSocketShell({name:'Elbow clevis '+suffix,radius:.037,side},materials));
    }
+  }
+  if(handStyle==='relaxed')for(const side of [-1,1]){
+   const old=root.getObjectByName(side>0?'ServoHand.L':'ServoHand.R'),next=articulatedHand({side},materials);
+   next.position.copy(old.position);next.quaternion.copy(old.quaternion);next.scale.copy(old.scale);
+   old.parent.add(next);old.removeFromParent();old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});
   }
   const boots=[];root.traverse(o=>{if(o.name==='Boot.L'||o.name==='Boot.R')boots.push(o);});
   for(const old of boots){const boot=(limbStyle==='scalloped'?articulatedBoot:sculptedBoot)({side:old.name.endsWith('L')?1:-1},materials);boot.position.copy(old.position);boot.quaternion.copy(old.quaternion);boot.scale.copy(old.scale);old.parent.add(boot);old.removeFromParent();old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
