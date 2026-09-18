@@ -1,4 +1,4 @@
-import {sculptedTorsoSupport} from './mass-forms.js';
+import {sculptedTorsoSupport,structuredTorsoSupport} from './mass-forms.js';
 import {group,mesh,material} from '../modeling.js';
 import {shapeProfile,thickenSurface} from '../shape-rails.js';
 import {surfaceContourGeometry} from '../surface-contour.js';
@@ -10,7 +10,8 @@ import {radialPort,routedCable,link,bellows} from './mechanics.js';
  * Radius/profile data are design hypotheses, not anatomy recovered from a single view.
  */
 export function torsoSupport({pose=null,massStyle='profiled'}={}){
- if(!['profiled','sculpted'].includes(massStyle))throw new Error('Invalid mass style');
+ if(!['profiled','sculpted','structured'].includes(massStyle))throw new Error('Invalid mass style');
+ if(massStyle==='structured')return structuredTorsoSupport({pose});
  if(massStyle==='sculpted')return sculptedTorsoSupport({pose});
  const rx=shapeProfile([[0,.093],[.13,.151],[.27,.142],[.42,.090],[.61,.105],[.80,.160],[.92,.174],[1,.100]]);
  const rz=shapeProfile([[0,.065],[.13,.091],[.27,.087],[.42,.060],[.61,.065],[.80,.079],[.92,.071],[1,.044]]);
@@ -46,8 +47,8 @@ export function articulatedTorso(mats,{pose=null,massStyle='profiled',panelStyle
  for(const side of [-1,1]){
   const chart=side>0?x=>x:mirror;
   if(panelStyle==='cutaway'){
-   const collar=[[.509,.964],[.589,.975],[.704,.930],[.727,.881],[.686,.868],[.638,.905],[.564,.906],[.520,.884]];
-   const cover=[[.515,.859],[.561,.883],[.633,.883],[.677,.849],[.664,.805],[.698,.755],[.677,.691],[.635,.686],[.611,.750],[.574,.770],[.552,.821],[.521,.809]];
+   const collar=massStyle==='structured'?[[.509,.880],[.589,.940],[.704,.958],[.727,.903],[.686,.893],[.638,.903],[.564,.842],[.520,.811]]:[[.509,.964],[.589,.975],[.704,.930],[.727,.881],[.686,.868],[.638,.905],[.564,.906],[.520,.884]];
+   const cover=massStyle==='structured'?[[.511,.785],[.561,.835],[.633,.867],[.677,.844],[.664,.802],[.698,.747],[.677,.674],[.635,.659],[.611,.720],[.574,.719],[.552,.746],[.514,.718]]:[[.515,.859],[.561,.883],[.633,.883],[.677,.849],[.664,.805],[.698,.755],[.677,.691],[.635,.686],[.611,.750],[.574,.770],[.552,.821],[.521,.809]];
    root.add(contourArmor('Scalloped rib cover '+side,support,chart(cover),mats,{offset:.007,thickness:.0045}));
    root.add(contourArmor('Clavicular sweep '+side,support,chart(collar),mats,{offset:.009,thickness:.004}));
   }else root.add(contourArmor('Scalloped rib cover '+side,support,chart(chest),mats,{offset:.007,thickness:.0045}));
@@ -79,9 +80,9 @@ export function articulatedTorso(mats,{pose=null,massStyle='profiled',panelStyle
 }
 
 /** Concave shoulder cowl with lower actuator clearance; port is owned by its mount. */
-export function scallopedShoulder(mats,{compact=false}={}){
- const width=compact?.164:.184,height=compact?.162:.190;
- const support=(u,v)=>[(u-.5)*width,(v-.5)*height,(compact?.032:.026)*(1-(2*u-1)**2)*Math.sin(Math.PI*v)];
+export function scallopedShoulder(mats,{compact=false,structured=false}={}){
+ const width=structured?.150:compact?.164:.184,height=structured?.177:compact?.162:.190;
+ const support=(u,v)=>[(u-.5)*width,(v-.5)*height,(structured?.019:compact?.032:.026)*(1-(2*u-1)**2)*Math.sin(Math.PI*v)];
  const outline=[[.04,.56],[.11,.85],[.31,.98],[.62,.96],[.86,.78],[.97,.56],[.87,.27],[.79,.09],[.64,.06],[.58,.27],[.44,.30],[.40,.15],[.22,.12],[.15,.32]];
  return contourArmor('Scalloped shoulder shell',support,outline,mats,{offset:.007,thickness:.0045,rounding:.16});
 }

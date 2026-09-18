@@ -77,15 +77,22 @@ export function radialMass({ at = .5, span = .2, angle = 0, spread = .7, amount 
     return amount * Math.exp(-2 * (((v - at) / span) ** 2 + (d / spread) ** 2)) * smooth(v / .08) * smooth((1 - v) / .08);
   };
 }
-/** Loft elliptical sections along +Y; section functions and radial fields are independently composable. */
-export function sectionLoft({ from, to, breadth, depth, offset = () => [0, 0], masses = [] }) {
+/** Loft smooth sections along +Y. Squareness flattens principal planes without
+ * changing their axial extrema; depthBias distributes depth to front/back.
+ * Both are optional scalar profiles, independent of mass fields and resolution. */
+export function sectionLoft({ from, to, breadth, depth, offset = () => [0, 0], masses = [], squareness = () => 0, depthBias = () => 0 }) {
   finite(from, -100, 100, 'loft start'); finite(to, from + .001, 100, 'loft end');
-  if (![breadth, depth, offset, ...masses].every(f => typeof f === 'function')) throw new TypeError('Loft sections and masses must be functions');
+  if (![breadth, depth, offset, squareness, depthBias, ...masses].every(f => typeof f === 'function')) throw new TypeError('Loft sections and masses must be functions');
   return (u, v) => {
     const a = u * 2 * Math.PI, x = breadth(v), z = depth(v), move = offset(v);
     if (!(x > 0 && z > 0) || ![x, z, ...move].every(Number.isFinite)) throw new Error('Invalid loft section');
     const mass = masses.reduce((sum, field) => sum + field(u, v), 0);
     if (!Number.isFinite(mass) || x + mass <= 0 || z + mass <= 0) throw new Error('Radial mass inverted a section');
-    return [(x + mass) * Math.sin(a) + move[0], from + (to - from) * v, (z + mass) * Math.cos(a) + move[1]];
+    const q = finite(squareness(v), 0, .45, 'section squareness');
+    const bias = finite(depthBias(v), -.45, .45, 'section depth bias');
+    if(q + Math.abs(bias) > .45 + 1e-12) throw new RangeError('Combined squareness and absolute depth bias must not exceed .45');
+    const sn = Math.sin(a), cs = Math.cos(a);
+    return [(x + mass) * sn * (1 + q * cs * cs) + move[0], from + (to - from) * v,
+      (z + mass) * cs * (1 + q * sn * sn + bias * cs) + move[1]];
   };
 }

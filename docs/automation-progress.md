@@ -1,5 +1,41 @@
 # Automated refinement progress
 
+## 2026-09-19 — primary body planes at unchanged resolution
+
+Base **530e302f5b043ac3dc3d6337d88dff94b539f6bb** and its exact source tree
+verified via connected GitHub and locked kit. The containing commit is the
+implementation revision. Existing defaults, annotations, camera and poses stay
+unchanged.
+
+Added bounded `squareness`/`depthBias` profiles to existing `sectionLoft`, used by
+`massStyle: structured` for rib/waist/pelvis planes and an unrelated inspection
+housing. Fitted chest contours and shoulder wraps follow the changed supports.
+No new mesh density, texture, shader or normal bake. **645,300 scene triangles /
+906 primitives**, same as before; landmark RMS/max remain **9.8003/25.9151 px**.
+
+Local doctor, **26/26 expanded tests**, targeted model **1/1**, **44-recipe build**
+passed. Final review: **6 cases / 36 renders / 3 GLBs with zero errors/warnings**;
+source fingerprint `dd9a890ee91eec85d1fbcaaa6f6ee2196ab8de286e16fa114081e8934a77fe5a`
+(235 files). Full npm test bounded at 180s after **165 passing subtests**; no full
+local suite pass claimed. Head/hand/foot buffers and pose transforms are checked
+unchanged. Best visual evidence is three-angle clay, not triangle counts.
+
+Rejected far-shoulder root moves looked smaller in hero view but disconnected in
+side view. Removed those experiments rather than hiding the problem. Corrected
+an inward-wound fixture cap and reran the final review. Whole-image likeness
+remains poor; torso planes improve modestly, shoulder connections and broad
+armor still need work.
+
+[API](section-shape.md) · [source notes](research/rib-planes-and-sections.md) ·
+[full checks/rejections](checkpoints/2026-09-19-prism-primary.md).
+Evidence: `renders/primary-review/`; CI artifact `primary-form-review`.
+Base **Pages build/Blender/deploy now verified successful**, while its long
+combined form review was cancelled at the final hand stage. New-commit CI is
+pending at checkpoint; no native Blender claim for this variant.
+
+Next: connected shoulder-girdle/neck construction, judged from reference and
+alternative views, not further isolated root repositioning or detail density.
+
 ## 2026-09-19 — optical detail maps replace unnecessary ring geometry
 
 Base main **425a1fda81ff0f0f3ed437c682b99e30056da544** and exact locked source kit

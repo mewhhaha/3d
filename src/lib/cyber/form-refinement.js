@@ -15,7 +15,7 @@ import { guidedBob } from './hair-design.js';
 /** Preserve guide/camera and replace only named components. Baseline stays available. */
 export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', bodyStyle='legacy', limbStyle='legacy', gestureStyle='fixed', jointStyle='open', massStyle='profiled', handStyle='legacy', panelStyle='broad', footStyle='legacy', emitterStyle='rings', ...options }={}){
  if(!['legacy','bridged'].includes(footStyle))throw new Error('Unknown foot style');
- if(!['profiled','sculpted'].includes(massStyle))throw new Error('Unknown mass style');
+ if(!['profiled','sculpted','structured'].includes(massStyle))throw new Error('Unknown mass style');
  if(!['open','housed'].includes(jointStyle))throw new Error('Unknown joint style');
  if(!['legacy','illustrated'].includes(headStyle))throw new Error('Unknown head style');
  if(!['legacy','articulated'].includes(bodyStyle))throw new Error('Unknown body style');
@@ -67,7 +67,7 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundne
    next.position.copy(old.position);next.quaternion.copy(old.quaternion);next.scale.copy(old.scale);
    old.parent.add(next);old.removeFromParent();old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});
    const cowls=[];root.traverse(o=>{if(o.name==='Scalloped shoulder shell')cowls.push(o);if(o.name==='Hip articulation')o.scale.multiplyScalar(.86);});
-   for(const cowl of cowls){const replacement=scallopedShoulder(materials,{compact:jointStyle==='housed'});replacement.position.copy(cowl.position);replacement.quaternion.copy(cowl.quaternion);replacement.scale.copy(cowl.scale);cowl.parent.add(replacement);cowl.removeFromParent();cowl.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
+   for(const cowl of cowls){const replacement=scallopedShoulder(materials,{compact:jointStyle==='housed',structured:massStyle==='structured'});replacement.position.copy(cowl.position);replacement.quaternion.copy(cowl.quaternion);replacement.scale.copy(cowl.scale);cowl.parent.add(replacement);cowl.removeFromParent();cowl.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
   }
 
   if(bodyStyle==='legacy'&&bodyPose){const old=root.getObjectByName('Torso'),next=reshapeAssembly(old,p=>bodyPose.point(p));old.parent.add(next);old.removeFromParent();old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
@@ -118,8 +118,8 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundne
     parent.add(scallopedLimb({type,side:parent.name.endsWith('L')?1:-1,socketClearance:jointStyle==='housed',massStyle,panelStyle},materials));
    }else parent.add(limbArmor({name:'Contoured '+name,length,radii,type},materials));
   }
-  if(massStyle==='sculpted'&&limbStyle==='scalloped'){
-   for(const side of [-1,1]){const shoulder=root.getObjectByName('Shoulder.'+(side>0?'L':'R'));shoulder.add(deltoidMantle({side},materials));}
+  if(massStyle!=='profiled'&&limbStyle==='scalloped'){
+   for(const side of [-1,1]){const shoulder=root.getObjectByName('Shoulder.'+(side>0?'L':'R'));shoulder.add(deltoidMantle({side,structured:massStyle==='structured'},materials));}
   }
   if(jointStyle==='housed'){
    for(const side of [-1,1]){const suffix=side>0?'L':'R';

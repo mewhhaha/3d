@@ -11,8 +11,8 @@ import {archedFootSurface} from './contour-armor.js';
  * radii and attachment sampling share the support, not a post-pose mesh warp. */
 export function limbFormSupport({type='thigh',side=1,massStyle='profiled'}={}){
  if(!['thigh','shin','forearm','upper'].includes(type)||![-1,1].includes(side))throw new Error('Invalid limb support kind/side');
- if(!['profiled','sculpted'].includes(massStyle))throw new Error('Invalid mass style');
- if(massStyle==='sculpted')return sculptedLimbSupport({type,side});
+ if(!['profiled','sculpted','structured'].includes(massStyle))throw new Error('Invalid mass style');
+ if(massStyle!=='profiled')return sculptedLimbSupport({type,side});
  const specs={
   thigh:{length:.428,radii:[[0,.041,.045],[.15,.058,.058],[.42,.081,.074],[.69,.087,.082],[.91,.073,.072],[1,.060,.057]],bow:.010},
   shin:{length:.329,radii:[[0,.025,.028],[.16,.031,.034],[.43,.045,.048],[.67,.070,.061],[.83,.065,.052],[1,.036,.035]],bow:-.012},
@@ -85,8 +85,8 @@ export function articulatedBoot({side=1}={},mats){
 
 /** Two rear/side plates continue the deltoid into the upper arm while leaving
  * the independently mounted front joint emitter exposed. No joint is moved. */
-export function deltoidMantle({side=1}={},mats){
- const support=deltoidSupport({side}),root=group('Deltoid mantle');
+export function deltoidMantle({side=1,structured=false}={},mats){
+ const original=deltoidSupport({side}),support=(u,v)=>{const p=original(u,v),w=Math.sin(Math.PI*v)**2;return structured?[p[0]*(1-.20*w),p[1],p[2]*(1-.18*w)]:p;},root=group('Deltoid mantle');
  const outline=[[.015,.33],[.04,.62],[.12,.87],[.21,.96],[.31,.88],[.37,.65],[.33,.38],[.26,.13],[.19,.07],[.12,.27]];
  for(const [i,p] of [outline,flip(outline)].entries())root.add(contourArmor('Deltoid wrap '+i,support,p,mats,{offset:.004,thickness:.0035,refinement:2,rounding:.15}));
  root.userData.construction={method:'anatomical deltoid support, separate from shoulder hinge',side};return root;

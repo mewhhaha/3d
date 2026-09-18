@@ -67,3 +67,16 @@ export function deltoidSupport({side=1}={}){
   masses:masses([{at:.50,span:.34,angle:[[0,.90],[1,1.6]],spread:.9,amount:.005}],side)});
  return(u,v)=>base(u-.5,v);
 }
+
+/** Egg-like rib cage, shorter waist and high iliac crest, with distinct front/back
+ * depth. Same Y interval and endpoint rings; no inferred skeleton changes. */
+export function structuredTorsoSupport({pose=null}={}){
+ const breadth=profile([[0,.093],[.12,.127],[.28,.151],[.36,.113],[.47,.076],[.59,.092],[.73,.143],[.84,.136],[.94,.112],[1,.100]]);
+ const depth=profile([[0,.065],[.14,.094],[.28,.086],[.44,.058],[.59,.077],[.73,.094],[.86,.083],[1,.044]]);
+ const spine=profile([[0,-.014],[.20,-.006],[.44,.002],[.60,.027],[.77,.021],[1,.002]]);
+ const sway=profile([[0,0],[.27,0],[.47,-.006],[.73,-.013],[1,-.009]]);
+ const base=sectionLoft({from:.935,to:1.517,breadth,depth,offset:v=>[sway(v),spine(v)],
+  squareness:profile([[0,0],[.23,.20],[.45,.05],[.70,.28],[.89,.26],[1,0]]),
+  depthBias:profile([[0,0],[.19,-.22],[.40,0],[.68,.14],[.85,.13],[1,0]])});
+ return(u,v)=>{const p=base(u-.5,v);return pose?pose.point(p):p;};
+}
