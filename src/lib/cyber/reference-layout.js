@@ -48,9 +48,9 @@ function footMount(foot,ankle,forward,yaw=0){
  g.rotation.y=Math.atan2(f.x,f.z);foot.scale.set(1.02,1.6,1.25);g.add(foot);return g;
 }
 /** Identical mounts drive a cheap volume study and the detailed assembly. No per-image vertex projection. */
-export function posedAndroid({stage='assembly',detail='hero',shell='#dbdac4',glow=.7,cables=true,overrides={},poseStyle='reference',gestureStyle='fixed'}={}){
+export function posedAndroid({stage='assembly',detail='hero',shell='#dbdac4',glow=.7,cables=true,overrides={},poseStyle='reference',gestureStyle='fixed',emitterStyle='rings'}={}){
  if(!['gesture','masses','assembly'].includes(stage))throw new Error('Unknown construction stage');
- const g=prismGuide({overrides,poseStyle,gestureStyle}),m=cyberMaterials({shell,glow}),root=group('Android'),forward=bodyFacing(g),level=detail==='hero'?1:0;
+ const g=prismGuide({overrides,poseStyle,gestureStyle}),m=cyberMaterials({shell,glow,emitterStyle}),root=group('Android'),forward=bodyFacing(g),level=detail==='hero'?1:0;
  const farMat=material('#536d76',{roughness:.75}),nearMat=material('#d6c6ac',{roughness:.7});
  if(stage==='assembly')root.add(bodyMount(shellTorso({detail:level},m),g));
  else {

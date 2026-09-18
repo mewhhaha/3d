@@ -1,14 +1,17 @@
 import * as THREE from 'three';
+import {signalFaceMaterial,signalLensGeometry} from './signal-face.js';
 import { refineTriangles } from './shells.js';
 import { box, cylinder, mesh, group, material } from '../modeling.js';
 import { offsetCurvePoints } from '../curve-frame.js';
 const V = a => new THREE.Vector3(...a);
 const positive = (n, label) => { if (!Number.isFinite(n) || n <= 0) throw new Error(`${label} must be positive`); return n; };
-export function cyberMaterials({ shell = '#dbdac4', glow = 1 } = {}) {
+export function cyberMaterials({ shell = '#dbdac4', glow = 1, emitterStyle = 'rings' } = {}) {
+  if(!['rings','mapped'].includes(emitterStyle))throw new Error('Unknown emitter style');
   if (!Number.isFinite(glow) || glow < 0 || glow > 5) throw new Error('glow must be 0..5');
   const named = (name, color, options = {}) => { const m = material(color, options); m.name = name; return m; };
   const neon = (name, color) => named(name, color, { emissive: color, emissiveIntensity: 2.2 * glow, roughness: .3, metalness: .15 });
   return {
+    emitterStyle,
     shell: named('Ivory ceramic coating', shell, { roughness: .43, metalness: .12 }),
     dark: named('Graphite structure', '#111f22', { roughness: .35, metalness: .65 }),
     rubber: named('Black joint bellows', '#060c0e', { roughness: .65 }),
@@ -75,17 +78,21 @@ export function radialArray({name='Radial array',count,radius,start=0,span=Math.
   }
   g.userData.radialArray={count,radius,start,span,phase,z,orientation};return g;
 }
-/** Concentric mechanical port; local normal +Z, all layers are geometry. */
+/** Concentric mechanical port; local normal +Z. Optional map-driven optical face. */
 export function radialPort({ name='Radial port', radius=.06, color='cyan', detail=1, bolts=6 }, mats) {
   positive(radius,'port radius'); if(!mats[color])throw new Error('Unknown port emitter');
   const g=group(name), s=detail>0?48:24;
   const disk=(r,h,z,mat,label)=>{const o=cylinder({name:name+' / '+label,radius:r,height:h,segments:s,material:mat});o.rotation.x=Math.PI/2;o.position.z=z;g.add(o);};
   disk(radius,.025,0,mats.dark,'housing'); disk(radius*.89,.014,.018,mats.edge,'machined bezel');
   disk(radius*.72,.008,.028,mats.dark,'recess');
-  for(const [r,w,z,mat] of [[.79,.025,.031,mats.shell],[.66,.033,.035,mats[color]],[.48,.015,.037,mats.shell],[.39,.055,.038,mats[color]]]) {
+  const mapped=mats.emitterStyle==='mapped';
+  for(const [r,w,z,mat] of (mapped?[[.79,.025,.031,mats.shell]]:[[.79,.025,.031,mats.shell],[.66,.033,.035,mats[color]],[.48,.015,.037,mats.shell],[.39,.055,.038,mats[color]]])) {
     const o=ring({name:name+' / luminous annulus',radius:radius*r,width:radius*w,segments:s,material:mat});o.position.z=z;g.add(o);
   }
-  disk(radius*.23,.010,.038,mats.orange,'orange core');disk(radius*.11,.009,.046,mats.dark,'central bore');
+  if(mapped){
+    const lens=mesh(signalLensGeometry(radius*.735,{segments:s}),{name:name+' / signal lens',material:signalFaceMaterial(color,mats)});lens.position.z=.035;g.add(lens);
+    g.userData.signalFace={style:'mapped',radius,scope:'color/emission on a geometric lens; not a normal bake'};
+  }else{disk(radius*.23,.010,.038,mats.orange,'orange core');disk(radius*.11,.009,.046,mats.dark,'central bore');}
   if(detail>0)for(let i=0;i<bolts;i++){
     const a=i/bolts*Math.PI*2; const b=cylinder({name:name+' / captive screw',radius:radius*.035,height:.005,segments:8,material:mats.edge});
     b.rotation.x=Math.PI/2;b.position.set(Math.cos(a)*radius*.94,Math.sin(a)*radius*.94,.017);g.add(b);

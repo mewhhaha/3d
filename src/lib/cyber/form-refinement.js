@@ -13,7 +13,7 @@ import { portraitFields } from './head-form.js';
 import { posedAndroid } from './reference-layout.js';
 import { guidedBob } from './hair-design.js';
 /** Preserve guide/camera and replace only named components. Baseline stays available. */
-export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', bodyStyle='legacy', limbStyle='legacy', gestureStyle='fixed', jointStyle='open', massStyle='profiled', handStyle='legacy', panelStyle='broad', footStyle='legacy', ...options }={}){
+export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', bodyStyle='legacy', limbStyle='legacy', gestureStyle='fixed', jointStyle='open', massStyle='profiled', handStyle='legacy', panelStyle='broad', footStyle='legacy', emitterStyle='rings', ...options }={}){
  if(!['legacy','bridged'].includes(footStyle))throw new Error('Unknown foot style');
  if(!['profiled','sculpted'].includes(massStyle))throw new Error('Unknown mass style');
  if(!['open','housed'].includes(jointStyle))throw new Error('Unknown joint style');
@@ -22,10 +22,10 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundne
  if(!['legacy','scalloped'].includes(limbStyle))throw new Error('Unknown limb style');
  if(!['legacy','relaxed'].includes(handStyle))throw new Error('Unknown hand style');
  if(!['broad','cutaway'].includes(panelStyle))throw new Error('Unknown panel style');
- const root=posedAndroid({stage,gestureStyle,...options});
+ const root=posedAndroid({stage,gestureStyle,emitterStyle,...options});
  const bodyPose=gestureStyle==='fixed'?null:torsoGesture(gestureStyle);
  if(stage==='assembly'){
-  const materials=cyberMaterials({glow:.7});
+  const materials=cyberMaterials({glow:.7,emitterStyle});
   // Previous cylindrical under-structure outgrew the new tapered shells near joints.
   // Keep joint centers unchanged; only the unscored internal chassis is reduced.
   root.traverse(o=>{

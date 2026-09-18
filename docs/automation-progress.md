@@ -1,5 +1,38 @@
 # Automated refinement progress
 
+## 2026-09-19 — optical detail maps replace unnecessary ring geometry
+
+Base main **425a1fda81ff0f0f3ed437c682b99e30056da544** and exact locked source kit
+verified through GitHub; base foot and combined form CI completed successfully.
+The containing commit is this pass's implementation revision.
+
+Added reusable `radialProfileMaps`: independent color/emission stops, linear-space
+interpolation/filtering, owned sRGB textures. Optional `emitterStyle: mapped`
+retains port housings/bezels/rims but uses shallow lenses for the optical bands.
+An unrelated non-emissive ceramic tile exercises the same operation and existing
+semantic face-material assignment. Head/body pose, camera, feet, annotations and
+all old defaults are preserved. No new normal bake or custom shader is claimed.
+
+Local: doctor, **7/7** new / **36/36** expanded tests, **44-recipe build**;
+**7 cases / 39 renders / 4 GLBs, zero errors or warnings**. Complete source
+fingerprint `b5f0414242981ac544ffa3d407a4d13d15d0d7ec2ef53f17ae57e67c9de21746`
+(233 files). Full npm test was bounded at 180 seconds after **165 passing
+subtests** (exit 124); the separate broad model-test invocation also timed out.
+No full-suite/whole-gallery success is claimed from those local attempts.
+
+Scene **722,916 -> 645,300 triangles**, **1,058 -> 906 primitives**;
+isolated port **4,224 -> 1,872 triangles**. Hero silhouette is unchanged (IoU 1),
+but isolated side silhouette changes (IoU .96407); maps do not restore parallax.
+Landmarks unchanged **9.8003 / 25.9151 px RMS/max**. New image storage and texture
+sampling cost are explicit; no frame-rate claim. Broad colored lenses/warm cores
+look closer locally; the full figure remains far from the reference.
+
+[API](radial-profile-maps.md) · [research](research/radial-optical-detail.md) ·
+[full checks, limits and rejected tile-UV trial](checkpoints/2026-09-19-prism-signals.md).
+Evidence under `renders/signal-review/`; new CI artifact `radial-signal-review`.
+Final-commit CI/Pages pending at this checkpoint. Next: the larger shoulder/rib/
+pelvis silhouette rather than continued decorative detail.
+
 ## 2026-09-18 — mechanical feet, curved apertures and bounded scene transfer
 
 Base main **72a534a1b7a9db52b22c6c6e10fc89de077aa3cf** and exact locked kit
