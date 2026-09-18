@@ -1,3 +1,4 @@
+import {loadSceneJSON} from './scene-transfer.mjs';
 import { chromium } from 'playwright-core';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -133,7 +134,7 @@ export async function createRenderSession({root=project,executablePath,timeout=6
         page.setDefaultTimeout(timeout);
         await stage();
         const {json,info}=await buildRecipe({root,module,values},timeout);
-        const imported=await bounded(page.evaluate(spec=>window.stage.load(spec),{json}));
+        const imported=await bounded(loadSceneJSON(page,json));
         if(imported.stats.triangles!==info.stats.triangles||imported.rig.bones!==info.rig.bones)throw new Error('Scene transfer changed mesh or rig structure');
         const output=path.resolve(root,out);await mkdir(output,{recursive:true});
         const report={schema:1,sourceRevision:process.env.GITHUB_SHA||null,module,recipeSHA256,sourceFingerprint:await sourceFingerprint(root),capabilities,...info,imported,images:[]};

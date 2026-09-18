@@ -41,3 +41,38 @@ test('invalid contours and singular supports fail instead of generating corrupt 
  for(const options of [{refinement:7},{refinement:1.1},{rounding:.5},{offset:NaN},{cornerSegments:0}])assert.throws(()=>surfaceContourGeometry(plane,{outline,...options}));
  assert.throws(()=>surfaceContourGeometry(()=>[0,0,0],{outline}));
 });
+
+test('interior apertures subtract area, preserve UVs and remain open after refinement',()=>{
+ const outer=[[0,0],[1,0],[1,1],[0,1]],holes=[[[.1,.2],[.3,.2],[.3,.6],[.1,.6]],[[.55,.3],[.85,.3],[.85,.7],[.55,.7]]];
+ const saved=JSON.stringify({outer,holes});
+ for(const refinement of [0,2,3]){
+  const g=surfaceContourGeometry(plane,{outline:outer,holes,refinement});
+  assert.ok(Math.abs(audit(g).area-.8)<1e-7);assert.equal(g.userData.surfaceContour.boundaryLoops,3);
+  const material=new THREE.MeshBasicMaterial({side:THREE.DoubleSide}),m=new THREE.Mesh(g,material);
+  for(const x of [.2,.7])assert.equal(new THREE.Raycaster(new THREE.Vector3(x,.4,1),new THREE.Vector3(0,0,-1)).intersectObject(m).length,0,'hole must contain no triangles');
+  assert.ok(new THREE.Raycaster(new THREE.Vector3(.45,.4,1),new THREE.Vector3(0,0,-1)).intersectObject(m).length>0);
+  g.dispose();material.dispose();
+ }
+ assert.equal(JSON.stringify({outer,holes}),saved);
+});
+
+test('curved perforated sheets solidify into closed aperture walls with independent ownership',()=>{
+ const outer=[[.02,.02],[.98,.02],[.98,.98],[.02,.98]],hole=[[.30,.22],[.67,.22],[.67,.74],[.30,.74]];
+ const source=surfaceContourGeometry(dome,{outline:outer,holes:[hole],refinement:2,rounding:.10});
+ const reversed=surfaceContourGeometry(dome,{outline:[...outer].reverse(),holes:[[...hole].reverse()],refinement:2,rounding:.10});
+ assert.ok(Math.abs(audit(source).area-audit(reversed).area)<1e-7);assert.notEqual(source.attributes.uv.array,reversed.attributes.uv.array);
+ const solid=solidifyGeometry(source,{thickness:.008,offset:-1,regionPrefix:'bracket'});
+ for(const edge of audit(solid).edges.values()){assert.equal(edge.n,2);assert.equal(edge.w,0);}
+ assert.deepEqual(faceRegionNames(solid).sort(),['bracket.inner','bracket.outer','bracket.rim']);
+ for(let i=0;i<source.attributes.position.count;i++){
+  const uv=source.attributes.uv,p=source.attributes.position;
+  assert.ok(new THREE.Vector3(...dome(uv.getX(i),uv.getY(i))).distanceTo(new THREE.Vector3().fromBufferAttribute(p,i))<1e-7);
+ }
+ source.dispose();reversed.dispose();solid.dispose();
+});
+
+test('apertures reject exterior, touching, crossing, nested and invalid domains',()=>{
+ const square=(x,y,w)=>[[x,y],[x+w,y],[x+w,y+w],[x,y+w]],outer=square(.1,.1,.8);
+ for(const holes of [null,[square(0,0,.2)],[square(.1,.3,.2)],[square(.3,.3,.4),square(.35,.35,.1)],[square(.3,.3,.2),square(.5,.3,.2)],[square(.3,.3,.3),square(.5,.4,.3)]])assert.throws(()=>surfaceContourGeometry(plane,{outline:outer,holes}));
+ assert.throws(()=>surfaceContourGeometry(plane,{outline:outer,holes:Array(17).fill(square(.2,.2,.1))}));
+});

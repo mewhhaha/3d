@@ -19,13 +19,13 @@ export function torsoSupport({pose=null,massStyle='profiled'}={}){
  return (u,v)=>{const a=(u-.5)*Math.PI*2,p=[Math.sin(a)*rx(v)+sway(v),.935+v*.582,Math.cos(a)*rz(v)+spine(v)];return pose?pose.point(p):p;};
 }
 /** One contour drives a ceramic plate and its darker backing; support drives ports too. */
-export function contourArmor(name,support,outline,mats,{offset=.004,thickness=.004,refinement=3,rounding=.15}={}){
- const base=surfaceContourGeometry(support,{outline,refinement,rounding,offset});
+export function contourArmor(name,support,outline,mats,{offset=.004,thickness=.004,refinement=3,rounding=.15,holes=[]}={}){
+ const base=surfaceContourGeometry(support,{outline,holes,refinement,rounding,offset});
  const shell=solidifyGeometry(base,{thickness,offset:-1,regionPrefix:'panel'});
  const root=group(name,[mesh(shell,{name:name+' / ceramic',material:mats.shell})]);
  base.dispose();
  // Thin dark backing is normal-offset, not a scaled duplicate crossing the support.
- const backing=surfaceContourGeometry(support,{outline,refinement,rounding,offset:offset-thickness-.0004});
+ const backing=surfaceContourGeometry(support,{outline,holes,refinement,rounding,offset:offset-thickness-.0004});
  const substrate=solidifyGeometry(backing,{thickness:.0015,offset:-1});backing.dispose();
  root.add(mesh(substrate,{name:name+' / substrate',material:mats.dark}));
  root.userData.construction={method:'concave chart contour on shared body support',outline,offset,thickness};return root;

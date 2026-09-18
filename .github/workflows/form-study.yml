@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/scene-transfer.mjs
+      - tests/scene-transfer.test.js
+      - tests/prism-foot.test.js
+      - scripts/review-feet.mjs
+      - studies/apertured-bracket.js
       - src/lib/rigid-chain.js
       - tests/rigid-chain.test.js
       - tests/prism-hands.test.js
@@ -103,4 +108,27 @@ jobs:
             renders/gesture-review/
             renders/mass-review/
             renders/hand-review/
+          if-no-files-found: error
+
+  foot-study:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run prepare:tangents
+      - run: node --test tests/scene-transfer.test.js tests/surface-contour.test.js tests/prism-foot.test.js
+      - run: npx playwright-core install --with-deps chromium
+      - name: Planted feet, curved apertures and independent bracket
+        run: node scripts/review-feet.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: foot-aperture-review
+          path: renders/foot-review/
           if-no-files-found: error

@@ -17,8 +17,11 @@ skin.dispose(); // shell has independent buffers
 
 Outline points are in the support's normalized UV domain. The loop must be
 simple, not self-touching, and have nonzero area. Concave notches are supported;
-interior holes and multiple disconnected loops are not. Winding is normalized
-to `du cross dv`. Three.js r186 ShapeUtils triangulates the planar outline;
+optional interior `holes` (up to 16 loops) are supported. Each must be strictly
+inside the exterior and disjoint from other holes; touching, crossing and nested
+holes fail. Multiple disconnected exteriors are not supported. Both authored and
+rounded domains are validated. Winding is normalized to `du cross dv`, with holes
+opposite the outer loop. Three.js r186 ShapeUtils triangulates the planar domain;
 shared-edge subdivision happens **before** evaluation of the 3D support.
 This prevents a coarse triangle from remaining a flat chord across a curved
 volume when the user increases refinement.
@@ -46,3 +49,33 @@ split apron and shoulder cowls; `studies/surface-contour.js` is an unrelated
 notched curved service hatch. The former is an opt-in `bodyStyle: articulated`
 on `cyber-form-study`, compatible with `headStyle: illustrated`. Legacy scene
 and pose defaults remain intact. Render with `node scripts/review-torso.mjs`.
+
+## Apertures through a curved shell
+
+```js
+const sheet = surfaceContourGeometry(support, {
+  outline: [[.02,.02],[.98,.02],[.98,.98],[.02,.98]],
+  holes: [[[.3,.2],[.65,.2],[.65,.75],[.3,.75]]],
+  rounding: .12, refinement: 2,
+});
+const bracket = solidifyGeometry(sheet, {
+  thickness: .008, offset: -1, regionPrefix: 'bracket',
+});
+sheet.dispose();
+```
+
+These are missing triangles plus solidified aperture walls, not dark decals or
+booleans against an already-built mesh. The exterior and holes share the existing
+rounding policy, which can alter the occupied UV area. Area validation uses the
+rounded domain. Existing calls without holes retain their previous buffers.
+
+`userData.surfaceContour.holes` stores copies of the authored apertures, and
+`boundaryLoops` is present for perforated sheets. `boundaryCount` counts initial
+exterior **and** hole vertices before refinement, not boundary edges after it.
+Changes to any loop reconstruct topology; rebind dependent UV charts, weights,
+anchors and high/low correspondence as described above. This does not cut a hole
+through another object behind the sheet.
+
+The mechanical boot's orange carrier and heel buttress use these apertures;
+`studies/apertured-bracket.js` exercises the same operation on a curved structural
+bracket. `node scripts/review-feet.mjs` renders both with fixed before/after cameras.
