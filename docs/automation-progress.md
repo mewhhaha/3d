@@ -1,5 +1,34 @@
 # Automated refinement progress
 
+## 2026-09-18 — humanoid mass groups beneath mechanical armor
+
+Base main **35bdce30e1a07cc70ba357a9f2dde9fd924df8f9** and its successful CI/Pages
+were verified via GitHub. Exact kit recovered; the previous local-only old snapshot
+was not promoted. The containing commit is the code revision for this pass.
+
+Extended existing `radialMass` with a longitudinal angle profile, preserving scalar
+angle behavior. Optional `massStyle: sculpted` uses quads/calves/deltoid/rib/iliac
+volume groups beneath shared armor supports; a spiral mechanical grip demonstrates
+independent reuse. Camera, head, joints, lengths, planted feet and all old defaults
+remain unchanged. Shapes and attachments are rebuilt from shared supports, not
+warped as disconnected finished meshes.
+
+Actual checks: doctor; **19/19** focused / **30/30** expanded tests; targeted recipe **1/1**; build **44
+recipes**; **8 cases / 44 renders / 3 GLBs with zero errors and warnings**. Full
+`npm test` reached **165 passing subtests** before a 180-second timeout, not a full
+local-suite pass. Source fingerprint across all final cases:
+`13266e51763005ee0e0c449e28f905ab8490c702c7512029d33f8d7ff8e5c9ba` (218 files).
+Landmarks unchanged at **9.8003 px RMS / 25.9151 px max**. New scene **658,572
+triangles**. No normal-bake or skinning claim.
+
+Actual clay review shows better shoulder-to-upper-arm taper and less cylindrical
+thigh/calf and rib/waist forms. Full-frame improvement remains modest. Broad armor,
+hands, head and reactor still need modeling; no exact likeness claim. CI pending
+at checkpoint; final-commit results are separate from local checks.
+
+[Full evidence, sources and limitations](checkpoints/2026-09-18-prism-masses.md).
+Next: ceramic contour structure and relaxed hand silhouette, not decorative density.
+
 ## 2026-09-17 — connected body counterpose and joint interfaces
 
 Base main `9ec8e2a50cb5f5e71404a830f66b67f298e63ffc` and its exact kit were

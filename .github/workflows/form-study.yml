@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
     paths:
+      - src/lib/forms/structure.js
+      - tests/structure-forms.test.js
+      - tests/mass-forms.test.js
+      - scripts/review-masses.mjs
+      - studies/spiral-grip.js
       - src/lib/illustration*.js
       - scripts/review-illustration.mjs
       - tests/illustration.test.js
@@ -65,7 +70,7 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run prepare:tangents
       - name: Curve, layering, immutable sculpt, pose and region-mask tests
-        run: node --test tests/section-pose.test.js tests/prism-gesture.test.js tests/two-link-pose.test.js tests/prism-limbs.test.js tests/surface-contour.test.js tests/prism-torso.test.js tests/illustration.test.js tests/shape-rails.test.js tests/form-design.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/surface-boundary.test.js tests/surface-cache.test.js tests/contour-volume.test.js
+        run: node --test tests/mass-forms.test.js tests/structure-forms.test.js tests/section-pose.test.js tests/prism-gesture.test.js tests/two-link-pose.test.js tests/prism-limbs.test.js tests/surface-contour.test.js tests/prism-torso.test.js tests/illustration.test.js tests/shape-rails.test.js tests/form-design.test.js tests/region-mask.test.js tests/compact-geometry.test.js tests/surface-boundary.test.js tests/surface-cache.test.js tests/contour-volume.test.js
       - run: npx playwright-core install --with-deps chromium
       - name: Local-equivalent renders, exports, visible masks and normal transfer
         run: node scripts/review-forms.mjs
@@ -77,6 +82,8 @@ jobs:
         run: node scripts/review-limbs.mjs
       - name: Section-driven body gesture and mechanical duct
         run: node scripts/review-gesture.mjs
+      - name: Humanoid mass groups and independent spiral grip
+        run: node scripts/review-masses.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -87,4 +94,5 @@ jobs:
             renders/torso-review/
             renders/limb-review/
             renders/gesture-review/
+            renders/mass-review/
           if-no-files-found: error

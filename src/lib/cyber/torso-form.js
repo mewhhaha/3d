@@ -1,3 +1,4 @@
+import {sculptedTorsoSupport} from './mass-forms.js';
 import {group,mesh,material} from '../modeling.js';
 import {shapeProfile,thickenSurface} from '../shape-rails.js';
 import {surfaceContourGeometry} from '../surface-contour.js';
@@ -8,7 +9,9 @@ import {radialPort,routedCable,link,bellows} from './mechanics.js';
 /** Local Y-up torso support. Ribcage, waist and pelvic ring share a bowed centerline.
  * Radius/profile data are design hypotheses, not anatomy recovered from a single view.
  */
-export function torsoSupport({pose=null}={}){
+export function torsoSupport({pose=null,massStyle='profiled'}={}){
+ if(!['profiled','sculpted'].includes(massStyle))throw new Error('Invalid mass style');
+ if(massStyle==='sculpted')return sculptedTorsoSupport({pose});
  const rx=shapeProfile([[0,.093],[.13,.151],[.27,.142],[.42,.090],[.61,.105],[.80,.160],[.92,.174],[1,.100]]);
  const rz=shapeProfile([[0,.065],[.13,.091],[.27,.087],[.42,.060],[.61,.065],[.80,.079],[.92,.071],[1,.044]]);
  const spine=shapeProfile([[0,-.014],[.22,.003],[.48,-.002],[.78,.030],[1,.002]]);
@@ -29,8 +32,8 @@ export function contourArmor(name,support,outline,mats,{offset=.004,thickness=.0
 }
 const mirror=outline=>outline.map(([u,v])=>[1-u,v]).reverse();
 /** Torso from a shared support; an optional section pose also drives its mounted details. */
-export function articulatedTorso(mats,{pose=null}={}){
- const root=group('Torso'),support=torsoSupport({pose}),point=p=>pose?pose.point(p):p;
+export function articulatedTorso(mats,{pose=null,massStyle='profiled'}={}){
+ const root=group('Torso'),support=torsoSupport({pose,massStyle}),point=p=>pose?pose.point(p):p;
  const chassis=material('#101f22',{roughness:.55,metalness:.35});chassis.name='Recessed articulated torso';
  root.add(thickenSurface('Contoured torso understructure',support,{thickness:.004,segments:[72,48],material:chassis}));
  root.add(bellows({name:'Cervical column',from:point([0,1.490,-.011]),to:point([0,1.619,-.011]),radius:.034,ribs:8},mats));
@@ -66,7 +69,7 @@ export function articulatedTorso(mats,{pose=null}={}){
  }
  const port=radialPort({name:'Sternum emitter',radius:.016,color:'amber',detail:1},mats);
  root.add(attachToSurface(port,support,{u:.5,v:.925,offset:.006}));
- root.userData.construction={method:'shared ribcage-waist-pelvis support with independently authored scalloped shells',fixedMount:true};if(pose)root.userData.construction.sectionPoses=pose.stations;return root;
+ root.userData.construction={method:'shared ribcage-waist-pelvis support with independently authored scalloped shells',fixedMount:true,massStyle};if(pose)root.userData.construction.sectionPoses=pose.stations;return root;
 }
 
 /** Concave shoulder cowl with lower actuator clearance; port is owned by its mount. */

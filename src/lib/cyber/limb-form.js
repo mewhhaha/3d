@@ -1,3 +1,4 @@
+import {sculptedLimbSupport,deltoidSupport} from './mass-forms.js';
 import {group,material,sphere} from '../modeling.js';
 import {shapeProfile,thickenSurface} from '../shape-rails.js';
 import {contourVolume} from '../contour-volume.js';
@@ -8,8 +9,10 @@ import {archedFootSurface} from './contour-armor.js';
 
 /** Local -Y limb axis; ends remain on the fixed segment centers. Contours, sweep,
  * radii and attachment sampling share the support, not a post-pose mesh warp. */
-export function limbFormSupport({type='thigh',side=1}={}){
+export function limbFormSupport({type='thigh',side=1,massStyle='profiled'}={}){
  if(!['thigh','shin','forearm','upper'].includes(type)||![-1,1].includes(side))throw new Error('Invalid limb support kind/side');
+ if(!['profiled','sculpted'].includes(massStyle))throw new Error('Invalid mass style');
+ if(massStyle==='sculpted')return sculptedLimbSupport({type,side});
  const specs={
   thigh:{length:.428,radii:[[0,.041,.045],[.15,.058,.058],[.42,.081,.074],[.69,.087,.082],[.91,.073,.072],[1,.060,.057]],bow:.010},
   shin:{length:.329,radii:[[0,.025,.028],[.16,.031,.034],[.43,.045,.048],[.67,.070,.061],[.83,.065,.052],[1,.036,.035]],bow:-.012},
@@ -35,8 +38,8 @@ const plates={
  upper:[[[.13,.82],[.28,.98],[.52,.96],[.66,.86],[.77,.91],[.88,.77],[.83,.47],[.76,.18],[.64,.05],[.53,.12],[.44,.22],[.30,.12],[.23,.35],[.18,.55]]],
 };
 
-export function scallopedLimb({type='thigh',side=1,socketClearance=false}={},mats){
- const support=limbFormSupport({type,side}),root=group('Scalloped '+type+' armor');
+export function scallopedLimb({type='thigh',side=1,socketClearance=false,massStyle='profiled'}={},mats){
+ const support=limbFormSupport({type,side,massStyle}),root=group('Scalloped '+type+' armor');
  // A narrowed core shows through real cutouts without borrowing old cylinder-sized details.
  const core=(u,v)=>{const p=support(u,v);return[p[0]*.82,p[1],p[2]*.80];};
  root.add(thickenSurface(type+' shaped dark core',core,{thickness:.002,segments:[40,28],material:mats.dark}));
@@ -47,7 +50,7 @@ export function scallopedLimb({type='thigh',side=1,socketClearance=false}={},mat
  if(type==='thigh')root.add(attachToSurface(radialPort({name:'Proximal thigh inset',radius:.016,color:'amber',detail:1},mats),support,{u,v:.86,offset:.006}));
  const coords=[[u,.20],[u+.025,.30],[u+.018,.49],[u+.05,.57],[u+.047,.67]];
  root.add(routedCable({name:type+' curved enamel seam',points:surfacePath(support,coords,{offset:.008}),radius:.0009,segments:30,ends:false,material:mats.orange}));
- root.userData.construction={method:'shared profiled volume with concave plates and surface-mounted hardware',type,side};return root;
+ root.userData.construction={method:'shared profiled volume with concave plates and surface-mounted hardware',type,side,massStyle};return root;
 }
 
 /** Independent boot upper, sloped instep and ankle guards on a planted sole.
@@ -73,4 +76,13 @@ export function articulatedBoot({side=1}={},mats){
  }
  for(const z of [.018,.052,.090,.126])for(const s of [-1,1])root.add(link({name:'Sole lateral lug',from:[s*.045,-.033,z],to:[s*.052,-.030,z+.008],radius:.004,segments:10,material:sole}));
  root.userData.construction={method:'planted profiled outsole with independently contoured instep/toe/ankle forks',soleBottom:-.0435};return root;
+}
+
+/** Two rear/side plates continue the deltoid into the upper arm while leaving
+ * the independently mounted front joint emitter exposed. No joint is moved. */
+export function deltoidMantle({side=1}={},mats){
+ const support=deltoidSupport({side}),root=group('Deltoid mantle');
+ const outline=[[.015,.33],[.04,.62],[.12,.87],[.21,.96],[.31,.88],[.37,.65],[.33,.38],[.26,.13],[.19,.07],[.12,.27]];
+ for(const [i,p] of [outline,flip(outline)].entries())root.add(contourArmor('Deltoid wrap '+i,support,p,mats,{offset:.004,thickness:.0035,refinement:2,rounding:.15}));
+ root.userData.construction={method:'anatomical deltoid support, separate from shoulder hinge',side};return root;
 }

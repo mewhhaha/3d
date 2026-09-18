@@ -63,12 +63,17 @@ export function contour(stations) {
       + (-2 * u3 + 3 * u2) * keys[i + 1][1] + (u3 - u2) * h[i] * derivatives[i + 1];
   };
 }
-/** A broad radial mass changes silhouette. Fine skin relief belongs in a separate detail field. */
+/** A broad radial mass changes silhouette. Angle may be a constant (radians) or
+ * an authored function of longitudinal v, allowing spiral/sweeping volume groups.
+ * Fine skin relief belongs in a separate detail field. End rings stay pinned. */
 export function radialMass({ at = .5, span = .2, angle = 0, spread = .7, amount = .005 } = {}) {
   finite(at, 0, 1, 'mass station'); finite(span, .001, 1, 'mass span');
-  finite(angle, -Math.PI * 4, Math.PI * 4, 'mass angle'); finite(spread, .05, Math.PI * 2, 'mass spread'); finite(amount, -.05, .05, 'mass amount');
+  const direction = typeof angle === 'function' ? angle : () => angle;
+  if (typeof angle !== 'function') finite(angle, -Math.PI * 4, Math.PI * 4, 'mass angle');
+  finite(spread, .05, Math.PI * 2, 'mass spread'); finite(amount, -.05, .05, 'mass amount');
   return (u, v) => {
-    const d = Math.atan2(Math.sin(u * 2 * Math.PI - angle), Math.cos(u * 2 * Math.PI - angle));
+    const theta = finite(direction(v), -Math.PI * 4, Math.PI * 4, 'mass angle sample');
+    const d = Math.atan2(Math.sin(u * 2 * Math.PI - theta), Math.cos(u * 2 * Math.PI - theta));
     return amount * Math.exp(-2 * (((v - at) / span) ** 2 + (d / spread) ** 2)) * smooth(v / .08) * smooth((1 - v) / .08);
   };
 }
