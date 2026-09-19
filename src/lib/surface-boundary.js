@@ -72,3 +72,23 @@ export function partitionSurface(surface, cuts, { axis = 'u' } = {}) {
  }
  if(previous!==1)throw new RangeError('Partition must end at 1');return Object.freeze(result);
 }
+
+/** Cubic Hermite span between corresponding curves, u along each edge, v across
+ * the gap. Tangents are dP/dv in the SAME direction at both ends (not two inward
+ * normals). Omitting them yields a ruled/linear span. This is a new support,
+ * not a weld, automatic loop matching, UV transfer or collision repair.
+ */
+export function bridgeSurface(start, end, { tangentStart = null, tangentEnd = null } = {}) {
+ if (typeof start !== 'function' || typeof end !== 'function' ||
+     [tangentStart,tangentEnd].some(f=>f!==null&&typeof f!=='function')) throw new TypeError('Bridge edges and optional tangents must be functions');
+ return (u,v) => {
+  if(![u,v].every(n=>Number.isFinite(n)&&n>=0&&n<=1))throw new RangeError('Bridge coordinates must be in [0,1]');
+  const a=point(start(u)),b=point(end(u));
+  if(v===0)return a.slice();if(v===1)return b.slice();
+  const chord=b.map((x,i)=>x-a[i]);
+  if(!tangentStart&&!tangentEnd)return point(a.map((x,i)=>x+v*chord[i]));
+  const ta=tangentStart?point(tangentStart(u)):chord,tb=tangentEnd?point(tangentEnd(u)):chord;
+  const v2=v*v,v3=v2*v;
+  return point(a.map((x,i)=>(2*v3-3*v2+1)*x+(v3-2*v2+v)*ta[i]+(-2*v3+3*v2)*b[i]+(v3-v2)*tb[i]));
+ };
+}

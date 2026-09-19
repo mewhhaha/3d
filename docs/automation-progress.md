@@ -1,5 +1,35 @@
 # Automated refinement progress
 
+## 2026-09-19 — connected shoulder girdle and cervical support
+
+Base **45af342f6ba6b63d0f05d3745edb8f5dea755830** / exact locked tree verified
+through GitHub. The containing commit is the implementation revision.
+`bridgeSurface` adds an explicit cubic-Hermite span between source curves.
+Optional `girdleStyle: connected` resolves torso/head/shoulder boundaries into
+one frame, builds clavicular/scapular/trapezial spans, closes the top torso ring,
+and seats the old emitters inside apertured cowls. All prior defaults, pose,
+head, limbs, hands, feet, camera and reference data are unchanged.
+
+The independent angled oval-to-round duct uses the same API. Local doctor,
+**32/32 expanded tests**, targeted model **1/1**, **44-recipe build** passed.
+Final review: **6 cases / 42 renders / 3 GLBs with zero errors and warnings**.
+Fingerprint `e68c8ce108bdbde60be947661bdaf7168e1c4ab4550b0b49a0696709851bd0ed`
+(239 files). `timeout 180 npm test` ended with exit 124 after **176 passing subtests**, with no reported failures; not a completed full-suite pass.
+
+Scene **645,300 -> 636,428 triangles**, **906 -> 919 primitives**. This is not
+an overall performance or likeness claim. Landmark RMS/max stay **9.8003 /
+25.9151 px**. Actual back/side inspection drove the added collar closure after
+an incomplete first trial. The neck tube and floating shoulder interfaces
+improve locally; the whole scene remains far from the reference.
+
+[API](bridge-surfaces.md) · [research](research/shoulder-girdle-boundaries.md) ·
+[exact checks, ownership and limitations](checkpoints/2026-09-19-prism-girdle.md).
+Evidence: `renders/girdle-review/`, CI artifact `shoulder-girdle-review`.
+Base full combined form and primary/signal/foot CI verified successful.
+New-commit CI/Pages pending at checkpoint; no new native Blender claim.
+
+Next: shoulder module attitude and upper-arm/rib silhouette, not detail density.
+
 ## 2026-09-19 — primary body planes at unchanged resolution
 
 Base **530e302f5b043ac3dc3d6337d88dff94b539f6bb** and its exact source tree

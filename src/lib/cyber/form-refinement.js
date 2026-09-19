@@ -1,3 +1,4 @@
+import {shoulderGirdle,girdleCowl} from './shoulder-girdle.js';
 import {bridgedBoot} from './foot-form.js';
 import {articulatedHand} from './hand-form.js';
 import {jointSocketShell} from './joint-housings.js';
@@ -13,7 +14,8 @@ import { portraitFields } from './head-form.js';
 import { posedAndroid } from './reference-layout.js';
 import { guidedBob } from './hair-design.js';
 /** Preserve guide/camera and replace only named components. Baseline stays available. */
-export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', bodyStyle='legacy', limbStyle='legacy', gestureStyle='fixed', jointStyle='open', massStyle='profiled', handStyle='legacy', panelStyle='broad', footStyle='legacy', emitterStyle='rings', ...options }={}){
+export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', bodyStyle='legacy', limbStyle='legacy', gestureStyle='fixed', jointStyle='open', massStyle='profiled', handStyle='legacy', panelStyle='broad', footStyle='legacy', emitterStyle='rings', girdleStyle='legacy', ...options }={}){
+ if(!['legacy','connected'].includes(girdleStyle))throw new Error('Unknown girdle style');
  if(!['legacy','bridged'].includes(footStyle))throw new Error('Unknown foot style');
  if(!['profiled','sculpted','structured'].includes(massStyle))throw new Error('Unknown mass style');
  if(!['open','housed'].includes(jointStyle))throw new Error('Unknown joint style');
@@ -105,6 +107,19 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundne
   parent.add(guidedBob({mode:hairMode,crownRoundness}));
   const face=parent.getObjectByName('Portrait'),reshaped=reshapeAssembly(face,portraitFields);face.removeFromParent();parent.add(reshaped);
   const ears=[];reshaped.traverse(o=>{if(o.name==='Ear attachment')ears.push(o);});for(const ear of ears){ear.removeFromParent();ear.geometry.dispose();}
+  }
+  if(girdleStyle==='connected'&&bodyStyle==='articulated'){
+   const torso=root.getObjectByName('Torso');
+   for(const name of ['Cervical column','Clavicular sweep 1','Clavicular sweep -1']){
+    const old=torso.getObjectByName(name);if(old){old.removeFromParent();old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
+   }
+   torso.add(shoulderGirdle(root,materials,{pose:bodyPose,massStyle}));
+   for(const suffix of ['L','R']){
+    const shoulder=root.getObjectByName('Shoulder.'+suffix),cowl=shoulder.getObjectByName('Scalloped shoulder shell'),port=shoulder.getObjectByName('Shoulder neon module');
+    const replacement=girdleCowl({portCenter:port.position.toArray(),cowlZ:cowl.position.z},materials);
+    replacement.position.copy(cowl.position);replacement.quaternion.copy(cowl.quaternion);replacement.scale.copy(cowl.scale);
+    cowl.parent.add(replacement);cowl.removeFromParent();cowl.traverse(o=>{if(o.isMesh)o.geometry.dispose();});
+   }
   }
   const replacing=[];root.traverse(o=>{if(['Thigh enclosing panels','Shin enclosing panels','Forearm wrapped armor','Upper arm wrapped armor'].includes(o.name))replacing.push(o);});
   for(const old of replacing){const parent=old.parent,name=old.name;old.removeFromParent();old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});

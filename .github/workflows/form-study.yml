@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
     paths:
+      - tests/bridge-surface.test.js
+      - tests/prism-girdle.test.js
+      - studies/boundary-duct.js
+      - scripts/review-girdle.mjs
       - tests/section-shape.test.js
       - scripts/review-primary.mjs
       - studies/section-housing.js
@@ -184,4 +188,27 @@ jobs:
         with:
           name: primary-form-review
           path: renders/primary-review/
+          if-no-files-found: error
+
+  girdle-study:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run prepare:tangents
+      - run: node --test tests/bridge-surface.test.js tests/prism-girdle.test.js
+      - run: npx playwright-core install --with-deps chromium
+      - name: Connected girdle and independent boundary-driven duct
+        run: node scripts/review-girdle.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shoulder-girdle-review
+          path: renders/girdle-review/
           if-no-files-found: error
