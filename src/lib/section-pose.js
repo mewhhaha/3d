@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 const xyz=(p,label)=>{if(!Array.isArray(p)||p.length!==3||!p.every(Number.isFinite))throw new Error(`${label} needs three finite coordinates`);return [...p];};
 /** Build-time cross-section poses in one Y-up authoring space (metres/degrees).
- * Translation and quaternion orientation are interpolated, not transform matrices.
- * A section rotates around [0, y, 0]. Outside the range, the end transform is rigid.
+ * Positive scale, translation and quaternion orientation interpolate independently.
+ * A section transforms around [0, y, 0]. Outside the range, the end transform is constant.
  * Sampling the same field for support points and sockets keeps them coherent.
  */
 export function sectionPose(stations){
@@ -10,8 +10,9 @@ export function sectionPose(stations){
  const data=stations.map((s,i)=>{
   if(!s||!Number.isFinite(s.y)||(i&&s.y<=stations[i-1].y))throw new Error('station y must increase strictly');
   const offset=xyz(s.offset??[0,0,0],'offset'),rotation=xyz(s.rotation??[0,0,0],'rotation');
+  const scale=xyz(s.scale??[1,1,1],'scale');if(scale.some(x=>x<=0||x>4))throw new Error('section scale must be in (0,4]');
   if(rotation.some(x=>Math.abs(x)>180))throw new Error('section rotations must be within +/-180 degrees');
-  return Object.freeze({y:s.y,offset:Object.freeze(offset),rotation:Object.freeze(rotation)});
+  return Object.freeze({y:s.y,offset:Object.freeze(offset),rotation:Object.freeze(rotation),...(s.scale?{scale:Object.freeze(scale)}:{})});
  });
  const quats=data.map(s=>new THREE.Quaternion().setFromEuler(new THREE.Euler(...s.rotation.map(THREE.MathUtils.degToRad),'XYZ')));
  function frame(y){
@@ -20,11 +21,12 @@ export function sectionPose(stations){
   while(i<data.length-2&&c>data[i+1].y)i++;
   const a=data[i],b=data[i+1],t=(c-a.y)/(b.y-a.y),w=t*t*(3-2*t);
   const q=quats[i].clone().slerp(quats[i+1],w),offset=new THREE.Vector3(...a.offset).lerp(new THREE.Vector3(...b.offset),w);
-  const pivot=new THREE.Vector3(0,c,0),translation=pivot.clone().add(offset).sub(pivot.clone().applyQuaternion(q));
-  return {position:translation,quaternion:q};
+  const scale=new THREE.Vector3(...(a.scale??[1,1,1])).lerp(new THREE.Vector3(...(b.scale??[1,1,1])),w);
+  const pivot=new THREE.Vector3(0,c,0),translation=pivot.clone().add(offset).sub(pivot.clone().multiply(scale).applyQuaternion(q));
+  return {position:translation,quaternion:q,scale};
  }
  return Object.freeze({stations:Object.freeze(data),
-  transform(y){const f=frame(y);return new THREE.Matrix4().compose(f.position,f.quaternion,new THREE.Vector3(1,1,1));},
-  point(p,sectionY){const v=new THREE.Vector3(...xyz(p,'point')),f=frame(sectionY??p[1]);return v.applyQuaternion(f.quaternion).add(f.position).toArray();},
+  transform(y){const f=frame(y);return new THREE.Matrix4().compose(f.position,f.quaternion,f.scale);},
+  point(p,sectionY){const v=new THREE.Vector3(...xyz(p,'point')),f=frame(sectionY??p[1]);return v.multiply(f.scale).applyQuaternion(f.quaternion).add(f.position).toArray();},
  });
 }

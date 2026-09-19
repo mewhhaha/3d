@@ -1,3 +1,4 @@
+import {applyContourLook} from './contour-look.js';
 import {shoulderGirdle,girdleCowl,seatShoulderModule} from './shoulder-girdle.js';
 import {bridgedBoot} from './foot-form.js';
 import {articulatedHand} from './hand-form.js';
@@ -14,8 +15,9 @@ import { portraitFields } from './head-form.js';
 import { posedAndroid } from './reference-layout.js';
 import { guidedBob } from './hair-design.js';
 /** Preserve guide/camera and replace only named components. Baseline stays available. */
-export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', bodyStyle='legacy', limbStyle='legacy', gestureStyle='fixed', jointStyle='open', massStyle='profiled', handStyle='legacy', panelStyle='broad', footStyle='legacy', emitterStyle='rings', girdleStyle='legacy', shoulderStyle='legacy', ...options }={}){
+export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', bodyStyle='legacy', limbStyle='legacy', gestureStyle='fixed', jointStyle='open', massStyle='profiled', handStyle='legacy', panelStyle='broad', footStyle='legacy', emitterStyle='rings', girdleStyle='legacy', shoulderStyle='legacy', surfaceStyle='plain', ...options }={}){
  if(!['legacy','seated'].includes(shoulderStyle))throw new Error('Unknown shoulder style');
+ if(!['plain','pigment','outlined'].includes(surfaceStyle))throw new Error('Unknown surface style');
  if(!['legacy','connected'].includes(girdleStyle))throw new Error('Unknown girdle style');
  if(!['legacy','bridged'].includes(footStyle))throw new Error('Unknown foot style');
  if(!['profiled','sculpted','structured'].includes(massStyle))throw new Error('Unknown mass style');
@@ -152,5 +154,6 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundne
   const boots=[];root.traverse(o=>{if(o.name==='Boot.L'||o.name==='Boot.R')boots.push(o);});
   for(const old of boots){const boot=(footStyle==='bridged'?bridgedBoot:limbStyle==='scalloped'?articulatedBoot:sculptedBoot)({side:old.name.endsWith('L')?1:-1},materials);boot.position.copy(old.position);boot.quaternion.copy(old.quaternion);boot.scale.copy(old.scale);old.parent.add(boot);old.removeFromParent();old.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
  }
+ if(surfaceStyle!=='plain')applyContourLook(root,{toon:surfaceStyle==='outlined'});
  return root;
 }

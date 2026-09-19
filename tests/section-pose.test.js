@@ -26,3 +26,10 @@ test('section matrices place rigid collars and sockets exactly on sampled suppor
  assert.ok(Math.abs(new T.Vector3(...a).distanceTo(new T.Vector3(...b))-.6)<1e-10);
  const p=[.4,1.2,.2];near(new T.Vector3(...p).applyMatrix4(f.transform(1)).toArray(),f.point(p,1));
 });
+test('positive section scale changes form and sockets together, preserves old rotation behavior',()=>{
+ const f=sectionPose([{y:0,scale:[1,1,1]},{y:1,scale:[.5,1,1.2],rotation:[0,30,0],offset:[.1,0,0]}]);
+ for(const y of [0,.2,.5,1,1.2]){const p=[.2,y,.1];near(f.point(p),new T.Vector3(...p).applyMatrix4(f.transform(y)).toArray());}
+ const pair=[f.point([-.2,1,0]),f.point([.2,1,0])];assert.ok(Math.abs(new T.Vector3(...pair[0]).distanceTo(new T.Vector3(...pair[1]))-.2)<1e-12);
+ for(const scale of [[0,1,1],[-1,1,1],[Infinity,1,1],[5,1,1]])assert.throws(()=>sectionPose([{y:0},{y:1,scale}]));
+ const input=[{y:0},{y:1,scale:[.5,1,1]}],p=sectionPose(input);input[1].scale[0]=4;near(p.point([1,1,0]),[.5,1,0]);
+});

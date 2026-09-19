@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
     paths:
+      - src/lib/contour-line-maps.js
+      - tests/lookback-style.test.js
+      - scripts/review-lookback.mjs
+      - studies/posed-enamel.js
       - src/lib/assembly-aim.js
       - tests/assembly-aim.test.js
       - tests/prism-shoulder-seat.test.js
@@ -239,4 +243,27 @@ jobs:
         with:
           name: shoulder-attitude-review
           path: renders/shoulder-review/
+          if-no-files-found: error
+
+  lookback-study:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run prepare:tangents
+      - run: node --test tests/section-pose.test.js tests/lookback-style.test.js
+      - run: npx playwright-core install --with-deps chromium
+      - name: Whole-body gesture and material-only illustration controls
+        run: node scripts/review-lookback.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lookback-pigment-review
+          path: renders/lookback-review/
           if-no-files-found: error

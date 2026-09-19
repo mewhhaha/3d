@@ -1,5 +1,42 @@
 # Automated refinement progress
 
+## 2026-09-19 — whole-body look-back hypothesis and material-only contour definition
+
+Base **b0768136e7cc504ab0564669aa91c6bb486a2b68**, exact locked tree verified
+through GitHub. The containing commit is this implementation revision. The user
+explicitly asked for pose/form factor rather than more local geometry detail.
+
+Extended `sectionPose` with positive section scale; new optional `lookback`
+turns/narrows the ribs against the pelvis and re-solves whole limb chains. Unlike
+previous invariant-pose passes, it deliberately redistributes arm lengths from
+.25/.30 to .285/.265 m, preserving total .55 m reach; legs/wrist/ankle targets,
+planted feet, head, camera and annotation data remain unchanged. No recovered
+anatomy claim. `contourLineMaps` paints pigment/roughness in existing chart UVs;
+plain, PBR pigment and existing two-tone shader controls are separately rendered
+on identical geometry. A tapered inspection cover exercises the same operations.
+
+Final local doctor, **30/30 expanded tests**, targeted recipe **1/1**, **44-recipe
+build** passed. Review: **8 cases / 42 renders / 3 GLBs, zero errors/warnings**.
+Fingerprint `d19be4da5055e9015a2c61201d6c02bfe496bccc7829e9827a673b75a91734d2`
+(246 files). Full npm test bounded at 180s after **175 passing subtests**, not a
+complete pass. All full variants retain **638,388 triangles**. Coatings add 42
+material groups and 84 128x128 maps (~5.25 MiB before mipmaps); no free performance
+claim. Custom two-tone lighting retains its standard-PBR external-GLB fallback.
+
+Landmark RMS/max changes **9.8003/25.9151 -> 5.1609/8.2448 px** without moving
+annotations. Better measurement does not establish the reference's confident
+attitude. Actual full-body/clay review shows a less square-on shoulder spread,
+but the far arm is more occluded and broad armor, hollow-looking abdomen and
+head/hair/backpack remain inaccurate. Stronger initial rib yaw and the original
+arm-ratio trial were rejected; all evidence is retained outside source history.
+
+[API](lookback-and-pigment.md) · [research](research/gesture-before-pigment.md) ·
+[exact results/rejections](checkpoints/2026-09-19-prism-lookback.md).
+Evidence: `renders/lookback-review/`; CI artifact `lookback-pigment-review`.
+Base combined and independent form reviews passed; final-commit CI/Pages pending
+at checkpoint. Next: far-arm/rib overlap and whole-figure pelvic/thigh silhouette,
+not further isolated housing detail. Keep shader and pigment separate from pose.
+
 ## 2026-09-19 — anchored shoulder optics and fitted seats
 
 Base **a427bd99979c67285db1afe83fbb720e5178879a**, exact locked source tree
