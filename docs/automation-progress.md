@@ -2,6 +2,8 @@
 
 ## 2026-09-20 — resume the plain humanoid and pose it for the shot
 
+**Published and verified:** implementation commit **75f7dabcdace383596255669cc6e4ea3f7c27b4c** is on main. Local-studio run **35474063615** completed successfully, including both mannequin reviews. Downloaded artifact **10593722980 / local-studio-review** independently contains 24 shot images plus 65 foundation images, with all five GLB exports reporting zero errors/warnings. The CI shot hero PNG is byte-identical to local, SHA-256 `57d70185f66b2f2e02bdb3e63767af948c2688967ba0c1f38e02a590c3a856a5`. Final generic-foundation review was also rerun locally after all pose changes. Targeted recipe default/determinism/parameter test: **1/1 passed**. Full local suite ended at its 180s bound after **187 passing subtests**, not a full-suite pass. No Pages or native Blender appearance claim.
+
 Verified remote main **dabc5272dd20d60e5a6ca57f3d8ba54b6211c8c4**, exact base
 tree **71fa5d9c347247b62e131d1a0c2fdc3c151023e4**. Recovered the actual previous
 humanoid source (tree **5791daee8cf48872582e67a8a9576aeec04060f7**), not the stale

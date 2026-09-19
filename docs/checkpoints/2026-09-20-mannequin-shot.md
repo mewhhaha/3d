@@ -74,3 +74,26 @@ not stored in Git. The existing prism annotations and uncertainty are unchanged.
 
 Next: review the plain near-knee/hip relationship and far-arm depth under the
 same camera, then make a single costume attachment only after pose review.
+
+## Published verification
+
+Implementation **75f7dabcdace383596255669cc6e4ea3f7c27b4c**, tree
+**de3808d480824150e1ce07edec600cd48e4fe432**, was pushed by fast-forward through
+connected GitHub. Latest main was reread before writes. Local source tree
+matched the uploaded tree exactly. The previous read-only/DNS blocker is not
+current for this pass; no permission or security setting was changed.
+
+Local-studio CI run **35474063615**, job **105980124142**, passed all steps.
+Downloaded and inspected **10593722980 / local-studio-review**: shot review
+6 cases / 24 images / 2 zero-warning GLB exports, foundation review 7 cases /
+65 images / 3 zero-warning GLB exports. CI hero PNG matches local byte-for-byte:
+`57d70185f66b2f2e02bdb3e63767af948c2688967ba0c1f38e02a590c3a856a5`.
+No warning from the unrelated legacy skin regression is suppressed or claimed
+fixed. Existing auricle normal-transfer CI is not a mannequin normal bake.
+
+The generic foundation review was rerun locally after the shot changes at
+`renders/foundation-final/`, matching the shot review's computational fingerprint.
+Targeted `humanoid-mannequin` model check passed 1/1 (default, determinism,
+parameter limits). Full `npm test` stopped at its 180-second bound after 187
+passing subtests, without a reported failure before the bound. No completed
+full-suite or Pages/native Blender result is asserted.
