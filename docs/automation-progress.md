@@ -1,5 +1,38 @@
 # Automated refinement progress
 
+## 2026-09-19 — anchored shoulder optics and fitted seats
+
+Base **a427bd99979c67285db1afe83fbb720e5178879a**, exact locked source tree
+verified via connected GitHub. The containing commit is the tested code revision.
+The newer connected girdle is preserved. `aimAroundAnchor` adds minimum-swing
+axis alignment with explicit local anchor and world/parent directions. Optical
+modules now have optional `shoulderStyle: seated`; fixed port centers, skeletal
+pose, head/hands/feet and existing default choices are unchanged. Cowls clear
+retained shoulder spheres; new sleeves connect their aimed back rings.
+An unrelated ball-mounted inspection instrument exercises the same operation.
+
+Local doctor, **6/6 new / 21/21 expanded tests**, targeted model **1/1** and
+**44-recipe build** passed. Final review: **6 cases / 42 renders / 3 GLBs with
+zero errors/warnings**; fingerprint
+`07642c022b812975c2e39a0a074a47ae0a33214808ac5c378ca2c80108447050` (242 files).
+Full npm test bounded at 180s after **171 passing subtests**, no full pass claimed.
+An initial concurrent targeted-model timeout passed on the isolated final rerun.
+
+Scene **636,428 -> 638,388 triangles**, two added sleeves; no texture/shader or
+normal-bake changes. Landmark RMS/max stay **9.8003 / 25.9151 px**. The near lens
+reads more like the reference, but full-image likeness remains poor and the far
+shoulder's lateral placement is unresolved. Rejected intersecting cowl/sphere
+trials were kept as evidence, not hidden by surface shading. Side/back views
+were inspected; sampled clearance is not a general collision guarantee.
+
+[API](assembly-aim.md) · [research](research/anchored-module-attitude.md) ·
+[exact checks, rejected trials and limitations](checkpoints/2026-09-19-prism-shoulder-attitude.md).
+Evidence: `renders/shoulder-review/`; CI artifact `shoulder-attitude-review`.
+Base independent component CI passed; long combined review cancelled at last
+hand stage. New-commit CI/Pages pending at checkpoint, no native Blender claim.
+Next: far shoulder/chest depth and connected arm placement, not isolated optics
+or more surface detail.
+
 ## 2026-09-19 — connected shoulder girdle and cervical support
 
 Base **45af342f6ba6b63d0f05d3745edb8f5dea755830** / exact locked tree verified

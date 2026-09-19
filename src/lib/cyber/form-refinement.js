@@ -1,4 +1,4 @@
-import {shoulderGirdle,girdleCowl} from './shoulder-girdle.js';
+import {shoulderGirdle,girdleCowl,seatShoulderModule} from './shoulder-girdle.js';
 import {bridgedBoot} from './foot-form.js';
 import {articulatedHand} from './hand-form.js';
 import {jointSocketShell} from './joint-housings.js';
@@ -14,7 +14,8 @@ import { portraitFields } from './head-form.js';
 import { posedAndroid } from './reference-layout.js';
 import { guidedBob } from './hair-design.js';
 /** Preserve guide/camera and replace only named components. Baseline stays available. */
-export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', bodyStyle='legacy', limbStyle='legacy', gestureStyle='fixed', jointStyle='open', massStyle='profiled', handStyle='legacy', panelStyle='broad', footStyle='legacy', emitterStyle='rings', girdleStyle='legacy', ...options }={}){
+export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundness=1, headStyle='legacy', bodyStyle='legacy', limbStyle='legacy', gestureStyle='fixed', jointStyle='open', massStyle='profiled', handStyle='legacy', panelStyle='broad', footStyle='legacy', emitterStyle='rings', girdleStyle='legacy', shoulderStyle='legacy', ...options }={}){
+ if(!['legacy','seated'].includes(shoulderStyle))throw new Error('Unknown shoulder style');
  if(!['legacy','connected'].includes(girdleStyle))throw new Error('Unknown girdle style');
  if(!['legacy','bridged'].includes(footStyle))throw new Error('Unknown foot style');
  if(!['profiled','sculpted','structured'].includes(massStyle))throw new Error('Unknown mass style');
@@ -119,6 +120,7 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundne
     const replacement=girdleCowl({portCenter:port.position.toArray(),cowlZ:cowl.position.z},materials);
     replacement.position.copy(cowl.position);replacement.quaternion.copy(cowl.quaternion);replacement.scale.copy(cowl.scale);
     cowl.parent.add(replacement);cowl.removeFromParent();cowl.traverse(o=>{if(o.isMesh)o.geometry.dispose();});
+    if(shoulderStyle==='seated')seatShoulderModule(shoulder,materials,{direction:suffix==='L'?[-.45,.20,.87]:[-.40,.06,.91]});
    }
   }
   const replacing=[];root.traverse(o=>{if(['Thigh enclosing panels','Shin enclosing panels','Forearm wrapped armor','Upper arm wrapped armor'].includes(o.name))replacing.push(o);});

@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
     paths:
+      - src/lib/assembly-aim.js
+      - tests/assembly-aim.test.js
+      - tests/prism-shoulder-seat.test.js
+      - scripts/review-shoulders.mjs
+      - studies/aimed-inspector.js
       - tests/bridge-surface.test.js
       - tests/prism-girdle.test.js
       - studies/boundary-duct.js
@@ -211,4 +216,27 @@ jobs:
         with:
           name: shoulder-girdle-review
           path: renders/girdle-review/
+          if-no-files-found: error
+
+  shoulder-study:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run prepare:tangents
+      - run: node --test tests/assembly-aim.test.js tests/prism-shoulder-seat.test.js
+      - run: npx playwright-core install --with-deps chromium
+      - name: Anchored shoulder modules and independent inspector
+        run: node scripts/review-shoulders.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shoulder-attitude-review
+          path: renders/shoulder-review/
           if-no-files-found: error

@@ -1,3 +1,4 @@
+import {aimAroundAnchor} from '../assembly-aim.js';
 import * as THREE from 'three';
 import {group,sphere,material} from '../modeling.js';
 import {bridgeSurface,edgeDerivative} from '../surface-boundary.js';
@@ -74,12 +75,12 @@ export function shoulderGirdle(android,mats,{pose=null,massStyle='structured'}={
 
 /** A socket-cover with a true aperture around the retained light module.
  * Same local frame as the previous cowl; no emitter or hinge repositioning. */
-export function girdleCowl({portCenter=[0,.018,.070],cowlZ=.024}={},mats){
+export function girdleCowl({portCenter=[0,.018,.070],cowlZ=.024,fitPoint=p=>p}={},mats){
  const width=.162,height=.181,crownDepth=portCenter[2]-cowlZ-.003;
  const surface=(u,v)=>{
   const x=(u-.5)*width,y=(v-.5)*height;
   // Smooth rounded shoulder plane, kept behind the existing lens housing.
-  return[x,y,crownDepth*(1-.38*(2*u-1)**2-.44*(2*v-1)**2)];
+  return fitPoint([x,y,crownDepth*(1-.38*(2*u-1)**2-.44*(2*v-1)**2)]);
  };
  const [cx,cy]=portCenter;
  const aperture=Array.from({length:24},(_,i)=>{
@@ -89,4 +90,41 @@ export function girdleCowl({portCenter=[0,.018,.070],cowlZ=.024}={},mats){
  const outline=[[.035,.56],[.09,.83],[.30,.985],[.64,.975],[.86,.80],[.98,.57],[.88,.26],[.80,.075],[.64,.04],[.58,.24],[.43,.265],[.385,.14],[.21,.09],[.14,.32]];
  const object=contourArmor('Scalloped shoulder shell',surface,outline,mats,{offset:.002,thickness:.0045,rounding:.10,refinement:2,holes:[aperture]});
  object.userData.socketCover={portCenter:[...portCenter],apertureRadius:.040,cowlZ};return object;
+}
+
+/** Reorient only the optical cowl/port assembly, not the skeletal shoulder.
+ * Port origin stays fixed. Rebuild a load-bearing sleeve from the unchanged
+ * shoulder ball to the newly aimed back ring, in shoulder-local space.
+ */
+export function seatShoulderModule(shoulder,mats,{direction}={}){
+ const port=shoulder.getObjectByName('Shoulder neon module'),cowl=shoulder.getObjectByName('Scalloped shoulder shell');
+ if(!port||!cowl||port.parent!==shoulder||cowl.parent!==shoulder)throw new Error('Expected directly owned shoulder port and cowl');
+ const center=port.position.clone(),seat=group('Shoulder optical seat');seat.position.copy(center);
+ shoulder.add(seat);seat.add(port);port.position.sub(center);seat.add(cowl);cowl.position.sub(center);
+ aimAroundAnchor(seat,{direction,space:'world'});
+ shoulder.updateWorldMatrix(true,true);
+ const intoShoulder=shoulder.matrixWorld.clone().invert().multiply(seat.matrixWorld);
+ const x=new THREE.Vector3(1,0,0).applyQuaternion(seat.quaternion),y=new THREE.Vector3(0,1,0).applyQuaternion(seat.quaternion),z=new THREE.Vector3(0,0,1).applyQuaternion(seat.quaternion);
+ const radius=.035,ballRadius=.069*.82,inletCenter=z.clone().multiplyScalar(Math.sqrt(ballRadius**2-radius**2));
+ const inlet=u=>{const a=u*2*Math.PI;return inletCenter.clone().addScaledVector(x,radius*Math.cos(a)).addScaledVector(y,radius*Math.sin(a)).toArray();};
+ const outlet=u=>{const a=u*2*Math.PI;return V([.035*Math.cos(a),.035*Math.sin(a),-.014]).applyMatrix4(intoShoulder).toArray();};
+ // Maintain the circle's in-plane coordinates, but drape the supporting cowl
+ // forward of the retained joint sphere. This is an analytic one-sphere
+ // clearance constraint, not mesh collision or a projected reference image.
+ const cowlMatrix=shoulder.matrixWorld.clone().invert().multiply(cowl.matrixWorld),inverseCowl=cowlMatrix.clone().invert();
+ const front=z.clone(),clearance=ballRadius+.006;
+ const fitPoint=p=>{
+  const q=V(p).applyMatrix4(cowlMatrix),along=q.dot(front),radial=q.lengthSq()-along*along;
+  if(radial<clearance*clearance){const t=Math.sqrt(clearance*clearance-radial)-along;if(t>0)q.addScaledVector(front,t);}
+  return q.applyMatrix4(inverseCowl).toArray();
+ };
+ const fitted=girdleCowl({...cowl.userData.socketCover,fitPoint},mats);
+ fitted.position.copy(cowl.position);fitted.quaternion.copy(cowl.quaternion);fitted.scale.copy(cowl.scale);
+ seat.add(fitted);cowl.removeFromParent();cowl.traverse(o=>{if(o.isMesh)o.geometry.dispose();});
+ const sleeve=bridgeSurface(inlet,outlet);
+ const object=thickenSurface('Shoulder optical seat sleeve',sleeve,{thickness:.003,segments:[40,5],material:mats.dark});
+ shoulder.add(object);
+ seat.userData.aim={direction:[...direction],space:'world',anchor:[0,0,0],socketRadius:radius,ballRadius};
+ object.userData.contact={inlet:inlet(0),outlet:outlet(0),scope:'analytic ball and seat rear ring; not collision tested'};
+ return seat;
 }
