@@ -1,3 +1,4 @@
+import { promoteExportSkinRoots } from './export-skin-roots.js';
 import { canonicalGLB } from './canonical-glb.js';
 import { normalizeTangentFrames } from './tangent-frame.js';
 import { THREE, buildModel, dispose } from './modeling.js';
@@ -40,6 +41,7 @@ export async function exportOwnedObjectGLB(root, { title = root.name } = {}) {
   try {
     root.traverse(node => { if (node.isMesh) normalizeTangentFrames(node.geometry); });
     originals = prepareImages(root);
+    promoteExportSkinRoots(scene);
     return canonicalGLB(await new GLTFExporter().parseAsync(scene, { binary: true, onlyVisible: true, trs: true, animations: [...clips] }));
-  } finally { originals.forEach(t => t.dispose()); dispose(root); }
+  } finally { originals.forEach(t => t.dispose()); dispose(scene); }
 }

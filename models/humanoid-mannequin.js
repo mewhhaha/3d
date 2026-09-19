@@ -1,0 +1,3 @@
+import {defineModel} from '../src/lib/modeling.js';
+import {humanoidMannequin} from '../src/lib/humanoid-mannequin.js';
+export default defineModel({id:'humanoid-mannequin',title:'Humanoid / pose foundation',description:'Simple proportion-controlled T-pose mannequin with one named skeleton, neutral / contrapposto / lookback pose clips. Original geometry, not a Mixamo asset. No armor or painted detail.',parameters:{build:{type:'select',options:['slender','broad'],default:'slender'},height:{type:'number',min:1.4,max:2.1,step:.01,default:1.72},segments:{type:'number',min:12,max:24,step:4,default:16}},build:humanoidMannequin});

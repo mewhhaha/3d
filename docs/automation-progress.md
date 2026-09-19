@@ -1,39 +1,47 @@
 # Automated refinement progress
 
-## 2026-09-19 — shared rib pose and plane-constrained far arm
+## 2026-09-20 — resume the plain humanoid and pose it for the shot
 
-Verified base **a0283a772394605e56159e04ad89ce81b4c6964d**. Pushed reusable solver
-checkpoint **43d052c9ea8e1013a98f5a2d040dab3576bf65a2** during this run; the
-containing scene commit completes the integration. Existing defaults remain.
+Verified remote main **dabc5272dd20d60e5a6ca57f3d8ba54b6211c8c4**, exact base
+tree **71fa5d9c347247b62e131d1a0c2fdc3c151023e4**. Recovered the actual previous
+humanoid source (tree **5791daee8cf48872582e67a8a9576aeec04060f7**), not the stale
+flow/default-switch experiment. Base full form CI passed. This checkpoint
+publishes the previously unpushed foundation plus a new plain-rig shot study.
+Do not restore old cyber recipe defaults or disguise a preset switch as posing.
 
-`twoLinkPose({jointPlane})` constrains the middle joint without stretching.
-Optional `gestureStyle: poised` fits the rib section to both shoulder sockets,
-re-solves the far arm, and preserves near-arm/head/leg/foot placement. It is an
-explicit uncertain pose interpretation, not recovered anatomy. `panelStyle:
-swept` extends/narrows the proximal thigh shells at unchanged resolution. The
-same solver is exercised on an unrelated service boom. Existing pigment/PBR/
-two-tone looks remain separate; no new shader or normal bake.
+Reusable controls: separate bind leg/ankle/shoulder dimensions; optional waist
+rotation, model-space head orientation, normalized per-limb endpoint/pole targets.
+The same connected 28-bone rig solves the entire body. The shot's baseline and
+candidate use identical geometry (11,968 triangles, 34 skins, two PBR materials,
+no textures). Original mannequin defaults and detailed android remain intact.
 
-Final local doctor, **25/25 expanded tests**, targeted model **1/1**, and
-**44-recipe build** passed. Review: **8 cases / 42 images / 3 GLBs with zero
-errors and warnings**. **638,388 scene triangles**, unchanged. Computational
-fingerprint `a2c418ac8e72c35342583b01a876f4b8806089d1d8c286f7310071745b91fcce`
-(248 files). No complete full-suite run this pass.
+Local doctor; **23/23 expanded tests**; **45-recipe build**; actual Chromium
+render/export regression passed. Its unrelated old skinned fixture retains six
+warnings, not suppressed. New shot review: **6 cases / 24 images / 2 GLB exports,
+zero errors and warnings**; bind and posed-preview exports byte-identical.
+Reimport: 136 sampled vertices per pose, maximum error <5.25e-8 m. The existing
+foundation review also completed **7 cases / 65 images / 3 validated GLBs**.
+No full-suite pass, native Blender result or Pages deployment is claimed here.
+Final-commit CI is pending until the authorized push is inspected.
 
-Rejected the outflung elbow, unreachable plane, excessive thigh overlap and an
-isolated shoulder move that crossed the old rib cage. The final shared-rib fit
-makes the arm visible, but the rib/neck inclination remains aggressive in side
-view. Whole-image likeness is still poor. Keep this as an explicit candidate,
-not a new default or a claim of anatomical correctness.
+The reference reupload is available (encoded hash differs from the historical
+original-byte hash); no raster or changed target annotations enter source.
+The new silhouette has a clearer pelvis shift, torso counterturn and head tilt,
+but shoulders, mitten hands, foot placeholders and waist overlap still need
+refinement. This is a reviewable shot candidate, not an accepted exact pose or
+balanced/collision-correct character. No new shaders, normal bake or costume.
 
-[API](two-link-plane.md) · [research](research/joint-plane-and-pelvic-overlap.md) ·
-[checks, failures and limitations](checkpoints/2026-09-19-prism-balance.md).
-Evidence: `renders/balance-review/`; CI artifact `poised-body-review`.
-Base component CI and Pages deployment succeeded; its combined form job was
-cancelled at the last hand stage. New-commit CI is pending at checkpoint.
+[Pose API](mannequin-shot.md) · [source notes](research/mannequin-shot.md) ·
+[checks and rejected trials](checkpoints/2026-09-20-mannequin-shot.md).
+Evidence: `renders/mannequin-shot-review/` and `renders/foundation-check/`;
+CI artifact: `local-studio-review`. Keep generated images/models out of Git.
 
-Next: verify rib/neck inclination with a simple humanoid mass blockout; do not
-cover the remaining form errors with decorative geometry.
+Next: judge the **plain** silhouette against the illustration, especially the
+near-knee height, far-arm depth and head/neck relationship. Keep costume work
+paused until those primary decisions are convincing. Pose/contact validity and
+visual resemblance are different checks.
 
-Previous entries are preserved verbatim, with their relative links intact, in
-[the journal through a0283a7](automation-progress-through-a0283a7.md).
+Prior journal preserved verbatim:
+[journal through dabc527](checkpoints/automation-progress-through-dabc527.md).
+The earlier local humanoid provenance, checks and publishing blocker remain in
+[its historical checkpoint](checkpoints/2026-09-19-humanoid-foundation.md).

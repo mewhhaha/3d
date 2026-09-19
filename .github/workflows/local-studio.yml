@@ -5,6 +5,16 @@ on:
     branches: [main]
     paths:
       - .github/workflows/local-studio.yml
+      - studies/prism-mannequin-*.js
+      - scripts/review-mannequin-shot.mjs
+      - tests/humanoid-shot.test.js
+      - src/lib/humanoid-rig.js
+      - src/lib/humanoid-mannequin.js
+      - src/lib/export-skin-roots.js
+      - models/humanoid-mannequin.js
+      - scripts/review-humanoid.mjs
+      - tests/humanoid-mannequin.test.js
+      - tests/export-skin-roots.test.js
       - scripts/render.mjs
       - scripts/build-recipe.mjs
       - scripts/study.mjs
@@ -42,7 +52,7 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run prepare:tangents
       - name: Sculpt, study and local runtime unit tests
-        run: node --test tests/local-render.test.js tests/sculpt-forms.test.js tests/study.test.js tests/shot-rig.test.js
+        run: node --test tests/local-render.test.js tests/sculpt-forms.test.js tests/study.test.js tests/shot-rig.test.js tests/humanoid-mannequin.test.js tests/export-skin-roots.test.js tests/humanoid-shot.test.js
       - run: npx playwright-core install --with-deps chromium
       - name: In-memory WebGL, dependency freshness and export isolation
         run: npm run test:render
@@ -50,6 +60,10 @@ jobs:
         run: npm run study -- studies/auricle.json
       - name: Authored shot and punctual-light workflow study
         run: npm run study -- studies/shot-rig.json
+      - name: Plain humanoid proportions, connected poses and skin export roundtrip
+        run: node scripts/review-humanoid.mjs
+      - name: Plain shot pose, locked cameras and skin roundtrip
+        run: node scripts/review-mannequin-shot.mjs
       - name: Independent high-to-low normal measurement
         run: npm run measure:sculpt
       - uses: actions/upload-artifact@v4

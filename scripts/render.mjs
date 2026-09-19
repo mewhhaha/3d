@@ -25,6 +25,7 @@ const modules = {
   stage:'src/render-stage.js',
   modeling:'src/lib/modeling.js', rigging:'src/lib/rigging.js',
   lighting:'src/lib/studio-lighting.js', exporter:'src/lib/export-assets.js',
+  skinRoots:'src/lib/export-skin-roots.js',
   canonical:'src/lib/canonical-glb.js', tangents:'src/lib/tangent-frame.js',
   look:'src/lib/scene-look.js', illustration:'src/lib/illustration-material.js',
   'three/addons/postprocessing/BokehPass.js':'node_modules/three/examples/jsm/postprocessing/BokehPass.js',
