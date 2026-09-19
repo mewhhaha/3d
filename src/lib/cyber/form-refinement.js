@@ -1,3 +1,4 @@
+import {sectionPose} from '../section-pose.js';
 import {applyContourLook} from './contour-look.js';
 import {shoulderGirdle,girdleCowl,seatShoulderModule} from './shoulder-girdle.js';
 import {bridgedBoot} from './foot-form.js';
@@ -8,7 +9,7 @@ import { scallopedLimb, articulatedBoot, deltoidMantle } from './limb-form.js';
 import { articulatedTorso, scallopedShoulder } from './torso-form.js';
 import { illustratedHead } from './illustrated-head.js';
 import { limbArmor, sculptedBoot, contouredShield } from './contour-armor.js';
-import { cyberMaterials, ring, radialArray, link, cableLoom } from './mechanics.js';
+import { cyberMaterials, ring, radialArray, radialPort, link, cableLoom } from './mechanics.js';
 import { box, group } from '../modeling.js';
 import { reshapeAssembly } from '../shape-deform.js';
 import { portraitFields } from './head-form.js';
@@ -26,9 +27,9 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundne
  if(!['legacy','articulated'].includes(bodyStyle))throw new Error('Unknown body style');
  if(!['legacy','scalloped'].includes(limbStyle))throw new Error('Unknown limb style');
  if(!['legacy','relaxed'].includes(handStyle))throw new Error('Unknown hand style');
- if(!['broad','cutaway'].includes(panelStyle))throw new Error('Unknown panel style');
+ if(!['broad','cutaway','swept'].includes(panelStyle))throw new Error('Unknown panel style');
  const root=posedAndroid({stage,gestureStyle,emitterStyle,...options});
- const bodyPose=gestureStyle==='fixed'?null:torsoGesture(gestureStyle);
+ const bodyPose=gestureStyle==='fixed'?null:gestureStyle==='poised'?sectionPose(root.userData.poseGuide.bodyGesture.stations):torsoGesture(gestureStyle);
  if(stage==='assembly'){
   const materials=cyberMaterials({glow:.7,emitterStyle});
   // Previous cylindrical under-structure outgrew the new tapered shells near joints.
@@ -118,8 +119,15 @@ export function refinedAndroid({ stage='assembly', hairMode='cage', crownRoundne
    }
    torso.add(shoulderGirdle(root,materials,{pose:bodyPose,massStyle}));
    for(const suffix of ['L','R']){
-    const shoulder=root.getObjectByName('Shoulder.'+suffix),cowl=shoulder.getObjectByName('Scalloped shoulder shell'),port=shoulder.getObjectByName('Shoulder neon module');
-    const replacement=girdleCowl({portCenter:port.position.toArray(),cowlZ:cowl.position.z},materials);
+    const shoulder=root.getObjectByName('Shoulder.'+suffix),cowl=shoulder.getObjectByName('Scalloped shoulder shell');
+    let port=shoulder.getObjectByName('Shoulder neon module');
+    const compact=gestureStyle==='poised'&&suffix==='R';
+    if(compact){
+     const next=radialPort({name:'Shoulder neon module',radius:.033,color:'lime',detail:1},materials);
+     next.position.copy(port.position);next.quaternion.copy(port.quaternion);next.scale.copy(port.scale);
+     port.parent.add(next);port.removeFromParent();port.traverse(o=>{if(o.isMesh)o.geometry.dispose();});port=next;
+    }
+    const replacement=girdleCowl({portCenter:port.position.toArray(),cowlZ:cowl.position.z,...(compact?{extent:[.132,.146],apertureRadius:.032}: {})},materials);
     replacement.position.copy(cowl.position);replacement.quaternion.copy(cowl.quaternion);replacement.scale.copy(cowl.scale);
     cowl.parent.add(replacement);cowl.removeFromParent();cowl.traverse(o=>{if(o.isMesh)o.geometry.dispose();});
     if(shoulderStyle==='seated')seatShoulderModule(shoulder,materials,{direction:suffix==='L'?[-.45,.20,.87]:[-.40,.06,.91]});

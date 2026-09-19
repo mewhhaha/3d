@@ -1,0 +1,40 @@
+name: Connected pose and silhouette study
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - src/lib/two-link-pose.js
+      - src/lib/cyber/**
+      - models/cyber-form-study.js
+      - studies/prism-body.js
+      - studies/plane-boom.js
+      - tests/two-link-plane.test.js
+      - tests/poised-form.test.js
+      - scripts/review-balance.mjs
+      - .github/workflows/balance-study.yml
+permissions:
+  contents: read
+jobs:
+  balance-study:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run prepare:tangents
+      - run: node --test tests/two-link-plane.test.js tests/poised-form.test.js
+      - run: npx playwright-core install --with-deps chromium
+      - name: Shared rib pose, swept thigh covers and plane-constrained boom
+        run: node scripts/review-balance.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: poised-body-review
+          path: renders/balance-review/
+          if-no-files-found: error

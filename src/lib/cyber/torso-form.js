@@ -34,7 +34,7 @@ export function contourArmor(name,support,outline,mats,{offset=.004,thickness=.0
 const mirror=outline=>outline.map(([u,v])=>[1-u,v]).reverse();
 /** Torso from a shared support; an optional section pose also drives its mounted details. */
 export function articulatedTorso(mats,{pose=null,massStyle='profiled',panelStyle='broad'}={}){
- if(!['broad','cutaway'].includes(panelStyle))throw new Error('Invalid panel style');
+ if(!['broad','cutaway','swept'].includes(panelStyle))throw new Error('Invalid panel style');
  const root=group('Torso'),support=torsoSupport({pose,massStyle}),point=p=>pose?pose.point(p):p;
  const chassis=material('#101f22',{roughness:.55,metalness:.35});chassis.name='Recessed articulated torso';
  root.add(thickenSurface('Contoured torso understructure',support,{thickness:.004,segments:[72,48],material:chassis}));
@@ -43,10 +43,12 @@ export function articulatedTorso(mats,{pose=null,massStyle='profiled',panelStyle
  // and a descending side tab rather than a swollen oval sitting on the chest.
  const chest=[[.508,.977],[.589,.983],[.706,.931],[.735,.874],[.692,.839],[.683,.792],[.711,.752],[.691,.685],[.631,.679],[.606,.739],[.548,.751],[.519,.814]];
  const iliac=[[.509,.311],[.591,.359],[.721,.355],[.800,.289],[.789,.207],[.744,.174],[.716,.222],[.649,.249],[.575,.222],[.524,.252]];
- const apron=[[.511,.211],[.550,.235],[.624,.221],[.647,.160],[.608,.124],[.584,.058],[.529,.017],[.511,.052]];
+ const apron=panelStyle==='swept'
+  ?[[.511,.225],[.555,.250],[.626,.214],[.663,.145],[.636,.090],[.594,.041],[.542,.015],[.514,.052]]
+  :[[.511,.211],[.550,.235],[.624,.221],[.647,.160],[.608,.124],[.584,.058],[.529,.017],[.511,.052]];
  for(const side of [-1,1]){
   const chart=side>0?x=>x:mirror;
-  if(panelStyle==='cutaway'){
+  if(panelStyle!=='broad'){
    const collar=massStyle==='structured'?[[.509,.880],[.589,.940],[.704,.958],[.727,.903],[.686,.893],[.638,.903],[.564,.842],[.520,.811]]:[[.509,.964],[.589,.975],[.704,.930],[.727,.881],[.686,.868],[.638,.905],[.564,.906],[.520,.884]];
    const cover=massStyle==='structured'?[[.511,.785],[.561,.835],[.633,.867],[.677,.844],[.664,.802],[.698,.747],[.677,.674],[.635,.659],[.611,.720],[.574,.719],[.552,.746],[.514,.718]]:[[.515,.859],[.561,.883],[.633,.883],[.677,.849],[.664,.805],[.698,.755],[.677,.691],[.635,.686],[.611,.750],[.574,.770],[.552,.821],[.521,.809]];
    root.add(contourArmor('Scalloped rib cover '+side,support,chart(cover),mats,{offset:.007,thickness:.0045}));

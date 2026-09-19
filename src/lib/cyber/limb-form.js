@@ -39,13 +39,21 @@ const plates={
 };
 
 export function scallopedLimb({type='thigh',side=1,socketClearance=false,massStyle='profiled',panelStyle='broad'}={},mats){
- if(!['broad','cutaway'].includes(panelStyle))throw new Error('Invalid panel style');
- const support=limbFormSupport({type,side,massStyle}),root=group('Scalloped '+type+' armor');
+ if(!['broad','cutaway','swept'].includes(panelStyle))throw new Error('Invalid panel style');
+ const base=limbFormSupport({type,side,massStyle});
+ const support=panelStyle==='swept'&&type==='thigh'?(u,v)=>{
+  const p=base(u,v),belly=Math.sin(Math.PI*v)**2;
+  const t=Math.max(0,(v-.58)/.42),rootBlend=t*t*(3-2*t);
+  // Extend the ceramic-bearing thigh volume over the hip socket, not the bone.
+  // Mid-thigh is slimmer; the knee attachment and distal circumference stay pinned.
+  return[p[0]*(1-.10*belly),p[1]+.036*rootBlend,p[2]*(1-.055*belly)+.008*rootBlend];
+ }:base;
+ const root=group('Scalloped '+type+' armor');
  // A narrowed core shows through real cutouts without borrowing old cylinder-sized details.
  const core=(u,v)=>{const p=support(u,v);return[p[0]*.82,p[1],p[2]*.80];};
  root.add(thickenSurface(type+' shaped dark core',core,{thickness:.002,segments:[40,28],material:mats.dark}));
  if(type==='shin')root.add(sphere({name:'Knee flex core',radius:.035,segments:24,material:mats.dark}));
- const outlines=panelStyle==='cutaway'&&type==='thigh'?[
+ const outlines=panelStyle!=='broad'&&type==='thigh'?[
   [[.49,.91],[.59,.975],[.66,.963],[.665,.76],[.67,.60],[.70,.51],[.765,.52],[.785,.66],[.81,.80],[.86,.91],[.94,.88],[.95,.56],[.91,.30],[.86,.15],[.81,.05],[.74,.045],[.70,.14],[.62,.18],[.59,.065],[.51,.10],[.48,.43]],
   [[.08,.87],[.18,.94],[.34,.89],[.425,.93],[.436,.72],[.40,.52],[.435,.40],[.42,.24],[.39,.09],[.31,.06],[.29,.17],[.20,.21],[.14,.13],[.09,.37]],
  ]:plates[type];

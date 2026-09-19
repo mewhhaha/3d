@@ -75,8 +75,9 @@ export function shoulderGirdle(android,mats,{pose=null,massStyle='structured'}={
 
 /** A socket-cover with a true aperture around the retained light module.
  * Same local frame as the previous cowl; no emitter or hinge repositioning. */
-export function girdleCowl({portCenter=[0,.018,.070],cowlZ=.024,fitPoint=p=>p}={},mats){
- const width=.162,height=.181,crownDepth=portCenter[2]-cowlZ-.003;
+export function girdleCowl({portCenter=[0,.018,.070],cowlZ=.024,fitPoint=p=>p,extent=[.162,.181],apertureRadius=.040}={},mats){
+ if(!Array.isArray(extent)||extent.length!==2||!extent.every(n=>Number.isFinite(n)&&n>0)||!Number.isFinite(apertureRadius)||apertureRadius<=0)throw new Error('Invalid cowl extent/aperture');
+ const [width,height]=extent;const crownDepth=portCenter[2]-cowlZ-.003;
  const surface=(u,v)=>{
   const x=(u-.5)*width,y=(v-.5)*height;
   // Smooth rounded shoulder plane, kept behind the existing lens housing.
@@ -85,11 +86,11 @@ export function girdleCowl({portCenter=[0,.018,.070],cowlZ=.024,fitPoint=p=>p}={
  const [cx,cy]=portCenter;
  const aperture=Array.from({length:24},(_,i)=>{
   const a=i/24*Math.PI*2;
-  return[.5+(cx+.040*Math.cos(a))/width,.5+(cy+.040*Math.sin(a))/height];
+  return[.5+(cx+apertureRadius*Math.cos(a))/width,.5+(cy+apertureRadius*Math.sin(a))/height];
  });
  const outline=[[.035,.56],[.09,.83],[.30,.985],[.64,.975],[.86,.80],[.98,.57],[.88,.26],[.80,.075],[.64,.04],[.58,.24],[.43,.265],[.385,.14],[.21,.09],[.14,.32]];
  const object=contourArmor('Scalloped shoulder shell',surface,outline,mats,{offset:.002,thickness:.0045,rounding:.10,refinement:2,holes:[aperture]});
- object.userData.socketCover={portCenter:[...portCenter],apertureRadius:.040,cowlZ};return object;
+ object.userData.socketCover={portCenter:[...portCenter],apertureRadius,cowlZ,extent:[...extent]};return object;
 }
 
 /** Reorient only the optical cowl/port assembly, not the skeletal shoulder.
@@ -105,9 +106,9 @@ export function seatShoulderModule(shoulder,mats,{direction}={}){
  shoulder.updateWorldMatrix(true,true);
  const intoShoulder=shoulder.matrixWorld.clone().invert().multiply(seat.matrixWorld);
  const x=new THREE.Vector3(1,0,0).applyQuaternion(seat.quaternion),y=new THREE.Vector3(0,1,0).applyQuaternion(seat.quaternion),z=new THREE.Vector3(0,0,1).applyQuaternion(seat.quaternion);
- const radius=.035,ballRadius=.069*.82,inletCenter=z.clone().multiplyScalar(Math.sqrt(ballRadius**2-radius**2));
+ const radius=(cowl.userData.socketCover.apertureRadius??.040)*.875,ballRadius=.069*.82,inletCenter=z.clone().multiplyScalar(Math.sqrt(ballRadius**2-radius**2));
  const inlet=u=>{const a=u*2*Math.PI;return inletCenter.clone().addScaledVector(x,radius*Math.cos(a)).addScaledVector(y,radius*Math.sin(a)).toArray();};
- const outlet=u=>{const a=u*2*Math.PI;return V([.035*Math.cos(a),.035*Math.sin(a),-.014]).applyMatrix4(intoShoulder).toArray();};
+ const outlet=u=>{const a=u*2*Math.PI;return V([radius*Math.cos(a),radius*Math.sin(a),-.014]).applyMatrix4(intoShoulder).toArray();};
  // Maintain the circle's in-plane coordinates, but drape the supporting cowl
  // forward of the retained joint sphere. This is an analytic one-sphere
  // clearance constraint, not mesh collision or a projected reference image.
