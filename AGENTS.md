@@ -18,6 +18,13 @@ posed clay/silhouette first. Keep costume, texture and shader work separate unti
 the plain stance is convincing. This original proxy is not a Mixamo download or
 verified animation-retargeting implementation. Preserve the detailed android.
 
+For the user's actual Mixamo request, read `docs/imported-humanoid.md`. The
+optional Xbot study uses a pinned real Adobe/Mixamo input from the official
+Three.js example, kept out of source/gallery. Resume that existing skeleton
+instead of approximating it again. Keep attribution, original skin buffers and
+bind transforms; prove import/export correctness before claiming compatibility.
+Confidence remains a visual pose judgment, not a knee-angle or test score.
+
 ## Ordinary requests
 
 - Read README.md, src/lib/modeling.js, and a relevant recipe before editing. Organic forms use docs/organic-modeling.md. Characters now use docs/composable-characters.md and models/reference-explorer.js. Read docs/rigging.md for the general skeleton API.

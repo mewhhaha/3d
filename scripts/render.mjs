@@ -23,6 +23,7 @@ const modules = {
   'three/addons/geometries/RoundedBoxGeometry.js':'node_modules/three/examples/jsm/geometries/RoundedBoxGeometry.js',
   'three/addons/exporters/GLTFExporter.js':'node_modules/three/examples/jsm/exporters/GLTFExporter.js',
   stage:'src/render-stage.js',
+  bonePose:'src/lib/bone-pose-state.js',
   modeling:'src/lib/modeling.js', rigging:'src/lib/rigging.js',
   lighting:'src/lib/studio-lighting.js', exporter:'src/lib/export-assets.js',
   skinRoots:'src/lib/export-skin-roots.js',

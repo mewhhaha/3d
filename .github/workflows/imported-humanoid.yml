@@ -6,12 +6,21 @@ on:
     paths:
       - .github/workflows/imported-humanoid.yml
       - scripts/prepare-xbot.mjs
+      - scripts/load-xbot.mjs
+      - scripts/review-imported-humanoid.mjs
+      - src/lib/skeleton-pose.js
+      - src/lib/bone-pose-state.js
+      - studies/imported-xbot.js
+      - studies/xbot-pose.js
+      - tests/skeleton-pose.test.js
+      - src/render-stage.js
+      - scripts/render.mjs
 permissions:
   contents: read
 jobs:
   sample:
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v6
         with:
@@ -19,12 +28,20 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run prepare:tangents
       - run: node scripts/prepare-xbot.mjs
-      # Short-lived authoring input to enable offline local inspection; not Pages
-      # content, not a gallery model, and not placed in public Git history.
+      - run: node --test tests/skeleton-pose.test.js tests/local-render.test.js tests/two-link-pose.test.js tests/export-skin-roots.test.js
+      - run: npx playwright-core install --with-deps chromium
+      - name: Actual imported skin, authored stance and export roundtrip
+        run: node scripts/review-imported-humanoid.mjs
+      # Review evidence is not a third-party model library. Raw input and derived
+      # GLBs remain local evaluation data, not gallery or Pages content.
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: xbot-authoring-input
-          path: vendor-src/mixamo-example/
-          retention-days: 1
+          name: imported-humanoid-review
+          path: |
+            renders/imported-humanoid-review/**/*.png
+            renders/imported-humanoid-review/**/*.json
           if-no-files-found: error

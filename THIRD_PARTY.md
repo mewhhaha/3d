@@ -19,3 +19,22 @@ The reference artwork is generated concept art supplied in this conversation. It
 `scripts/prepare-tangents.mjs` derives ignored `src/generated/mikk-runtime.js` from the locked Three.js 0.186.0 `examples/jsm/libs/mikktspace.module.js`. It checks source SHA-256 `f415ebd2f7bbe4ac06439be40d2ca4a11bb17123009bb33582176b1b21a14dac`. The adaptation changes instance initialization to permit scratch-memory recycling; it does not change the tangent algorithm or embedded Wasm bytes. The site retains Three.js's license at `vendor/three/LICENSE`, copied from the installed dependency.
 
 Upstream tangent implementation: https://github.com/donmccurdy/mikktspace-wasm and https://github.com/gltf-rs/mikktspace, implementing the MikkTSpace standard by Morten S. Mikkelsen. The repository's adapter and tests must not be represented as an original implementation of that standard. See `docs/arm-study.md` for limitations and reproduction commands.
+
+## Optional actual Mixamo rig study (not a bundled gallery asset)
+
+`studies/imported-xbot.js` uses **Adobe/Mixamo Xbot**, publicly distributed and
+credited by the official Three.js additive-skinning example:
+https://threejs.org/examples/webgl_animation_skinning_additive_blending.html .
+The upstream pinned input is
+https://github.com/mrdoob/three.js/blob/148ef33ecb6d2502ff796d4554abd1549c95d519/examples/models/gltf/Xbot.glb .
+Git blob: `3805d73e7c9cecef16f69dd0b0f1ce649f69c653`;
+SHA-256: `002f8d269de68e5dce3d25195caf390d1aa359bbfaae3fcf4c8dc78ec36c3ba5`.
+
+Its mesh, weights, 67-bone rig and source animations are not workshop-authored,
+not the MakeHuman asset, and not our 28-bone procedural mannequin. Adobe's project
+usage terms/FAQ apply: https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html .
+Do not infer a general CC0/MIT asset-redistribution license from Three.js's code
+license. Preparation is explicit, verified, and cached under ignored vendor-src;
+raw/modified meshes are not added to Git or the default gallery/Pages output.
+The initial one-day authoring-input artifact enabled local inspection during a
+DNS outage; final CI artifacts publish rendered images and verification only.

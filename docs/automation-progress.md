@@ -1,5 +1,48 @@
 # Automated refinement progress
 
+## 2026-09-20 — actual Mixamo input, existing-skeleton pose controls
+
+Base **dc3f5fa62bffee8a8a4037da0dd95a3bdf0fbbd5** verified by connected GitHub
+and exact locked tree. First checkpoint **6432d3915516ceefe5cb73b5e41116260eb162e2**
+prepared a pinned, official Three.js Xbot input credited to Adobe/Mixamo; its
+real download job succeeded. The containing follow-up commit completes the
+actual import/pose/render work, not another approximation of the screenshot.
+
+The imported source has **67 bones / 2 skins / 49,112 triangles**. Pose controls
+act on its existing hierarchy, preserving all geometry, UVs, skin weights and
+inverse binds. Added `skeletonPose()` for named world-target solving, local/world
+rotation and held clips; exercised on the imported rig, original mannequin and
+a transformed synthetic chain. The local renderer now restores captured local
+bone transforms, fixing the .01 non-bone Armature scale being applied twice.
+The actual source skin parent layout is normalized only under verified identity-
+bind assumptions. Existing original mannequin and detailed android stay intact.
+
+The new pose places a more vertical supporting leg beneath the hip, counterturns
+the torso, relaxes the other knee and rotates the hands inward. 10/24.59-degree
+knees are kinematic intent, not proof of physical balance or likeness. The stock
+proportions and faceless head still require artistic judgment; no costume or
+texture work was used to conceal them.
+
+Local doctor; **29/29 expanded tests**; **45-recipe build**; actual local-render
+regression passed (its old hand fixture retains six warnings). Final imported
+review: **5 cases / 24 images / 2 zero-warning GLBs**; all 28,374 vertices checked
+on reimport, maximum error **3.30e-10 m**. Original rest/idle/walk deformation is
+preserved after import hierarchy normalization (<5e-16 m). Original mannequin
+review also rerun: **65 images / 3 valid exports**. Full local suite bounded at
+180s after **193 passing subtests**; not a complete suite pass.
+
+Final review fingerprint:
+`020da1680f5ef7b49289dc865ed6bbcc8ecca15a51182b38dcbc2343912a1b8f` (265 files).
+[API/import workflow](imported-humanoid.md) ·
+[source notes](research/actual-mixamo-and-bind-frames.md) ·
+[full checkpoint and rejected trials](checkpoints/2026-09-20-imported-humanoid.md).
+Raw input stays in ignored vendor-src. CI publishes rendered evidence/reports,
+not third-party model packs. New-commit CI pending at checkpoint; no native
+Blender, Pages or general motion-retargeting claim.
+
+Next: work from the actual standard rig to refine the confident pose/proportions,
+not rebuild another base or resume unrelated armor detail.
+
 ## 2026-09-20 — keep the humanoid simple; control its supporting leg
 
 Base **682d7e1265a1315ffe47dbe40c94fae01c357407**, reconstructed tree

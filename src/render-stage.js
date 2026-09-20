@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {captureBonePose} from './lib/bone-pose-state.js';
 import { hydrateScene, findSceneLook, createLookRenderer } from './lib/scene-look.js';
 import { inspect, dispose } from './lib/modeling.js';
 import { assetInfo } from './lib/rigging.js';
@@ -13,7 +14,7 @@ document.body.append(renderer.domElement);
 const scene = new THREE.Scene();
 const lighting = createStudioLighting(scene, renderer);
 const lookRenderer = createLookRenderer(renderer,scene);
-let root, sourceJSON, mixer, poseName = '', poseTime = 0;
+let root, sourceJSON, mixer, restoreBones, poseName = '', poseTime = 0;
 const clips = () => {
   const result = new Map();
   root.traverse(o => o.animations?.forEach(c => result.set(c.name, c)));
@@ -29,7 +30,7 @@ function pose(name = '', time = 0) {
   mixer.stopAllAction();
   const skeletons = new Set();
   root.traverse(o => { if (o.isSkinnedMesh) skeletons.add(o.skeleton); });
-  skeletons.forEach(s => s.pose());
+  restoreBones();
   if (animation) mixer.clipAction(animation).reset().play();
   mixer.setTime(time);
   root.updateMatrixWorld(true);
@@ -100,7 +101,7 @@ async function load({ json }) {
   if (root) { mixer.stopAllAction(); mixer.uncacheRoot(root); scene.remove(root); dispose(root); }
   sourceJSON=json;
   root=await new THREE.ObjectLoader().parseAsync(JSON.parse(json));
-  hydrateScene(root); scene.add(root); mixer=new THREE.AnimationMixer(root); pose();
+  hydrateScene(root); scene.add(root); restoreBones=captureBonePose(root); mixer=new THREE.AnimationMixer(root); pose();
   const names=[];root.traverse(o=>{if(o.name)names.push(o.name);});
   return {stats:inspect(root),rig:assetInfo(root),names:[...new Set(names)],uploadMs:performance.now()-start};
 }
