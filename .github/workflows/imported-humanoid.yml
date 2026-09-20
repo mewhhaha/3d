@@ -1,0 +1,30 @@
+name: Imported humanoid study
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/imported-humanoid.yml
+      - scripts/prepare-xbot.mjs
+permissions:
+  contents: read
+jobs:
+  sample:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: node scripts/prepare-xbot.mjs
+      # Short-lived authoring input to enable offline local inspection; not Pages
+      # content, not a gallery model, and not placed in public Git history.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xbot-authoring-input
+          path: vendor-src/mixamo-example/
+          retention-days: 1
+          if-no-files-found: error
