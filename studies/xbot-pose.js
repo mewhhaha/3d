@@ -56,3 +56,17 @@ export function xbotPoised(rig,{hipShift=[-.055,0,-.008],chest=[-4,-14,10],pelvi
   r.orientWorld('Head',head);
  });
 }
+
+/** Deliberate far-hand placement for the longer-legged form, rather than keeping
+ * a stock wrist target inside the new thigh. Feet and near hand stay fixed. */
+export function xbotSilhouette(rig,{wrist=[-.21,.90,-.005],shoulderRoll=-4}={}){
+ xbotPoised(rig);
+ const hand=rig.orientation('RightHand').normalize();
+ rig.rotateWorld('RightShoulder',[0,0,shoulderRoll]);
+ const shoulder=V(rig.position('RightArm'));
+ const solved=rig.solve({root:'RightArm',joint:'RightForeArm',tip:'RightHand',target:wrist,
+  pole:shoulder.clone().add(new THREE.Vector3(-.28,-.1,-.32)).toArray()});
+ const angles=new THREE.Euler().setFromQuaternion(hand,'XYZ');
+ rig.orientWorld('RightHand',[angles.x,angles.y,angles.z].map(THREE.MathUtils.radToDeg));
+ return solved;
+}

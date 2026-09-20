@@ -1,5 +1,41 @@
 # Automated refinement progress
 
+## 2026-09-20 — refit rest proportions before posing the imported skin
+
+Base **60b87b41b45d58820d8d6af41efe718102268aa1**, exact locked tree
+`e7db2d640a8854dd4c2dfc209bf2f1f243ae17b8` verified through GitHub. Continued the
+actual Xbot rather than restoring a stale mannequin or detailed armor snapshot.
+The containing commit is the implementation revision.
+
+New `refitSkinBind` applies one field to rest geometry AND rest joints, transports
+normals, retains topology/UVs/weights, and computes fresh inverse binds. Tangents,
+old clips, morphs and dependent baked maps are not silently reused. Optional
+`form: tailored` lengthens the leg chains about 7 cm relative to the torso and
+reduces torso bulk. New `silhouette` independently lowers/clears the far arm.
+Old stock and pose variants remain available. Same operation refits an unrelated
+four-bone flexible tail before authoring its bend. **49,112 Xbot triangles**,
+unchanged; no new shader, texture, normal bake or costume.
+
+Local doctor; **40/40 expanded tests**; targeted model **1/1**; **45-recipe build**;
+actual runtime regression passed (legacy hand's six warnings retained). New
+review: **11 cases / 48 images / 3 zero-warning GLBs**, full-vertex skin reimport
+in all four clips (<8.70e-8 m). Existing stock review also completed **43 images /
+4 valid exports**. Both reviews share fingerprint
+`4b01c88fc16a1e06124498013271aa8d20bb47493a95c185d11ff6e2fa9ec9e6` (270 files).
+Full local suite bounded at 180s after **189 passing subtests**, not a full pass.
+
+[API](refit-skin-bind.md) · [source notes](research/rest-shape-and-skin-bind.md) ·
+[checks, rejected trials, limitations](checkpoints/2026-09-20-bind-form.md).
+The leg/torso ratio and far-hand contour improve locally; the stock head, segmented
+waist/shoulders, feet and overall attitude still differ from the illustration.
+The refit is deliberate changed bind data, not unchanged bone lengths or motion
+retargeting. Keep costume off until the plain form/pose is convincing.
+
+Evidence: `renders/bind-form-review/`, `renders/stock-final-review/` and logs.
+Existing imported CI runs both reviews; final-commit CI/Pages pending at source
+checkpoint. No raw/derived third-party meshes enter Git/Pages/CI artifacts.
+Next: rib/neck and hip/thigh transitions on this explicit refitted bind.
+
 ## 2026-09-20 — pin contacts while editing the actual imported body
 
 Base **631e1ecb94b1a10580c386385910b72db26f498c**, exact tree
