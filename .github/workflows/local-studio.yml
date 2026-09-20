@@ -14,6 +14,8 @@ on:
       - tests/two-link-pose.test.js
       - src/lib/skeleton-pose.js
       - src/lib/bone-pose-state.js
+      - tests/skeleton-pins.test.js
+      - studies/pinned-inspection-arm.js
       - tests/skeleton-pose.test.js
       - src/lib/humanoid-rig.js
       - src/lib/humanoid-mannequin.js
@@ -59,7 +61,7 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run prepare:tangents
       - name: Sculpt, study and local runtime unit tests
-        run: node --test tests/skeleton-pose.test.js tests/local-render.test.js tests/sculpt-forms.test.js tests/study.test.js tests/shot-rig.test.js tests/humanoid-mannequin.test.js tests/export-skin-roots.test.js tests/humanoid-shot.test.js tests/humanoid-support.test.js tests/two-link-pose.test.js
+        run: node --test tests/skeleton-pins.test.js tests/skeleton-pose.test.js tests/local-render.test.js tests/sculpt-forms.test.js tests/study.test.js tests/shot-rig.test.js tests/humanoid-mannequin.test.js tests/export-skin-roots.test.js tests/humanoid-shot.test.js tests/humanoid-support.test.js tests/two-link-pose.test.js
       - run: npx playwright-core install --with-deps chromium
       - name: In-memory WebGL, dependency freshness and export isolation
         run: npm run test:render

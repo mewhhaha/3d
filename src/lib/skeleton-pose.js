@@ -58,6 +58,40 @@ export function skeletonPose(root,{names={}}={}){
     aim(from,joint,solved.joint);aim(joint,tip,solved.target);return solved;
    }catch(error){restore(before);throw error;}
   },
+  /** Edit the body while retaining each captured end-effector position and,
+   * by default, orientation. Independent direct two-link chains only. Re-solves
+   * rotations at fixed lengths; any failure rolls back all captured bone TRS. */
+  withPins(chains,author){
+   if(!Array.isArray(chains)||!chains.length||typeof author!=='function'||author.constructor?.name==='AsyncFunction')throw new Error('Pins require chains and a synchronous edit');
+   const used=new Set();
+   const pins=chains.map(({root:from,joint,tip,pole,swivel=0,orientation:keepOrientation=true})=>{
+    const nodes=[bone(from),bone(joint),bone(tip)];
+    if(nodes[1].parent!==nodes[0]||nodes[2].parent!==nodes[1])throw new Error('Pins require directly connected chains');
+    for(const node of nodes){if(used.has(node))throw new Error('Pinned chains must not share bones');used.add(node);}
+    if(typeof keepOrientation!=='boolean')throw new Error('Pin orientation must be boolean');
+    const p=vector(pole,'pin pole').toArray();
+    if(!Number.isFinite(swivel)||Math.abs(swivel)>360)throw new Error('Invalid pin swivel');
+    const a=position(from),b=position(joint),c=position(tip);
+    return {root:from,joint,tip,pole:p,swivel,target:c,
+     lengths:[V(a).distanceTo(V(b)),V(b).distanceTo(V(c))],
+     quaternion:keepOrientation?orientation(tip).normalize():null};
+   });
+   // A serial chain depending on another pin's descendant needs a coupled IK
+   // solver. Do not silently promise simultaneous contact for such a topology.
+   for(const pin of pins){let parent=bone(pin.root).parent;while(parent){if(used.has(parent))throw new Error('Pinned chains must be independent branches');parent=parent.parent;}}
+   const previous=snapshot();
+   try{
+    const result=author(api);if(result?.then)throw new Error('Pinned edits must be synchronous');
+    sync();
+    return pins.map(pin=>{
+     const current=[V(position(pin.root)).distanceTo(V(position(pin.joint))),V(position(pin.joint)).distanceTo(V(position(pin.tip)))];
+     if(current.some((n,i)=>Math.abs(n-pin.lengths[i])>1e-8*Math.max(1,n,pin.lengths[i])))throw new Error('Pinned edit changed a link length');
+     const solved=api.solve(pin);
+     if(pin.quaternion)setWorldQuaternion(bone(pin.tip),pin.quaternion);
+     return solved;
+    });
+   }catch(error){restore(previous);throw error;}
+  },
   hold(name,author){
    if(typeof name!=='string'||!/^[A-Za-z][A-Za-z0-9_-]*$/.test(name)||typeof author!=='function')throw new Error('Invalid pose clip');
    const previous=snapshot();try{

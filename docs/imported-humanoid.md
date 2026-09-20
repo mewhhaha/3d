@@ -55,7 +55,7 @@ physical balance, finger-contact or animation-retargeting system.
 tracks and restores the caller's previous pose in `finally`, including failed
 experiments. These clips are static pose holds, not motion capture or walking.
 The imported source's original clips stay in the verified cache; the study
-exports only the two workshop-authored clips, `neutral` and `confident`.
+exports the workshop-authored clips `neutral`, `confident`, and `poised`.
 
 ## Import/preview/export correctness
 
@@ -73,7 +73,7 @@ while keeping the bone hierarchy and its unit conversion. The existing explicit
 export-skin-root stage can then export them at true scene roots. This is a
 **sample-specific verified layout correction**, not an arbitrary FBX normalizer.
 Tests compare all 28,374 deformed vertices before/after this change for rest,
-`idle` and `walk`, and reimport both authored clips after GLB export. Original
+`idle` and `walk`, and reimport all three authored clips after GLB export. Original
 geometry attributes, indices and bone inverse matrices remain unchanged.
 
 Each study build owns cloned geometry/materials and a correctly cloned skeleton.
@@ -86,3 +86,19 @@ a relaxed other knee, hip/chest opposition, hand roll and a raised chin make its
 intent clearer, but the stock proportions, shoulder/waist gaps and faceless head
 are not an accurate recreation of the supplied illustration. Establish that
 plain silhouette before fitting the existing robot costume to this skeleton.
+
+## Whole-body edits with pinned end effectors
+
+The study now also exports `poised`, while `neutral` and `confident` remain
+unchanged. It uses [withPins](skeleton-pins.md) to change pelvis/chest opposition
+and clavicle attitude without sliding or reorienting the existing hand/foot
+frames. The source proportions and all skin buffers remain those of Xbot.
+
+```sh
+node scripts/render.mjs studies/imported-xbot.js --pose poised --time .5 \
+  --views hero,side --passes material,clay,silhouette
+```
+
+This is a reviewed pose candidate, not a likeness/balance certification. The
+stock head, rib/waist/pelvis shape, far-arm overlap and segmented joints still
+limit the match. No costume or new shading has been used to hide them.

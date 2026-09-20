@@ -12,6 +12,8 @@ on:
       - src/lib/bone-pose-state.js
       - studies/imported-xbot.js
       - studies/xbot-pose.js
+      - tests/skeleton-pins.test.js
+      - studies/pinned-inspection-arm.js
       - tests/skeleton-pose.test.js
       - src/render-stage.js
       - scripts/render.mjs
@@ -31,7 +33,7 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run prepare:tangents
       - run: node scripts/prepare-xbot.mjs
-      - run: node --test tests/skeleton-pose.test.js tests/local-render.test.js tests/two-link-pose.test.js tests/export-skin-roots.test.js
+      - run: node --test tests/skeleton-pins.test.js tests/skeleton-pose.test.js tests/local-render.test.js tests/two-link-pose.test.js tests/export-skin-roots.test.js
       - run: npx playwright-core install --with-deps chromium
       - name: Actual imported skin, authored stance and export roundtrip
         run: node scripts/review-imported-humanoid.mjs

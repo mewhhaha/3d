@@ -35,3 +35,24 @@ export function xbotStance(rig,{confident=true}={}){
  }
  return result;
 }
+
+
+/** Independent pin constraints make shoulder and torso acting edits possible
+ * without hand/foot sliding. The previous confident pose stays available. */
+export function xbotPoised(rig,{hipShift=[-.055,0,-.008],chest=[-4,-14,10],pelvis=[0,-4,-3],head=[2,-26,24],shoulders=[-5,4]}={}){
+ xbotStance(rig);
+ const pins=[];
+ for(const [side,sign]of [['Left',1],['Right',-1]]){
+  pins.push({root:side+'UpLeg',joint:side+'Leg',tip:side+'Foot',pole:V(rig.position(side+'UpLeg')).add(new THREE.Vector3(-.45,-.3,.6)).toArray()});
+  pins.push({root:side+'Arm',joint:side+'ForeArm',tip:side+'Hand',pole:V(rig.position(side+'Arm')).add(new THREE.Vector3(sign*.25,-.1,-.45)).toArray()});
+ }
+ return rig.withPins(pins,r=>{
+  r.rotateWorld('Hips',pelvis);r.translateWorld('Hips',hipShift);
+  r.rotateWorld('Spine',chest.map(x=>x*.25));
+  r.rotateWorld('Spine1',chest.map(x=>x*.35));
+  r.rotateWorld('Spine2',chest.map(x=>x*.40));
+  r.rotateWorld('LeftShoulder',[0,0,shoulders[0]]);
+  r.rotateWorld('RightShoulder',[0,0,shoulders[1]]);
+  r.orientWorld('Head',head);
+ });
+}
