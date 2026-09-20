@@ -1,0 +1,105 @@
+{
+  "provenance": {
+    "source": "User-approved generated texture guide, not original reference",
+    "sha256": "6dedf371c320c0499057b757541992e65ef2ac2d799343ec0e597b687b47c575",
+    "sourceSize": [
+      1254,
+      1254
+    ],
+    "operation": "crop; resize 32x32 LANCZOS; quantize 32 colors; no normal/roughness inference"
+  },
+  "swatches": {
+    "enamel": {
+      "name": "Generated enamel color sample",
+      "width": 32,
+      "height": 32,
+      "palette": [
+        "#e4e0de",
+        "#e5dfdd",
+        "#e4dfdd",
+        "#e4dfdc",
+        "#e3dfdd",
+        "#e4dedc",
+        "#e3dedd",
+        "#e3dedc",
+        "#e4dedb",
+        "#e3dedb",
+        "#e3deda",
+        "#e2dedb",
+        "#e4dddb",
+        "#e3dddc",
+        "#e3dddb",
+        "#e3ddda",
+        "#e2dddc",
+        "#e2dddb",
+        "#e2ddda",
+        "#e1dddb",
+        "#e3dcda",
+        "#e2dcdb",
+        "#e2dcda",
+        "#e2dcd9",
+        "#e1dcdb",
+        "#e1dcda",
+        "#e0dcdb",
+        "#e1dcd9",
+        "#e1dbd9",
+        "#e0dbd9",
+        "#dfdad8",
+        "#d8d2cf"
+      ],
+      "indices": "AgQHFREQBwYEAgcHCwQAAhAdEREVGRkeHRAGEx4dHx8ABBkVEA0HGQ4EBwcTAgcHBwURGREWDR0cDQIHHh4fHwIGHhYHBQkFBQkEBwcLDgkWDRYVGRYWGRENBgsdHh8fBhMdEQ0FCQUHDQIJBwcHBxwWFgsOERkcFhEOBwscHx4LBgYFBQUDBAcHDRITEREFAAUJCwcHBxkXGAkJCxEeBwYEAAICAAcRAxETEhERBwgDBQUZBgwOGBsWFg4ZBwkTBwYHAgACAgcGAgsJBw4OCQUHDhERBw4REhIUHB0RDgsFAAICBwsHBQcJEhEFDgsJHA4REBEZHh4SGRcSEAcQBAAAAAACEREFDRERDw4REQ8WExgQERYcHBkbHg4HAgIDAAQGAg4LBwQTCRERBhEWCwYHGREZFhwVERISEAUFBgkAAAIEAh8fBRYOCwsRFA8OBQkSFRYcFhkREQkJDwgHBwAAAAAEHx8ZDg4NDgcJFxICBxIWHRwWEhsHAg4JCxEJAQICAAQEER4eBxYRBQ4TDwQHFhEcFxYPFwIJCQ8UEA8AAAACCwcSDQsLCwkFBQkODgUWFhEWGxcPAwkOEhwLEgQEAgQDAgcSFwkEAwQHEhQMCRIRFRkWDxIPBRkTCxEKAAAEAwIHBQkJBwICDhEODhEZHRwcFhEOEhkRGRERGRkRCxwFBAUHDQQRCwIREA4HFhsTHRkeHhwbGREWFRMZHgcEBwkEBwcJBwcECRAEAw0NBQkYBxEdHBwZFhkZExodEQ0HERERDRIJDgUEAgUKCxUWEQ0RFhYcFg4cEhIZHhsHBhARBwcNFgMHCwYHDQsREREQGRkRFg4UERUcFx0eGxEEBwcHBwULBwQEDgsRERUWDhERDhQWFxYOERwXGx4ZCwIHAwIJDxIDAQUNBw0RERkOCQcSDgkSEREWFhsdHhMeEQcHBQkRDA8OBwcZBxERERYSERYPDgYHBAceER4bHgQEHhIbHA4HEAsLBxgQBxYZHBEbFhUWGxsWERIdHh4eAAAHEh0RDg0LBBEHBwYHExEZGRseHBceHBcRHBkQHR0CBAUEGxESCw0HBwcRGRAWExESGxIJBxYWDgsQERATDQcQEQsWHBsLEg0HBxIREBYYGxYQCQsRERISEQkHAgcOBwsZERkeGRYRBwIFCQ0JGRkdDg4LDRUZFgkNGwMHEBYRCxkRFh4dFRERCQkSERcVERkSEQ4VEREWCQMLAAcLER0aEwccER0TERIOCxkeERERGxERDhUODggWAQIEHhELHh4cEx4eGRESEQcRHR4HEhYbFBYWDg4SCRIRExMdExEeHh4eHhkdHRIRBxkdHhwRFBwXFhIWHRMSCQsTDRMYFg==",
+      "sourceCrop": [
+        236,
+        164,
+        314,
+        241
+      ]
+    },
+    "rubber": {
+      "name": "Generated rubber color sample",
+      "width": 32,
+      "height": 32,
+      "palette": [
+        "#2c2d2d",
+        "#2c2c2d",
+        "#2c2c2c",
+        "#2b2c2c",
+        "#2d2b2c",
+        "#2c2b2d",
+        "#2c2b2c",
+        "#2c2b2b",
+        "#2b2b2d",
+        "#2b2b2c",
+        "#2b2b2b",
+        "#2b2b2a",
+        "#2a2c2c",
+        "#2a2b2c",
+        "#2a2b2b",
+        "#292b2b",
+        "#2a2b2a",
+        "#2c2a2c",
+        "#2b2a2d",
+        "#2b2a2c",
+        "#2b2a2b",
+        "#2b2a2a",
+        "#2a2a2c",
+        "#2a2a2b",
+        "#2a2a2a",
+        "#2a2a29",
+        "#2a292b",
+        "#2a2929",
+        "#2b282b",
+        "#292a2a",
+        "#29292a",
+        "#29282a"
+      ],
+      "indices": "AAEGAQkXCQQKCgECAgEBAgMICQUJDgMDEBQSChYKGBIBAwoRCgoOCQIIAQABAQEAAAICAgECBwoDExMUCRQQBgEGEwYKBhMQAQkJAAMKBgADAgYFAwIDCgYKCgYUBAcKAAkUGAkXFAEBCggBAwYRCQMCAwECCQEJCgIKCRsbGAICAwYRCAYNEwkTAQoCBxQKFgEACQAABg0KBg4KGAsQEAgKFBQGBQ4aFwETFAcJExMXCAAJAgIKCgIJChcKDhgXERQUBhEXCQ4ODhQKEwkKGBcNAgEKBwMXBgEXFhYYGQoJBQYFBgcFCBMJCQoUFx4YFwkGEQICAQYXChcLCxQLCQkJGAMUEQkUExcXGAYOHhUGCQYUAgkXAhQYGB4JChQUFwkXAgoUChoUFx4YCx0bGxoKERMQAxMJCAoWGhgYFxgTFAcKAwoUERYJFxoKCR4ZHRcXFhcGARMXDRYJFwkJGBMXBgEKCgMTFBcJHRgTHR4JCQoKCQkOGBgJFwkKGAMGCgoKCQYVAgoXCg0IFRoXGxcYGBQXFwkXChcKCRgQDgoKChgOBgoYGBcXFxcXGBgYGAoUFB4YCRcKFQoYGBQUFxgYDgIMGgcXFwoJChcXGhgJChQaGBAQEBQUFx0XBgsVGhcGAggJCQUKFBcXChMaHhMYGBcdGBgUGhcICB4ZGAoTCh0TBRMICgIJCQ4LFBQQGBcXCQ4VFxQXGRAWGh4YChcaFBQUDg0BCRcJAxQYFBQKEwkTCh4UCRQaHQ4WBhMXHhcUCRMXChMWGhcBCQMCDhcJFBcYFBQUFxgXExcKChQdFwoUChQUFxYJCgMMAwETFxcNChQUCRgXCxQaFwkXBh4aERMLChcMAQEGDQ4DCRcKExcRBhcdHhgYHhUKDRcUGhcTCQkNDQkIFgkICg0IEBEGFQoGCQ4XFwsXDRcXCQoWFB4QFwkJGBcJDhcJBQkVBxQUCgUUGQkXGBUOFgYGAwkXFwcYDgAKCgMUEAoKBhEVFxQKFw4UHhceHhcUERQVFxMHCg4JCRUJAgYGCQMCGgkWCQMJCQoWFxQWFBgKFxsUBxEUFBEKCgoJAwkJBgMLEwoXAw4KFxYKGAkBGBQXGBgXGBoaGgoQFRcJCQ4KAgoHCgkBCRcdFgkXCgkdGhgYGB4DCRYaFBQXHRMBCQ4OFwcXEw0XCQ4UCQYYDhoeHQoeDRYeFBwaFxMWFwkXCQkOCQkICA0JEwkXGAkUChkYCRUYFx4fHx8eHR4dCRcJCAkUDwgJExcXFxoYFhYOGBcUGh4eGh8eGhoXHQ0JCgYJGBcTFwcWFxoLDhQKCQoLBhQVHh8fHx4aFAYJDgoKGAsdFw4VGgoXExAKGBgXDgcUEA==",
+      "sourceCrop": [
+        708,
+        204,
+        767,
+        258
+      ]
+    }
+  }
+}

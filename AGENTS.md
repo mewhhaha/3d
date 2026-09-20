@@ -8,6 +8,16 @@ Read `docs/local-studio.md`. Run `npm run doctor`, then render only the changed 
 
 Use `src/lib/forms/sculpt.js` for compact masks, strokes and shared-cage brushes, and `cage-asset.js` for corresponding high/low representations. Sculpt primary form before adding bake-only detail. Do not confuse the independent cage studies with the legacy MakeHuman-based character, or silently replace accepted components. Commit each tested improvement to main without force pushes. Keep source fingerprints, code revision and deployment status distinct.
 
+## Current costume pass
+
+The user has approved adding **rough armor and generated color-texture samples**
+to the corrected upright rig. Read `docs/bone-mounted-armor.md` and use
+`studies/prism-armor-blockout.js`. Preserve `upright`; do not revert to the old
+static android or reintroduce the rejected torso countertwist. The previous
+stale-kit local armor experiment was not published and is not the active base.
+Generated concept/material boards are design aids, never the original reference
+or rendered geometry. Preserve imported-asset provenance and artifact isolation.
+
 ## Plain humanoid foundation (current body/pose work)
 
 **Latest user correction:** read `docs/standing-pose.md`. The requested pose is
