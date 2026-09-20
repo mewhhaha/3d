@@ -8,6 +8,16 @@ Read `docs/local-studio.md`. Run `npm run doctor`, then render only the changed 
 
 Use `src/lib/forms/sculpt.js` for compact masks, strokes and shared-cage brushes, and `cage-asset.js` for corresponding high/low representations. Sculpt primary form before adding bake-only detail. Do not confuse the independent cage studies with the legacy MakeHuman-based character, or silently replace accepted components. Commit each tested improvement to main without force pushes. Keep source fingerprints, code revision and deployment status distinct.
 
+## Plain humanoid foundation (current body/pose work)
+
+Read `docs/humanoid-foundation.md`, `docs/mannequin-shot.md`, `docs/support-leg.md`
+and the latest journal before further character edits. Resume the existing
+28-bone `humanoid-mannequin` and `prism-mannequin-shot` studies; do not create a
+second rig or restore a stale armor snapshot. Judge neutral proportions and
+posed clay/silhouette first. Keep costume, texture and shader work separate until
+the plain stance is convincing. This original proxy is not a Mixamo download or
+verified animation-retargeting implementation. Preserve the detailed android.
+
 ## Ordinary requests
 
 - Read README.md, src/lib/modeling.js, and a relevant recipe before editing. Organic forms use docs/organic-modeling.md. Characters now use docs/composable-characters.md and models/reference-explorer.js. Read docs/rigging.md for the general skeleton API.

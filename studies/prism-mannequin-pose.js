@@ -12,3 +12,11 @@ export const shotPose={
   Right:{ankle:[-.012,.09444444444444444,-.075],kneePole:[-.36,.35,.40],wrist:[-.15,.52,.00],elbowPole:[-.22,.63,-.25]},
  },
 };
+
+// Support-leg study: retain bind measurements and planted targets; lift one iliac
+// crest and let a bounded root slide establish leg extension before solving limbs.
+// This is an explicit kinematic pose hypothesis, not a balance simulation.
+export const stancePose={
+ ...shotPose,hips:[0,-45,5],waist:[8,0,-32],
+ support:{side:'Left',bend:14,maxShift:.06},
+};

@@ -45,3 +45,28 @@ export function twoLinkPose({root,target,lengths,pole,swivel=0,jointPlane=null}=
  const angle=joint.clone().sub(a).angleTo(c.clone().sub(joint));
  return {root:[...root],joint:joint.toArray(),target:[...target],lengths:[...lengths],bendDegrees:THREE.MathUtils.radToDeg(angle),swivel,...(planeInfo?{jointPlane:planeInfo}:{})};
 }
+
+/** Slide a two-link root along one author-chosen line to obtain a bend angle.
+ * 0 degrees is straight. The endpoint and lengths are fixed; the nearest of the
+ * line/sphere intersections is selected. This is kinematics, not physical balance.
+ * Feed the returned root into twoLinkPose to choose the bend plane separately.
+ */
+export function slideRootForBend({root,target,lengths,bendDegrees,direction=[0,1,0],maxSlide}={}){
+ const a=vector(root,'root'),end=vector(target,'target'),axis=vector(direction,'slide direction');
+ if(!Array.isArray(lengths)||lengths.length!==2||!lengths.every(n=>Number.isFinite(n)&&n>0))throw new Error('slideRootForBend needs two positive lengths');
+ if(!Number.isFinite(bendDegrees)||bendDegrees<0||bendDegrees>=180)throw new Error('bendDegrees must be in [0,180)');
+ if(!Number.isFinite(maxSlide)||maxSlide<0)throw new Error('maxSlide must be a finite nonnegative distance');
+ const magnitude=axis.length();if(!Number.isFinite(magnitude)||magnitude<1e-12)throw new Error('slide direction must be nonzero');axis.divideScalar(magnitude);
+ const [upper,lower]=lengths,span=upper+lower;
+ const distanceSquared=(upper-lower)**2+4*upper*lower*Math.cos(THREE.MathUtils.degToRad(bendDegrees)/2)**2;
+ const delta=a.clone().sub(end),along=delta.dot(axis),lateral=delta.clone().addScaledVector(axis,-along).lengthSq();
+ if(![span,distanceSquared,along,lateral].every(Number.isFinite))throw new Error('slide arithmetic exceeded finite range');
+ const discriminant=distanceSquared-lateral,tolerance=1e-12*Math.max(distanceSquared,lateral,1e-12);
+ if(discriminant < -tolerance)throw new Error('requested bend cannot reach the target on this slide line');
+ const radial=Math.sqrt(Math.max(0,discriminant)),first=-along+radial,second=-along-radial;
+ const slide=Math.abs(first)<=Math.abs(second)?first:second;
+ if(Math.abs(slide)>maxSlide+1e-10*Math.max(1,span))throw new Error('requested bend exceeds maxSlide');
+ const offset=axis.multiplyScalar(slide),result=a.add(offset);
+ if(!result.toArray().every(Number.isFinite))throw new Error('slide arithmetic exceeded finite range');
+ return {root:result.toArray(),target:[...target],lengths:[...lengths],offset:offset.toArray(),slide,bendDegrees};
+}

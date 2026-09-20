@@ -7,7 +7,11 @@ on:
       - .github/workflows/local-studio.yml
       - studies/prism-mannequin-*.js
       - scripts/review-mannequin-shot.mjs
+      - scripts/review-support-leg.mjs
+      - tests/humanoid-support.test.js
+      - src/lib/two-link-pose.js
       - tests/humanoid-shot.test.js
+      - tests/two-link-pose.test.js
       - src/lib/humanoid-rig.js
       - src/lib/humanoid-mannequin.js
       - src/lib/export-skin-roots.js
@@ -52,7 +56,7 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run prepare:tangents
       - name: Sculpt, study and local runtime unit tests
-        run: node --test tests/local-render.test.js tests/sculpt-forms.test.js tests/study.test.js tests/shot-rig.test.js tests/humanoid-mannequin.test.js tests/export-skin-roots.test.js tests/humanoid-shot.test.js
+        run: node --test tests/local-render.test.js tests/sculpt-forms.test.js tests/study.test.js tests/shot-rig.test.js tests/humanoid-mannequin.test.js tests/export-skin-roots.test.js tests/humanoid-shot.test.js tests/humanoid-support.test.js tests/two-link-pose.test.js
       - run: npx playwright-core install --with-deps chromium
       - name: In-memory WebGL, dependency freshness and export isolation
         run: npm run test:render
@@ -64,6 +68,8 @@ jobs:
         run: node scripts/review-humanoid.mjs
       - name: Plain shot pose, locked cameras and skin roundtrip
         run: node scripts/review-mannequin-shot.mjs
+      - name: Plain support-leg stance and sliding-root reuse
+        run: node scripts/review-support-leg.mjs
       - name: Independent high-to-low normal measurement
         run: npm run measure:sculpt
       - uses: actions/upload-artifact@v4

@@ -87,3 +87,9 @@ visual refinement. Do not polish the mannequin into another detailed robot.
 Only after the foundation's form and pose are accepted should existing ceramic
 parts be fitted to the named bones/supports. No such rebinding is claimed in this
 checkpoint; the detailed android and its prior rigid pose controls are untouched.
+
+## Bounded support-leg posing
+
+See [support-leg controls](support-leg.md) for the optional knee-flexion/root-slide
+stage and plain fixed-camera comparison. Existing shape presets and clips stay
+unchanged; the new shot candidate is separate from the generic model.

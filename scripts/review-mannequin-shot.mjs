@@ -26,7 +26,7 @@ async function render(name,options){
    mixer.stopAllAction();mixer.uncacheRoot(root);return result;
   };
   report.roundtrip[name]={};
-  for(const pose of ['baseline','shot']){
+  for(const pose of ['baseline','shot','stance']){
    const a=sample(source,clips,pose),b=sample(decoded.scene,decoded.animations,pose);let maximum=0,samples=0;
    for(const [name,points]of Object.entries(a)){
     const key=name.replace(/\s/g,'_');assert.ok(b[key]||b[name],`Missing imported mesh ${name}`);

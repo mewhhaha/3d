@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {skeleton, clip} from './rigging.js';
-import {twoLinkPose} from './two-link-pose.js';
+import {twoLinkPose,slideRootForBend} from './two-link-pose.js';
 const V = p => new THREE.Vector3(...p);
 const degrees = a => new THREE.Quaternion().setFromEuler(new THREE.Euler(...a.map(THREE.MathUtils.degToRad), 'XYZ'));
 const finite = (x, lo, hi, name) => {
@@ -105,6 +105,10 @@ export function poseHumanoid(rig, pose=humanoidPose()) {
       if(!['wrist','ankle','elbowPole','kneePole'].includes(key)||!Array.isArray(p)||p.length!==3||!p.every(Number.isFinite))throw new Error('Invalid normalized reach '+key);
     }
   }
+  if(pose.support!==undefined){
+    const {side,bend,maxShift}=pose.support??{};
+    if(!['Left','Right'].includes(side)||!Number.isFinite(bend)||bend<0||bend>=180||!Number.isFinite(maxShift)||maxShift<0||maxShift>.2)throw new Error('Invalid support-leg control');
+  }
   const previous=rig.skeleton.bones.map(b=>({position:b.position.clone(),quaternion:b.quaternion.clone(),scale:b.scale.clone()}));
   try {
   reset(rig);
@@ -126,9 +130,19 @@ export function poseHumanoid(rig, pose=humanoidPose()) {
   }
   const targets={};
   const turn=degrees([0,pose.turn,0]);
-  for(const [index,side,sign] of [[0,'Right',-1],[1,'Left',1]]) {
+  const ankleTarget=side=>{
+    const p=pose.targets?.[side]?.ankle,index=side==='Right'?0:1;
+    return p?V(p).multiplyScalar(h):V([pose.feet[index][0]*h,d.ankleHeight,pose.feet[index][1]*h]).applyQuaternion(turn);
+  };
+  if(pose.support){
+    const {side,bend,maxShift}=pose.support;
+    const support=slideRootForBend({root:world(rig,side+'UpLeg').toArray(),target:ankleTarget(side).toArray(),lengths:[d.thigh,d.shin],bendDegrees:bend,maxSlide:maxShift*h});
+    rig.bones.Hips.position.add(V(support.offset));rig.root.updateMatrixWorld(true);
+    targets.support=support;
+  }
+  for(const [side,sign] of [['Right',-1],['Left',1]]) {
     const controls=pose.targets?.[side]??{};
-    const ankle=controls.ankle?V(controls.ankle).multiplyScalar(h):V([pose.feet[index][0]*h,d.ankleHeight,pose.feet[index][1]*h]).applyQuaternion(turn);
+    const ankle=ankleTarget(side);
     const hip=world(rig,side+'UpLeg'),pole=controls.kneePole?V(controls.kneePole).multiplyScalar(h):hip.clone().add(V([0,-.2*h,.65*h]).applyQuaternion(turn));
     const leg=twoLinkPose({root:hip.toArray(),target:ankle.toArray(),lengths:[d.thigh,d.shin],pole:pole.toArray()});
     aimBone(rig,side+'UpLeg',side+'Leg',leg.joint);aimBone(rig,side+'Leg',side+'Foot',leg.target);

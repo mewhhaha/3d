@@ -1,5 +1,35 @@
 # Automated refinement progress
 
+## 2026-09-20 — keep the humanoid simple; control its supporting leg
+
+Base **682d7e1265a1315ffe47dbe40c94fae01c357407**, reconstructed tree
+`e5f18299306f8e9bd8e580731b9e8dccb23f435c` verified exactly. Resumed the existing
+28-bone mannequin; did not duplicate it or restore the stale armor patch.
+
+New bounded `slideRootForBend` plus optional `pose.support` separates knee
+extension from fixed foot placement and bend-plane choice. The explicit `stance`
+clip changes pelvic counter-roll and gives the Left leg 14 degrees of flexion
+instead of 34.0193, retaining ankle/wrist targets and all bind geometry/weights.
+The other knee stays relaxed at 25.5802 degrees. No costume, texture or triangle
+increase. Same controls work on slender/broad builds and an independent slider
+boom; the old generic mannequin presets and detailed android remain unchanged.
+
+Local doctor, **24/24 expanded tests**, **40/40 local-studio unit tests**, targeted
+model **1/1**, **45-recipe build** passed. New support review: **11 cases / 32
+renders / 4 zero-warning GLBs**. Shot review and generic foundation rerun: **24
+and 65 images**, all five exports zero-warning; actual skin reimport max error
+<5.25e-8 m. All reviews share fingerprint
+`acbc6346104622d81ec884f8a3c12e23b2a7f8f11c796ffe58bb0800762a1abe` (258 files).
+Full suite bounded at 180s after **193 passing subtests** (exit 124), not a
+complete pass. Base local-studio and Pages CI verified successful; new commit
+CI pending at checkpoint. No Mixamo asset/retargeting or native Blender claim.
+
+[API](support-leg.md) · [Adobe/Blender source notes](research/mixamo-foundation-and-support.md) ·
+[checks, rejected request and limitations](checkpoints/2026-09-20-support-leg.md).
+The new plain stance is still a draft: rib/pelvis masses, shoulder/waist joins,
+mittens and foot placeholders need work. Keep costume and neon paused. Next is
+plain body proportion refinement, not further armor detail.
+
 ## 2026-09-20 — resume the plain humanoid and pose it for the shot
 
 **Published and verified:** implementation commit **75f7dabcdace383596255669cc6e4ea3f7c27b4c** is on main. Local-studio run **35474063615** completed successfully, including both mannequin reviews. Downloaded artifact **10593722980 / local-studio-review** independently contains 24 shot images plus 65 foundation images, with all five GLB exports reporting zero errors/warnings. The CI shot hero PNG is byte-identical to local, SHA-256 `57d70185f66b2f2e02bdb3e63767af948c2688967ba0c1f38e02a590c3a856a5`. Final generic-foundation review was also rerun locally after all pose changes. Targeted recipe default/determinism/parameter test: **1/1 passed**. Full local suite ended at its 180s bound after **187 passing subtests**, not a full-suite pass. No Pages or native Blender appearance claim.
