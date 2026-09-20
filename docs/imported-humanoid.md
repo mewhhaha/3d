@@ -1,5 +1,9 @@
 # Pose the actual Mixamo example, not another proxy
 
+**Current direction:** [upright standing correction](standing-pose.md). The user
+rejected the exaggerated shoulder/chest twist. Use the new `upright` clip for
+active pose review; previous candidates remain available for comparison.
+
 `studies/imported-xbot.js` loads **Adobe/Mixamo Xbot** from the public, explicitly
 credited Three.js additive-skinning example. Its 67-bone skeleton, two skins,
 49,112 triangles, UVs, weights and materials are third-party work. The workshop
@@ -11,7 +15,7 @@ This is optional local authoring input, **not** a new default gallery dependency
 
 ```sh
 node scripts/prepare-xbot.mjs
-node scripts/render.mjs studies/imported-xbot.js --pose confident --time .5 \
+node scripts/render.mjs studies/imported-xbot.js --pose upright --time .5 \
   --views hero,side --passes material,clay,silhouette --out renders/xbot
 node scripts/review-imported-humanoid.mjs
 ```
@@ -55,7 +59,8 @@ physical balance, finger-contact or animation-retargeting system.
 tracks and restores the caller's previous pose in `finally`, including failed
 experiments. These clips are static pose holds, not motion capture or walking.
 The imported source's original clips stay in the verified cache; the study
-exports the workshop-authored clips `neutral`, `confident`, and `poised`.
+exports the workshop-authored clips `neutral`, `confident`, `poised`,
+`silhouette`, and `upright`.
 
 ## Import/preview/export correctness
 
@@ -73,7 +78,7 @@ while keeping the bone hierarchy and its unit conversion. The existing explicit
 export-skin-root stage can then export them at true scene roots. This is a
 **sample-specific verified layout correction**, not an arbitrary FBX normalizer.
 Tests compare all 28,374 deformed vertices before/after this change for rest,
-`idle` and `walk`, and reimport all three authored clips after GLB export. Original
+`idle` and `walk`, and reimport all authored clips after GLB export. Original
 geometry attributes, indices and bone inverse matrices remain unchanged.
 
 Each study build owns cloned geometry/materials and a correctly cloned skeleton.

@@ -7,6 +7,7 @@ on:
       - .github/workflows/imported-humanoid.yml
       - scripts/prepare-xbot.mjs
       - scripts/review-bind-form.mjs
+      - scripts/review-upright.mjs
       - src/lib/refit-skin-bind.js
       - tests/refit-skin-bind.test.js
       - studies/xbot-form.js
@@ -44,6 +45,8 @@ jobs:
         run: node scripts/review-imported-humanoid.mjs
       - name: Rest-shape refit, pose isolation and independent flexible tail
         run: node scripts/review-bind-form.mjs
+      - name: Upright body, side-hanging arms and downward head
+        run: node scripts/review-upright.mjs
       # Review evidence is not a third-party model library. Raw input and derived
       # GLBs remain local evaluation data, not gallery or Pages content.
       - uses: actions/upload-artifact@v4
@@ -55,4 +58,6 @@ jobs:
             renders/imported-humanoid-review/**/*.json
             renders/bind-form-review/**/*.png
             renders/bind-form-review/**/*.json
+            renders/upright-review/**/*.png
+            renders/upright-review/**/*.json
           if-no-files-found: error

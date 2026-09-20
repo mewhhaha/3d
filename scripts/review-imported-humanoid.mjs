@@ -31,7 +31,7 @@ async function render(name,options){
  console.log('Render '+name);const r=await batch.render({module:'studies/imported-xbot.js',out:out+'/'+name,...options});report.cases[name]=r;await save();
  if(r.glb){const bytes=await readFile(out+'/'+name+'/'+r.glb),v=await validateBytes(new Uint8Array(bytes));report.validation[name]=v.issues;assert.equal(v.issues.numErrors,0);assert.equal(v.issues.numWarnings,0);
  const decoded=await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),''),source=buildModel(recipe);
- for(const pose of ['neutral','confident','poised','silhouette']){
+ for(const pose of ['neutral','confident','poised','silhouette','upright']){
   let clip;source.traverse(o=>{clip??=o.animations?.find(c=>c.name===pose);});
   const diff=difference(sample(source,clip),sample(decoded.scene,decoded.animations.find(c=>c.name===pose)));assert.ok(diff.maxMeters<3e-6,pose+' skin roundtrip');report.roundtrip[name+'-'+pose]=diff;
  }

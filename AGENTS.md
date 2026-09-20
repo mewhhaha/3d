@@ -10,6 +10,12 @@ Use `src/lib/forms/sculpt.js` for compact masks, strokes and shared-cage brushes
 
 ## Plain humanoid foundation (current body/pose work)
 
+**Latest user correction:** read `docs/standing-pose.md`. The requested pose is
+upright with the pelvis pushed out, arms along the sides and head down, NOT a
+dramatic torso countertwist. Evaluate the `upright` imported-rig clip; earlier
+`poised`/`silhouette` variants remain historical comparisons, not accepted poses.
+
+
 Read `docs/humanoid-foundation.md`, `docs/mannequin-shot.md`, `docs/support-leg.md`
 and the latest journal before further character edits. Resume the existing
 28-bone `humanoid-mannequin` and `prism-mannequin-shot` studies; do not create a

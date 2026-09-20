@@ -70,3 +70,37 @@ export function xbotSilhouette(rig,{wrist=[-.21,.90,-.005],shoulderRoll=-4}={}){
  rig.orientWorld('RightHand',[angles.x,angles.y,angles.z].map(THREE.MathUtils.radToDeg));
  return solved;
 }
+
+/** User-directed correction: standing, not a spiralling look-back. The body has
+ * one heading; only the lumbar pitch/roll displaces the pelvis from the ribcage.
+ * Arm targets are regenerated from their own shoulders, not held at the old
+ * twisted pose's world targets. Run inside hold() from rest. */
+export function xbotUpright(rig,{heading=-30,lumbarPitch=-8,lumbarRoll=-14,hipShift=[-.035,-.02,.025],headPitch=20,headRoll=12}={}){
+ const feet=Object.fromEntries(['Left','Right'].map(s=>[s,rig.position(s+'Foot')]));
+ const lengths=(a,b,c)=>[V(rig.position(a)).distanceTo(V(rig.position(b))),V(rig.position(b)).distanceTo(V(rig.position(c)))];
+ const yaw=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),THREE.MathUtils.degToRad(heading));
+ const forward=new THREE.Vector3(0,0,1).applyQuaternion(yaw),right=new THREE.Vector3(1,0,0).applyQuaternion(yaw);
+ rig.orientWorld('Hips',[0,heading,5]);rig.translateWorld('Hips',hipShift);
+ rig.orientWorld('Spine',[lumbarPitch,heading,lumbarRoll]);
+ rig.orientWorld('Spine1',[lumbarPitch*.5,heading,lumbarRoll*.8]);
+ rig.orientWorld('Spine2',[0,heading,0]);
+ rig.orientWorld('Neck',[headPitch*.35,heading,headRoll*.35]);
+ rig.orientWorld('Head',[headPitch,heading+12,headRoll]);
+ feet.Left=[.115,feet.Left[1],.055];feet.Right=[-.055,feet.Right[1],-.115];
+ const slide=slideRootForBend({root:rig.position('LeftUpLeg'),target:feet.Left,lengths:lengths('LeftUpLeg','LeftLeg','LeftFoot'),bendDegrees:10,maxSlide:.15});
+ rig.translateWorld('Hips',slide.offset);
+ const result={};
+ for(const [side,sign] of [['Left',1],['Right',-1]]){
+  const kneePole=V(rig.position(side+'UpLeg')).addScaledVector(forward,.6).add(new THREE.Vector3(0,-.3,0)).toArray();
+  const leg=rig.solve({root:side+'UpLeg',joint:side+'Leg',tip:side+'Foot',target:feet[side],pole:kneePole});
+  rig.orientWorld(side+'Foot',[0,heading+sign*7,0]);
+  const shoulder=V(rig.position(side+'Arm')),reach=lengths(side+'Arm',side+'ForeArm',side+'Hand').reduce((a,b)=>a+b);
+  const wrist=shoulder.clone().add(new THREE.Vector3(0,-reach*.975,0)).addScaledVector(right,sign*.050).addScaledVector(forward,.060);
+  const pole=shoulder.clone().addScaledVector(forward,-.4).addScaledVector(right,sign*.10).add(new THREE.Vector3(0,-.25,0));
+  const arm=rig.solve({root:side+'Arm',joint:side+'ForeArm',tip:side+'Hand',target:wrist.toArray(),pole:pole.toArray()});
+  rig.twist(side+'ForeArm',side+'Hand',sign*55);
+  for(const finger of ['Index','Middle','Ring','Pinky'])for(const [i,angle]of [[1,10],[2,22],[3,15]])rig.rotateLocal('mixamorig'+side+'Hand'+finger+i,[0,0,-sign*angle]);
+  result[side]={arm,leg};
+ }
+ return result;
+}

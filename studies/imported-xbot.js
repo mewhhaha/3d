@@ -2,7 +2,7 @@ import {THREE,defineModel,group} from '../src/lib/modeling.js';
 import {clone} from 'three/addons/utils/SkeletonUtils.js';
 import {loadXbot} from '../scripts/load-xbot.mjs';
 import {skeletonPose} from '../src/lib/skeleton-pose.js';
-import {xbotNames,xbotStance,xbotPoised,xbotSilhouette} from './xbot-pose.js';
+import {xbotNames,xbotStance,xbotPoised,xbotSilhouette,xbotUpright} from './xbot-pose.js';
 import {authoredShot,punctualLight} from '../src/lib/shot-rig.js';
 import {referenceCamera} from '../src/lib/reference-shot.js';
 import {refitSkinBind} from '../src/lib/refit-skin-bind.js';
@@ -24,7 +24,7 @@ export default defineModel({id:'imported-xbot',title:'Actual Mixamo Xbot / pose 
  for(const skin of skins)root.add(skin);root.updateMatrixWorld(true);
  if(form==='tailored')refitSkinBind(root,xbotForm());
  const rig=skeletonPose(root,{names:xbotNames});
- root.animations=[rig.hold('neutral',r=>xbotStance(r,{confident:false})),rig.hold('confident',r=>xbotStance(r)),rig.hold('poised',r=>xbotPoised(r)),rig.hold('silhouette',r=>xbotSilhouette(r))];
+ root.animations=[rig.hold('neutral',r=>xbotStance(r,{confident:false})),rig.hold('confident',r=>xbotStance(r)),rig.hold('poised',r=>xbotPoised(r)),rig.hold('silhouette',r=>xbotSilhouette(r)),rig.hold('upright',r=>xbotUpright(r))];
  root.userData.exportSkinRoots=true;root.userData.importedRig={originalClips:loaded.animations.map(c=>c.name),source:'Adobe/Mixamo via Three.js r186; authored poses are workshop experiments'};
  return authoredShot({name:'Imported rig review',subject:root,camera:referenceCamera({target:[0,.875,0]}),background:'#e4e3e0',lights:group('Studio lights',[
   punctualLight({name:'Key',type:'directional',position:[-3,5,5],intensity:2.4}),punctualLight({name:'Fill',type:'directional',position:[3,2,2],intensity:.9}),

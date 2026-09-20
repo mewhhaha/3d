@@ -1,5 +1,41 @@
 # Automated refinement progress
 
+## 2026-09-20 — correct the overtwisted pose interpretation
+
+Base **1a5175e3605304e0b1ab1bc908793ee98f550378**, exact locked tree
+`63c225440d3c2230278cc193ec35d31547741c1d` verified through GitHub. The user
+explicitly wants upright standing, pelvis pushed out, arms at the sides and head
+down, not the previous dramatic shoulder/chest twist. The containing commit
+adds `upright` from rest with existing pose operations: one body heading,
+independent downward head pitch and shoulder-relative gravity-hanging arms.
+Old clips stay as comparisons; no mesh, body proportions, rig, UV, weight,
+material, reference annotation or camera change. Ankle positions stay fixed,
+while wrist targets and foot yaw intentionally change. Same **49,112 triangles**.
+
+Local doctor; **40/40 relevant tests**; **45-recipe build**; actual renderer
+regression passed (unrelated legacy hand retains six warnings). Final new review:
+**6 cases / 26 images / 3 zero-warning GLBs**, complete skin reimport in five
+clips (<8.70e-8 m), identical bind/posed-preview exports. Stock and tailored
+forms both exercise the correction. Fingerprint
+`2d3681ffc5aa97d68dc4b7d99957784f89f03c846c8ee191222f50c9e8627bc0`.
+
+Actual material and four-angle clay inspection shows a more upright torso,
+level shoulder heights, arms along the sides and a lowered head. These are not
+an exact likeness or physical-contact guarantee. First wrist placement was too
+far back; rejected and revised. Heading trials retained for comparison. The
+first old-review retry failed on an outer browser-startup bound, not geometry.
+The complete final rerun passed both prior reviews (43 and 48 images; seven valid
+exports). Full npm test remained incomplete at 180s with 193 passing subtests.
+
+[Current pose guidance](standing-pose.md) · [research](research/upright-pose-orientation.md) ·
+[exact checks/rejections](checkpoints/2026-09-20-upright-correction.md).
+Evidence: `renders/upright-final/`; CI runs `review-upright.mjs` and publishes
+images/reports only. Base imported CI and Pages passed; new-commit CI pending at
+checkpoint. No new shader, normal bake or costume-fitting claim.
+
+Next: stay with the simple corrected stance; check remaining arm/hip contacts and
+pelvis displacement rather than another invented torso countertwist.
+
 ## 2026-09-20 — refit rest proportions before posing the imported skin
 
 Base **60b87b41b45d58820d8d6af41efe718102268aa1**, exact locked tree
