@@ -7,13 +7,16 @@ import {limbVolume,armorLeaf} from '../src/lib/cyber/contour-armor.js';
 import {surfaceContourGeometry} from '../src/lib/surface-contour.js';
 import {solidifyGeometry} from '../src/lib/surface-thickness.js';
 import {radialProfileMaps} from '../src/lib/radial-profile-maps.js';
+import {roughArmorFoot} from './armor-foot.js';
+import {mountedPortrait} from './armor-head.js';
+import {posedArmorTargets,projectedArmorSupport} from './armor-pose-fit.js';
 import {armorLook} from './armor-look.js';
 import {fittedLimbSupport} from './armor-support.js';
 import {defineFaceRegions} from '../src/lib/face-regions.js';
 import {assignFaceMaterials} from '../src/lib/material-regions.js';
 
 // Rough garment construction data, not new pose targets or a replacement rig.
-export function dressBlockout(scene,{textured=false,pack=true}={}) {
+export function dressBlockout(scene,{textured=false,pack=true,fit=false,head=false,feet=false}={}) {
  const mats=armorLook(textured),bones=n=>scene.getObjectByName('mixamorig'+n);
  const P=n=>bones(n).getWorldPosition(new THREE.Vector3());scene.updateMatrixWorld(true);
  const mounts=[],optics=new Map(),fits=[];
@@ -31,19 +34,32 @@ export function dressBlockout(scene,{textured=false,pack=true}={}) {
  }
  defineFaceRegions(g,{Head:chosen},{clone:false});const withHead=assignFaceMaterials(g,{Head:1},{defaultMaterial:0});g.dispose();sourceSkin.geometry=withHead;
  sourceSkin.material=[sourceSkin.material,material('#b3aca0',{roughness:.8})];
+ if(head){
+  mountedPortrait(scene,sourceSkin,chosen);
+  const remove=new Set(chosen),kept=[];
+  for(let f=0;f<withHead.index.count/3;f++)if(!remove.has(f))for(let j=0;j<3;j++)kept.push(withHead.index.getX(f*3+j));
+  withHead.setIndex(kept);withHead.clearGroups();withHead.addGroup(0,kept.length,0);
+  withHead.userData={headReplacement:{removedFaces:chosen.length,scope:'source head faces removed; previous face regions/material groups and high-low correspondence invalidated; old source remains in head:false variant'}};
+ }
  function plate(name,outline,support,bone){
   const surface=surfaceContourGeometry(support,{outline,rounding:.10,refinement:2});
   const g=solidifyGeometry(surface,{thickness:.005,offset:-1});surface.dispose();
   const o=mesh(g,{name,material:mats.shell});mount(o,bone);return o;
  }
+ const targets=fit?posedArmorTargets(scene,sourceSkin,[bones('Spine2'),bones('Hips')]):null;
  const shape=[[.08,.35],[.13,.80],[.33,.99],[.70,.98],[.93,.78],[.98,.36],[.79,.08],[.57,.18],[.47,.06],[.28,.10]];
  // Broad central chest volume; a tapered gap leaves the black waist readable.
  const chest=P('Spine2');
- plate('Chest carapace',shape,(u,v)=>[(u-.5)*.30,chest.y-.08+v*.22,.102+.060*(1-(2*u-1)**2)*Math.sin(Math.PI*v)],'Spine2');
+ const chestBase=(u,v)=>[(u-.5)*(fit?.28:.30),chest.y-(fit?.025:.08)+v*(fit?.17:.22),.102+.060*(1-(2*u-1)**2)*Math.sin(Math.PI*v)];
+ const chestSupport=fit?projectedArmorSupport(targets[0],chestBase,{outline:shape}):chestBase;
+ plate('Chest carapace',shape,chestSupport,'Spine2');if(fit)fits.push(chestSupport.fit);
  const hip=P('Hips');
  for(const side of [-1,1]){
   const s=side>0?'Left':'Right';
-  plate(s+' iliac wing',shape,(u,v)=>[side*(.05+u*.11),hip.y-.03+(v-.5)*.14,.065+.085*Math.sin(Math.PI*u)*Math.sin(Math.PI*v)],'Hips');
+  const base=(u,v)=>[side*((fit?.035:.05)+u*(fit?.095:.11)),hip.y+(fit?-.015:-.03)+(v-.5)*(fit?.095:.14),.065+.085*Math.sin(Math.PI*u)*Math.sin(Math.PI*v)];
+  const fitted=fit?projectedArmorSupport(targets[1],base,{outline:shape}):base;
+  // Mirroring the chart keeps the outward normal, rather than inverting the right shell.
+  plate(s+' iliac wing',shape,fit&&side<0?(u,v)=>fitted(1-u,v):fitted,'Hips');if(fit)fits.push(fitted.fit);
   // Each limb shares a support and an attachment frame; only the boundaries
   // and radii differ. Geometry resolution is intentionally modest.
   const specs=[
@@ -86,8 +102,10 @@ export function dressBlockout(scene,{textured=false,pack=true}={}) {
   optic(s+' shoulder signal',.044,side>0?'#ff42ba':'#6affb4',shoulder.clone().add(new THREE.Vector3(side*.045,.025,.064)),s+'Arm');
   optic(s+' knee signal',.037,'#ff6932',P(s+'Leg').add(new THREE.Vector3(0,0,.066)),s+'Leg');
   const ankle=P(s+'Foot');
+  if(feet){const boot=roughArmorFoot(s,mats);boot.position.copy(ankle);mount(boot,s+'Foot');}else {
   const boot=box({name:s+' toe shell',size:[.136,.063,.29],radius:.022,segments:2,position:ankle.clone().add(new THREE.Vector3(0,-.024,.086)).toArray(),material:mats.shell});mount(boot,s+'Foot');
   mount(box({name:s+' orange sole',size:[.141,.021,.302],radius:.008,segments:1,position:ankle.clone().add(new THREE.Vector3(0,-.070,.086)).toArray(),material:mats.orange}),s+'Foot');
+  }
  }
  if(pack){
   const packFrame=new THREE.Matrix4().makeTranslation(0,chest.y,-.205),back=group('Reactor blockout');
@@ -99,9 +117,10 @@ export function dressBlockout(scene,{textured=false,pack=true}={}) {
    mount(mesh(new THREE.TubeGeometry(curve,40,.006,6,false),{name:'Backpack cable '+i,material:material(color,{emissive:color,emissiveIntensity:.5,roughness:.45})}),'Spine2');
   }
  }
- scene.userData.armorBlockout={mounts:mounts.map(m=>m.name),fits,pose:'unchanged upright clip',surface:textured?'generated color samples':'plain PBR',scope:'rigid rough shells; no automatic fit or collision guarantee'};
+ targets?.forEach(g=>g.dispose());
+ scene.userData.armorBlockout={mounts:mounts.map(m=>m.name),fits,pose:'unchanged upright clip',surface:textured?'generated color samples':'plain PBR',options:{fit,head,feet},scope:'rigid rough shells; selected-pose fit only, no collision guarantee'};
  return scene;
 }
-export default defineModel({id:'prism-armor-blockout',title:'Upright rig / coarse fitted costume',parameters:{armor:{type:'boolean',default:true},textured:{type:'boolean',default:true},pack:{type:'boolean',default:true}},build:p=>{
+export default defineModel({id:'prism-armor-blockout',title:'Upright rig / coarse fitted costume',parameters:{feet:{type:'boolean',default:false},head:{type:'boolean',default:false},fit:{type:'boolean',default:false},armor:{type:'boolean',default:true},textured:{type:'boolean',default:true},pack:{type:'boolean',default:true}},build:p=>{
  const scene=source.build({form:'tailored'});if(p.armor)dressBlockout(scene,p);return scene;
 }});

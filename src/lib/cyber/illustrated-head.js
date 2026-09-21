@@ -30,22 +30,23 @@ function hairColor(support){
   }
   const map=new THREE.DataTexture(data,w,h);map.colorSpace=THREE.SRGBColorSpace;map.magFilter=THREE.LinearFilter;map.minFilter=THREE.LinearMipmapLinearFilter;map.generateMipmaps=true;map.needsUpdate=true;map.name='Bob / authored height and strand color';return map;
 }
-export function roundedBob({mode='cage',fringeHeight=.041,opening=.72,cutHeight=-.106,toon=true}={}){
+export function roundedBob({mode='cage',fringeHeight=.041,opening=.72,cutHeight=-.106,toon=true,segments=null}={}){
   if(![fringeHeight,opening,cutHeight].every(Number.isFinite)||fringeHeight<.028||fringeHeight>.065||opening<.5||opening>1.1||cutHeight<-.16||cutHeight>-.07)throw new Error('Invalid bob cut');
+  if(segments!==null&&(typeof segments!=='object'||Array.isArray(segments)||Object.entries(segments).some(([key,value])=>!['crown','curtain','fringe'].includes(key)||!Array.isArray(value)||value.length!==2||value.some(n=>!Number.isInteger(n)||n<4||n>256))))throw new Error('Invalid bob chart segments');
   const cross=bobCrossSection(),root=group('Prismatic bob');
   const cap=(u,v)=>{const theta=u*Math.PI*2,phi=.03+(Math.PI/2-.03)*v;return cross.point(theta,cross.shoulder+(cross.top-cross.shoulder)*Math.cos(phi));};
   const cut=u=>{const theta=.16+u*(2*Math.PI-.38-.16);return [(Math.sin(theta)>0?.145:.158)*Math.sin(theta),cutHeight+.012*(1-Math.cos(theta))/2+.026*Math.max(0,Math.sin(theta))+.023*Math.exp(-((u/.14)**2)),.150*Math.cos(theta)-.029+.10*Math.max(0,-Math.sin(theta))**2];};
   const near=.70+(opening-.72),far=-.60-(opening-.72);
   const curtain=(u,v)=>{const theta=near+u*(2*Math.PI+far-near),a=cross.point(theta,cross.shoulder),b=cut(u),w=v*v*(3-2*v);return [THREE.MathUtils.lerp(a[0],b[0],w),THREE.MathUtils.lerp(a[1],b[1],v),THREE.MathUtils.lerp(a[2],b[2],w)];};
   const fringe=(u,v)=>{const theta=far+(near-far)*u,cut=fringeHeight+.003*Math.cos(theta*3)-.001*Math.cos(u*6*Math.PI);return cross.point(theta,THREE.MathUtils.lerp(cross.shoulder,cut,v));};
-  for(const [name,rawSupport,segments,count]of [['crown',cap,[96,32],46],['curtain',curtain,[96,40],40],['fringe',fringe,[40,8],10]]){
+  for(const [name,rawSupport,defaultSegments,count]of [['crown',cap,[96,32],46],['curtain',curtain,[96,40],40],['fringe',fringe,[40,8],10]]){
     // Reverse U: the mesher uses du x dv; descending Y must face outward.
     const support=(u,v)=>rawSupport(1-u,v);
     const map=hairColor(support);
     const mat=toon?twoToneMaterial({color:'#ffffff',shadow:'#bdc9c4',direction:[-.5,.5,1],threshold:.10,softness:.08}):material('#ffffff',{roughness:.88});
     mat.map=map;mat.side=THREE.DoubleSide;mat.name='Bob / '+name;
     const detail=(u,v)=>.000045*Math.cos(u*count*Math.PI*2)*Math.sin(v*Math.PI)**2;
-    const piece=compileSurface('Rounded '+name,support,{mode,segments,refinement:3,textureSize:512,detail,material:mat});
+    const piece=compileSurface('Rounded '+name,support,{mode,segments:segments?.[name]??defaultSegments,refinement:3,textureSize:512,detail,material:mat});
     const original=piece.geometry;piece.geometry=compactGeometry(original);original.dispose();root.add(piece);
   }
   root.add(loopCap('Rounded crown closure',Array.from({length:64},(_,i)=>cap(i/64,0)),{lift:.00008,rings:2,material:material('#729b97',{roughness:.9,side:THREE.DoubleSide})}));
@@ -53,14 +54,15 @@ export function roundedBob({mode='cage',fringeHeight=.041,opening=.72,cutHeight=
 }
 /** Apply illustration AFTER shape. Default lighting remains an explicitly authored key.
  * No copied source raster, static face-shadow overlay, or hidden replacement skeleton. */
-export function illustratedHead({hairMode='cage',toon=true,outline=true,fringeHeight=.041,opening=.72}={},mats){
-  const raw=animePortrait({definition:1},mats),face=reshapeAssembly(raw,portraitFields);dispose(raw);
+export function illustratedHead({hairMode='cage',toon=true,outline=true,fringeHeight=.041,opening=.72,detail=1,hairSegments=null}={},mats){
+  if(![0,1].includes(detail))throw new Error('Portrait detail must be 0 or 1');
+  const raw=animePortrait({definition:1,detail},mats),face=reshapeAssembly(raw,portraitFields);dispose(raw);
   const ears=[];face.traverse(o=>{if(o.name==='Ear attachment')ears.push(o);});ears.forEach(o=>{o.removeFromParent();o.geometry.dispose();});
   const skin=face.getObjectByName('Face / continuous jaw cheeks and nose');
   if(outline)face.add(inkHull(skin.geometry,{width:.00055,name:'Portrait ink contour'}));
   const original=skin.geometry;
   skin.geometry=directNormals(original,{field:ellipsoidNormalField({center:[0,-.012,-.13],radii:[.19,.28,.31]}),selection:({position:p})=>.65*THREE.MathUtils.smoothstep(p[2],.0,.06),maxAngle:65});original.dispose();
   if(toon){skin.material=twoToneMaterial({color:'#cbb79f',shadow:'#a67c7c',direction:[-.5,.2,1],threshold:.32,softness:.045});skin.material.name='Portrait / art-directed two-tone';}
-  const head=group('Illustrated head',[face,roundedBob({mode:hairMode,fringeHeight,opening,toon})]);
+  const head=group('Illustrated head',[face,roundedBob({mode:hairMode,fringeHeight,opening,toon,segments:hairSegments})]);
   head.userData.illustration={geometry:'reduced nasal bulb / cheek and socket relief / upper lid rims',shading:'independent bounded normal field; optional two-tone preview',export:'PBR fallback, authored normals and geometric outline'};return head;
 }

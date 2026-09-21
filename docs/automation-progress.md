@@ -1,5 +1,40 @@
 # Automated refinement progress
 
+## 2026-09-21 — upright torso fit, rough portrait/bob and shaped feet
+
+Base **80ec5c538aebcee70f89a6cfd1598983e573f3fa**, exact kit tree
+`a6deb7bfb70194f74ab3c67be967a51ccb4084ee` verified through GitHub. The containing
+commit is the implementation revision. Current body/pose/camera preserved.
+
+Added reusable `evaluatedSurfaceGeometry` for pose/morph-aware fitting in an
+explicit frame. A smooth selected-pose panel fit replaces floating chest/hip
+supports. The same operation fits an independent flexible-tail guard. Reused the
+workshop portrait/bob with separate coarse resolution and a head-bone mount;
+removed only the old 1,042 head faces with dependent face metadata invalidated.
+Profiled soles/toe/instep shells replace slab feet. Prior defaults remain, use
+`fit:true, head:true, feet:true` with `upright` in the existing armor study.
+
+Local doctor; **35/35 focused tests**, **9/9 old form regressions**, **45-recipe
+build**, actual **20-pass/view runtime regression** passed. New review **9 cases /
+42 images / 3 zero-warning GLBs**; real browser image decode and all 34,426 rigid
+vertices checked in two clips. Bind/posed export equality and all 67 bone matrices
+in five clips are preserved. Full npm test was not rerun. Legacy hand's six
+warnings remain visible. Final source fingerprint
+`6cfac392b0ce719450e93b7478dae88fc3c6203e6554b2fc9bc24c2a77007f6d`.
+
+Scene **71,300 -> 90,610 triangles**, with existing iris/hair color maps, no new
+normal bake/shader or generated raster. Direct projection, high tessellation and
+an over-conservative quadratic envelope were rejected in actual side views.
+Final gaps remain approximate; the head seam, simple neck/abdomen/limbs and sparse
+backpack still differ markedly from the reference. No collision/likeness claim.
+
+[Workflow/API](posed-costume-fit.md) · [research](research/evaluated-costume-surfaces.md) ·
+[exact checks, distances and rejections](checkpoints/2026-09-21-costume-forms.md).
+Evidence: `renders/costume-forms-review/`; existing imported-model CI publishes
+images/JSON only. New CI/Pages pending at source checkpoint. Next: waist/abdomen
+and upper-thigh panel flow, then backpack/cable masses without re-posing the rig.
+
+
 ## 2026-09-21 — rough armor on the actual upright base
 
 Base **33c072f4b28f62e2f2f81cc2799e78ac768c6275**, exact current kit tree

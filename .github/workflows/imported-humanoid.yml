@@ -5,6 +5,11 @@ on:
     branches: [main]
     paths:
       - .github/workflows/imported-humanoid.yml
+      - src/lib/evaluated-surface.js
+      - src/lib/cyber/illustrated-head.js
+      - tests/evaluated-surface.test.js
+      - studies/posed-tail-guard.js
+      - scripts/review-costume-forms.mjs
       - scripts/prepare-xbot.mjs
       - src/lib/bone-mount.js
       - src/lib/indexed-texture.js
@@ -48,7 +53,7 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run prepare:tangents
       - run: node scripts/prepare-xbot.mjs
-      - run: node --test tests/bone-mount.test.js tests/refit-skin-bind.test.js tests/skeleton-pins.test.js tests/skeleton-pose.test.js tests/local-render.test.js tests/two-link-pose.test.js tests/export-skin-roots.test.js
+      - run: node --test tests/evaluated-surface.test.js tests/bone-mount.test.js tests/refit-skin-bind.test.js tests/skeleton-pins.test.js tests/skeleton-pose.test.js tests/local-render.test.js tests/two-link-pose.test.js tests/export-skin-roots.test.js
       - run: npx playwright-core install --with-deps chromium
       - name: Actual imported skin, authored stance and export roundtrip
         run: node scripts/review-imported-humanoid.mjs
@@ -58,6 +63,8 @@ jobs:
         run: node scripts/review-upright.mjs
       - name: Rough bone-mounted armor, generated color samples and real textured GLB reload
         run: node scripts/review-armor-blockout.mjs
+      - name: Fitted upright covers, head, feet and independent tail guard
+        run: node scripts/review-costume-forms.mjs
       # Review evidence is not a third-party model library. Raw input and derived
       # GLBs remain local evaluation data, not gallery or Pages content.
       - uses: actions/upload-artifact@v4
@@ -73,4 +80,6 @@ jobs:
             renders/upright-review/**/*.json
             renders/armor-blockout-review/**/*.png
             renders/armor-blockout-review/**/*.json
+            renders/costume-forms-review/**/*.png
+            renders/costume-forms-review/**/*.json
           if-no-files-found: error
