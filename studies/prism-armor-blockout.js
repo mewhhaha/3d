@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import {defineModel,group,mesh,box,material} from '../src/lib/modeling.js';
 import source from './imported-xbot.js';
+import {coatPanel} from './armor-pigment.js';
+import {flexibleWaist} from './armor-waist.js';
 import {mountOnBone} from '../src/lib/bone-mount.js';
 import {segmentFrame} from '../src/lib/reference-shot.js';
 import {limbVolume,armorLeaf} from '../src/lib/cyber/contour-armor.js';
@@ -16,7 +18,7 @@ import {defineFaceRegions} from '../src/lib/face-regions.js';
 import {assignFaceMaterials} from '../src/lib/material-regions.js';
 
 // Rough garment construction data, not new pose targets or a replacement rig.
-export function dressBlockout(scene,{textured=false,pack=true,fit=false,head=false,feet=false}={}) {
+export function dressBlockout(scene,{textured=false,pack=true,fit=false,head=false,feet=false,flow=false,panelLines=false}={}) {
  const mats=armorLook(textured),bones=n=>scene.getObjectByName('mixamorig'+n);
  const P=n=>bones(n).getWorldPosition(new THREE.Vector3());scene.updateMatrixWorld(true);
  const mounts=[],optics=new Map(),fits=[];
@@ -46,6 +48,7 @@ export function dressBlockout(scene,{textured=false,pack=true,fit=false,head=fal
   const g=solidifyGeometry(surface,{thickness:.005,offset:-1});surface.dispose();
   const o=mesh(g,{name,material:mats.shell});mount(o,bone);return o;
  }
+ if(flow)sourceSkin.parent.add(flexibleWaist(scene,sourceSkin,sourceSkin.material[0]));
  const targets=fit?posedArmorTargets(scene,sourceSkin,[bones('Spine2'),bones('Hips')]):null;
  const shape=[[.08,.35],[.13,.80],[.33,.99],[.70,.98],[.93,.78],[.98,.36],[.79,.08],[.57,.18],[.47,.06],[.28,.10]];
  // Broad central chest volume; a tapered gap leaves the black waist readable.
@@ -74,10 +77,11 @@ export function dressBlockout(scene,{textured=false,pack=true,fit=false,head=fal
    const base=limbVolume({length,radii:[[0,rx0,rz0],[.35,rx0*1.06,rz0],[1,rx1,rz1]]});
    const support=fittedLimbSupport(sourceSkin,bones(s+from),frame,base,{length});fits.push(support.fit);
    const parts=group(s+' '+label+' armor');
-   const panelOutline=[[.38,start],[.29,start+.10],[.28,.55],[.33,end-.06],[.44,end],[.57,end],[.69,end-.08],[.73,.54],[.70,start+.11],[.62,start],[.56,start+.045],[.44,start+.045]];
+   const panelOutline=flow&&label==='Thigh'?[[.30,.72],[.34,.84],[.43,.85],[.48,.76],[.56,.73],[.63,.83],[.69,.82],[.73,.65],[.71,.51],[.67,.26],[.63,.12],[.56,.18],[.48,.10],[.35,.14],[.29,.38]]:[[.38,start],[.29,start+.10],[.28,.55],[.33,end-.06],[.44,end],[.57,end],[.69,end-.08],[.73,.54],[.70,start+.11],[.62,start],[.56,start+.045],[.44,start+.045]];
    const front=surfaceContourGeometry(support,{outline:panelOutline,rounding:.12,cornerSegments:2,refinement:2});
    const solid=solidifyGeometry(front,{thickness:.005,offset:-1});front.dispose();
-   parts.add(mesh(solid,{name:s+' '+label+' front',material:mats.shell}));
+   const frontPanel=mesh(solid,{name:s+' '+label+' front',material:mats.shell});
+   parts.add(panelLines&&['Thigh','Shin'].includes(label)?coatPanel(frontPanel):frontPanel);
    // Rear sliver is separate; no rigid shell spans an elbow or knee.
    parts.add(armorLeaf(support,{name:s+' '+label+' rear',start:start+.04,end:end-.06,left:[[0,.025],[1,.06]],right:[[0,.18],[.5,.22],[1,.15]],segments:[4,8],thickness:.004,material:mats.shell}));
    mount(parts,s+from,frame);
@@ -118,9 +122,9 @@ export function dressBlockout(scene,{textured=false,pack=true,fit=false,head=fal
   }
  }
  targets?.forEach(g=>g.dispose());
- scene.userData.armorBlockout={mounts:mounts.map(m=>m.name),fits,pose:'unchanged upright clip',surface:textured?'generated color samples':'plain PBR',options:{fit,head,feet},scope:'rigid rough shells; selected-pose fit only, no collision guarantee'};
+ scene.userData.armorBlockout={mounts:mounts.map(m=>m.name),fits,pose:'unchanged upright clip',surface:textured?'generated color samples':'plain PBR',options:{fit,head,feet,flow,panelLines},scope:'rigid rough shells; selected-pose fit only, no collision guarantee'};
  return scene;
 }
-export default defineModel({id:'prism-armor-blockout',title:'Upright rig / coarse fitted costume',parameters:{feet:{type:'boolean',default:false},head:{type:'boolean',default:false},fit:{type:'boolean',default:false},armor:{type:'boolean',default:true},textured:{type:'boolean',default:true},pack:{type:'boolean',default:true}},build:p=>{
+export default defineModel({id:'prism-armor-blockout',title:'Upright rig / coarse fitted costume',parameters:{panelLines:{type:'boolean',default:false},flow:{type:'boolean',default:false},feet:{type:'boolean',default:false},head:{type:'boolean',default:false},fit:{type:'boolean',default:false},armor:{type:'boolean',default:true},textured:{type:'boolean',default:true},pack:{type:'boolean',default:true}},build:p=>{
  const scene=source.build({form:'tailored'});if(p.armor)dressBlockout(scene,p);return scene;
 }});
