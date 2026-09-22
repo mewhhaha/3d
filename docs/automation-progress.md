@@ -2,6 +2,15 @@
 
 ## 2026-09-22 — flexible waist, thigh contours and material-only pigment
 
+**Published implementation: 06f461d6c70c1def07db7291a384bdd8be1ba15c.** Its
+CI run 35786917836 completed all 40 tests and every review, including the new
+flow review; artifact 10720033321 was uploaded. The job nevertheless concluded
+cancelled at its six-minute boundary during cleanup, not an overall CI pass.
+The follow-up splits only the new review into an independent six-minute job,
+retaining every existing test/review and all tolerances. No geometry or runtime
+code changes. YAML structure and review-command preservation checked locally;
+new-job CI pending at this follow-up checkpoint.
+
 Base **09dea117e707d9bdf9a6bbdbdbbe03f1bfec6e3e**, exact locked tree verified.
 The containing commit is this implementation revision. Earlier interrupted flow
 work left images only; this resumes its direction from current source.
